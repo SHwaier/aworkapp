@@ -1,0 +1,126 @@
+import { NextResponse } from "next/server";
+import dbConnect from "@/lib/db/mongoose";
+import ResumeVersion from "@/models/ResumeVersion";
+import { requireAuth } from "@/lib/auth/session";
+import {
+  updateResumeVersionSchema,
+  mongoIdSchema,
+} from "@/lib/validators/schemas";
+import {
+  successResponse,
+  errorResponse,
+  handleApiError,
+} from "@/lib/api/response";
+import { createAuditLog } from "@/models/AuditLog";
+
+interface RouteParams {
+  params: Promise<{ id: string }>;
+}
+
+/**
+ * GET /api/resumes/:id
+ */
+export async function GET(
+  _request: Request,
+  { params }: RouteParams
+): Promise<NextResponse> {
+  try {
+    const session = await requireAuth();
+    const { id } = await params;
+    mongoIdSchema.parse(id);
+
+    await dbConnect();
+
+    const resume = await ResumeVersion.findOne({
+      _id: id,
+      userId: session.id,
+    }).lean();
+
+    if (!resume) {
+      return errorResponse("Not found", 404);
+    }
+
+    return successResponse({ resume });
+  } catch (error) {
+    return handleApiError(error);
+  }
+}
+
+/**
+ * PATCH /api/resumes/:id
+ */
+export async function PATCH(
+  request: Request,
+  { params }: RouteParams
+): Promise<NextResponse> {
+  try {
+    const session = await requireAuth();
+    const { id } = await params;
+    mongoIdSchema.parse(id);
+
+    const body = await request.json();
+    const validated = updateResumeVersionSchema.parse(body);
+
+    await dbConnect();
+
+    const resume = await ResumeVersion.findOneAndUpdate(
+      { _id: id, userId: session.id },
+      { $set: validated },
+      { new: true, runValidators: true }
+    );
+
+    if (!resume) {
+      return errorResponse("Not found", 404);
+    }
+
+    await createAuditLog({
+      userId: session.id,
+      action: "resume.updated",
+      entityType: "resume",
+      entityId: id,
+      metadata: { fields: Object.keys(validated) },
+      request,
+    });
+
+    return successResponse({ resume });
+  } catch (error) {
+    return handleApiError(error);
+  }
+}
+
+/**
+ * DELETE /api/resumes/:id
+ */
+export async function DELETE(
+  request: Request,
+  { params }: RouteParams
+): Promise<NextResponse> {
+  try {
+    const session = await requireAuth();
+    const { id } = await params;
+    mongoIdSchema.parse(id);
+
+    await dbConnect();
+
+    const resume = await ResumeVersion.findOneAndDelete({
+      _id: id,
+      userId: session.id,
+    });
+
+    if (!resume) {
+      return errorResponse("Not found", 404);
+    }
+
+    await createAuditLog({
+      userId: session.id,
+      action: "resume.deleted",
+      entityType: "resume",
+      entityId: id,
+      request,
+    });
+
+    return successResponse({ message: "Resume version deleted" });
+  } catch (error) {
+    return handleApiError(error);
+  }
+}
