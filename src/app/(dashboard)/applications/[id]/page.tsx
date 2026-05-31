@@ -823,23 +823,33 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                           <span className={cn("h-1.5 w-1.5 rounded-full transition-colors", theme.dotBg)} />
                         </span>
 
-                        <div className={cn("space-y-1 p-3 rounded-lg border transition-all duration-200", theme.bg || "bg-card/50", theme.border || "border-border/40")}>
+                        <div className="space-y-1">
                           <div className="flex items-center justify-between">
-                            <span className="font-semibold text-sm">{event.title}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-muted-foreground">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-semibold text-sm">{event.title}</span>
+                              <Badge className={cn("text-[10px] py-0 px-1.5 h-4 uppercase border font-semibold", theme.badge)}>
+                                {event.type.replace("_", " ")}
+                              </Badge>
+                              {event.statusAfterEvent && (
+                                <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4">
+                                  Status: {event.statusAfterEvent}
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <span className="text-xs text-muted-foreground mr-1">
                                 {new Date(event.eventDate).toLocaleDateString()}
                               </span>
                               <button
                                 onClick={() => startEditTimeline(event)}
-                                className="text-muted-foreground hover:text-foreground p-1.5 hover:bg-muted rounded-md transition-all sm:opacity-0 sm:group-hover:opacity-100 flex items-center justify-center"
+                                className="text-muted-foreground hover:text-foreground p-1.5 hover:bg-muted rounded-md transition-all flex items-center justify-center"
                                 aria-label="Edit event"
                               >
                                 <Pencil className="h-3.5 w-3.5" />
                               </button>
                               <button
                                 onClick={() => requestDeleteTimeline(event._id || event.id)}
-                                className="text-muted-foreground hover:text-destructive p-1.5 hover:bg-muted rounded-md transition-all sm:opacity-0 sm:group-hover:opacity-100 flex items-center justify-center"
+                                className="text-muted-foreground hover:text-destructive p-1.5 hover:bg-muted rounded-md transition-all flex items-center justify-center"
                                 aria-label="Delete event"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
@@ -848,21 +858,10 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                           </div>
 
                           {event.description && (
-                            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                            <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
                               {event.description}
                             </p>
                           )}
-
-                          <div className="flex flex-wrap gap-1.5 pt-1">
-                            <Badge className={cn("text-[10px] py-0 px-1.5 h-4 uppercase border font-semibold", theme.badge)}>
-                              {event.type.replace("_", " ")}
-                            </Badge>
-                            {event.statusAfterEvent && (
-                              <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4">
-                                Status: {event.statusAfterEvent}
-                              </Badge>
-                            )}
-                          </div>
                         </div>
                       </div>
                     );
@@ -927,29 +926,29 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
               </Card>
 
               {/* Notes List */}
-              <div className="space-y-3">
+              <div className="divide-y divide-border/40">
                 {notes.map((note) => {
                   const theme = NOTE_TYPE_THEMES[note.type] || NOTE_TYPE_THEMES["general"];
                   return (
-                    <Card key={note._id || note.id} className={cn("border-l-4 transition-all duration-200", theme.border, theme.bg, note.pinned && "ring-1 ring-primary/20")}>
-                      <CardHeader className="flex flex-row items-start justify-between py-3">
+                    <div key={note._id || note.id} className="py-4 first:pt-0 last:pb-0 group">
+                      <div className="flex items-start justify-between">
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className={cn("inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase border", theme.badge)}>
                               {theme.badgeText}
                             </span>
-                            {note.title && <h4 className="font-semibold text-sm">{note.title}</h4>}
+                            {note.title && <h4 className="font-semibold text-sm text-foreground">{note.title}</h4>}
                             {note.pinned && <Pin className="h-3 w-3 fill-primary text-primary" />}
                           </div>
                           <span className="text-[10px] text-muted-foreground block mt-1">
                             {new Date(note.createdAt).toLocaleString()}
                           </span>
                         </div>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted"
                             onClick={() => handlePinNote(note._id || note.id, note.pinned)}
                           >
                             <Pin className={cn("h-3.5 w-3.5", note.pinned && "fill-primary text-primary")} />
@@ -957,17 +956,17 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-muted"
                             onClick={() => requestDeleteNote(note._id || note.id)}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
-                      </CardHeader>
-                      <CardContent className="pb-3 pt-0">
-                        <p className="text-sm whitespace-pre-wrap text-foreground/80">{note.body}</p>
-                      </CardContent>
-                    </Card>
+                      </div>
+                      <div className="mt-2 pl-0.5">
+                        <p className="text-sm whitespace-pre-wrap text-foreground/80 leading-relaxed">{note.body}</p>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
