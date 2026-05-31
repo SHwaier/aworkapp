@@ -11,6 +11,47 @@ export async function GET(request: Request): Promise<NextResponse> {
     await dbConnect();
 
     const userId = new mongoose.Types.ObjectId(session.id);
+    const now = new Date();
+    const match: Record<string, any> = { userId };
+
+    const period = new URL(request.url).searchParams.get("period") || "this_month";
+    let dateGte: Date | null = null;
+    let dateLte: Date | null = null;
+
+    if (period === "ytd") {
+      dateGte = new Date(now.getFullYear(), 0, 1);
+    } else if (period === "this_month") {
+      dateGte = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else if (period === "last_month") {
+      dateGte = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      dateLte = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+    } else if (period === "last_year") {
+      dateGte = new Date(now.getFullYear() - 1, 0, 1);
+      dateLte = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+    } else if (period === "this_quarter") {
+      const startMonth = Math.floor(now.getMonth() / 3) * 3;
+      dateGte = new Date(now.getFullYear(), startMonth, 1);
+    } else if (period === "last_quarter") {
+      const currentQuarterStart = Math.floor(now.getMonth() / 3) * 3;
+      dateGte = new Date(now.getFullYear(), currentQuarterStart - 3, 1);
+      dateLte = new Date(now.getFullYear(), currentQuarterStart, 0, 23, 59, 59, 999);
+    }
+
+    if (dateGte || dateLte) {
+      const dateQuery: Record<string, any> = {};
+      if (dateGte) dateQuery.$gte = dateGte;
+      if (dateLte) dateQuery.$lte = dateLte;
+      match.createdAt = dateQuery;
+    }
+
+    const trendMatch: Record<string, any> = { userId };
+    if (match.createdAt) {
+      trendMatch.createdAt = match.createdAt;
+    } else {
+      trendMatch.createdAt = {
+        $gte: new Date(new Date().setMonth(new Date().getMonth() - 6)),
+      };
+    }
 
     // Run parallel aggregations for performance
     const [
@@ -20,35 +61,30 @@ export async function GET(request: Request): Promise<NextResponse> {
       workModeGroup,
       monthlyGroup,
     ] = await Promise.all([
-      Application.countDocuments({ userId }),
+      Application.countDocuments(match),
 
       // Status breakdown
       Application.aggregate([
-        { $match: { userId } },
+        { $match: match },
         { $group: { _id: "$currentStatus", count: { $sum: 1 } } },
       ]),
 
       // Source breakdown
       Application.aggregate([
-        { $match: { userId } },
+        { $match: match },
         { $group: { _id: "$source", count: { $sum: 1 } } },
       ]),
 
       // Work Mode breakdown
       Application.aggregate([
-        { $match: { userId } },
+        { $match: match },
         { $group: { _id: "$workMode", count: { $sum: 1 } } },
       ]),
 
-      // Monthly breakdown (last 6 months)
+      // Monthly breakdown
       Application.aggregate([
         {
-          $match: {
-            userId,
-            createdAt: {
-              $gte: new Date(new Date().setMonth(new Date().getMonth() - 6)),
-            },
-          },
+          $match: trendMatch,
         },
         {
           $group: {

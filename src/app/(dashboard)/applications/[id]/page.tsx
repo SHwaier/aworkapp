@@ -24,6 +24,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -39,11 +41,13 @@ import {
   Pin,
   Plus,
   Trash2,
+  Pencil,
   Undo2,
   User,
   AlertCircle,
   File,
 } from "lucide-react";
+import { getStatusVariant } from "@/lib/utils/status";
 import {
   APPLICATION_STATUSES,
   LIFECYCLE_STAGES,
@@ -82,6 +86,7 @@ interface ApplicationDetails {
 
 interface TimelineEvent {
   id: string;
+  _id?: string;
   type: string;
   title: string;
   description: string;
@@ -93,6 +98,7 @@ interface TimelineEvent {
 
 interface Note {
   id: string;
+  _id?: string;
   type: string;
   title: string;
   body: string;
@@ -100,15 +106,141 @@ interface Note {
   createdAt: string;
 }
 
-function getStatusColor(status: string): "default" | "secondary" | "destructive" | "outline" {
-  const positive = ["Offer received", "Offer accepted", "Interview scheduled", "Interview completed", "Final round"];
-  const negative = ["Rejected", "Ghosted", "Withdrawn", "Closed / posting removed"];
-  const warning = ["Follow-up needed", "Technical assessment pending", "Preparing documents"];
-  if (positive.includes(status)) return "default";
-  if (negative.includes(status)) return "destructive";
-  if (warning.includes(status)) return "secondary";
-  return "outline";
-}
+const NOTE_TYPE_THEMES: Record<string, {
+  bg: string;
+  border: string;
+  badge: string;
+  badgeText: string;
+}> = {
+  "red-flag": {
+    bg: "bg-red-500/5 dark:bg-red-950/20",
+    border: "border-l-red-500 border-border dark:border-border/40 hover:border-l-red-600",
+    badge: "bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300",
+    badgeText: "Red Flag",
+  },
+  "rejection": {
+    bg: "bg-red-500/5 dark:bg-red-950/20",
+    border: "border-l-red-500 border-border dark:border-border/40 hover:border-l-red-600",
+    badge: "bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300",
+    badgeText: "Rejection",
+  },
+  "interview": {
+    bg: "bg-blue-500/5 dark:bg-blue-950/20",
+    border: "border-l-blue-500 border-border dark:border-border/40 hover:border-l-blue-600",
+    badge: "bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300",
+    badgeText: "Interview",
+  },
+  "prep": {
+    bg: "bg-amber-500/5 dark:bg-amber-950/20",
+    border: "border-l-amber-500 border-border dark:border-border/40 hover:border-l-amber-600",
+    badge: "bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300",
+    badgeText: "Prep",
+  },
+  "recruiter": {
+    bg: "bg-purple-500/5 dark:bg-purple-950/20",
+    border: "border-l-purple-500 border-border dark:border-border/40 hover:border-l-purple-600",
+    badge: "bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300",
+    badgeText: "Recruiter",
+  },
+  "salary": {
+    bg: "bg-emerald-500/5 dark:bg-emerald-950/20",
+    border: "border-l-emerald-500 border-border dark:border-border/40 hover:border-l-emerald-600",
+    badge: "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300",
+    badgeText: "Salary",
+  },
+  "private": {
+    bg: "bg-slate-500/5 dark:bg-slate-950/20",
+    border: "border-l-slate-500 border-border dark:border-border/40 hover:border-l-slate-600",
+    badge: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300",
+    badgeText: "Private",
+  },
+  "general": {
+    bg: "bg-card",
+    border: "border-l-border border-border hover:border-l-border/80",
+    badge: "bg-secondary text-secondary-foreground",
+    badgeText: "General",
+  },
+};
+
+const TIMELINE_EVENT_THEMES: Record<string, {
+  dotBorder: string;
+  dotBg: string;
+  badge: string;
+  bg?: string;
+  border?: string;
+}> = {
+  rejection: {
+    dotBorder: "border-red-500",
+    dotBg: "bg-red-500",
+    badge: "bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 border-red-500/20",
+    bg: "bg-red-500/5 dark:bg-red-950/20",
+    border: "border-red-500/20 dark:border-red-950/40",
+  },
+  offer: {
+    dotBorder: "border-emerald-500",
+    dotBg: "bg-emerald-500",
+    badge: "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-500/20",
+    bg: "bg-emerald-500/5 dark:bg-emerald-950/20",
+    border: "border-emerald-500/20 dark:border-emerald-950/40",
+  },
+  interview: {
+    dotBorder: "border-blue-500",
+    dotBg: "bg-blue-500",
+    badge: "bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-500/20",
+    bg: "bg-blue-500/5 dark:bg-blue-950/20",
+    border: "border-blue-500/20 dark:border-blue-950/40",
+  },
+  screening: {
+    dotBorder: "border-purple-500",
+    dotBg: "bg-purple-500",
+    badge: "bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-500/20",
+    bg: "bg-purple-500/5 dark:bg-purple-950/20",
+    border: "border-purple-500/20 dark:border-purple-950/40",
+  },
+  follow_up: {
+    dotBorder: "border-amber-500",
+    dotBg: "bg-amber-500",
+    badge: "bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-500/20",
+    bg: "bg-amber-500/5 dark:bg-amber-950/20",
+    border: "border-amber-500/20 dark:border-amber-950/40",
+  },
+  reminder: {
+    dotBorder: "border-amber-500",
+    dotBg: "bg-amber-500",
+    badge: "bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-500/20",
+    bg: "bg-amber-500/5 dark:bg-amber-950/20",
+    border: "border-amber-500/20 dark:border-amber-950/40",
+  },
+  application_submitted: {
+    dotBorder: "border-indigo-500",
+    dotBg: "bg-indigo-500",
+    badge: "bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-500/20",
+    bg: "bg-indigo-500/5 dark:bg-indigo-950/20",
+    border: "border-indigo-500/20 dark:border-indigo-950/40",
+  },
+  document_submitted: {
+    dotBorder: "border-sky-500",
+    dotBg: "bg-sky-500",
+    badge: "bg-sky-100 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border-sky-500/20",
+    bg: "bg-sky-500/5 dark:bg-sky-950/20",
+    border: "border-sky-500/20 dark:border-sky-950/40",
+  },
+  status_change: {
+    dotBorder: "border-primary",
+    dotBg: "bg-primary",
+    badge: "bg-primary/10 text-primary border-primary/20",
+  },
+  note: {
+    dotBorder: "border-slate-500",
+    dotBg: "bg-slate-500",
+    badge: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-500/20",
+  },
+  custom: {
+    dotBorder: "border-teal-500",
+    dotBg: "bg-teal-500",
+    badge: "bg-teal-100 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border-teal-500/20",
+  },
+};
 
 export default function ApplicationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -120,6 +252,15 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
   const [notes, setNotes] = useState<Note[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    isOpen: boolean;
+    type: "note" | "timeline" | "application";
+    id?: string;
+  }>({
+    isOpen: false,
+    type: "note",
+    id: undefined,
+  });
 
   // Edit status/next action state
   const [editStatus, setEditStatus] = useState({
@@ -148,6 +289,18 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
     lifecycleStageAfterEvent: "",
   });
   const [isAddingTimeline, setIsAddingTimeline] = useState(false);
+
+  // Edit timeline event state
+  const [editingTimelineEvent, setEditingTimelineEvent] = useState<any | null>(null);
+  const [editTimelineForm, setEditTimelineForm] = useState({
+    type: "status_change",
+    title: "",
+    description: "",
+    eventDate: "",
+    statusAfterEvent: "",
+    lifecycleStageAfterEvent: "",
+  });
+  const [isUpdatingTimeline, setIsUpdatingTimeline] = useState(false);
 
   const fetchDetails = useCallback(async () => {
     try {
@@ -247,8 +400,11 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
     }
   }
 
-  async function handleDeleteNote(noteId: string) {
-    if (!confirm("Are you sure you want to delete this note?")) return;
+  function requestDeleteNote(noteId: string) {
+    setDeleteConfirm({ isOpen: true, type: "note", id: noteId });
+  }
+
+  async function executeDeleteNote(noteId: string) {
     try {
       const res = await fetch(`/api/notes/${noteId}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete failed");
@@ -256,6 +412,8 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
       fetchDetails();
     } catch (err) {
       toast.error("Failed to delete note");
+    } finally {
+      setDeleteConfirm((prev) => ({ ...prev, isOpen: false }));
     }
   }
 
@@ -294,8 +452,52 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
     }
   }
 
-  async function handleDeleteTimeline(eventId: string) {
-    if (!confirm("Are you sure you want to delete this timeline event?")) return;
+  function startEditTimeline(event: any) {
+    setEditingTimelineEvent(event);
+    setEditTimelineForm({
+      type: event.type || "status_change",
+      title: event.title || "",
+      description: event.description || "",
+      eventDate: event.eventDate ? new Date(event.eventDate).toISOString().split("T")[0] : "",
+      statusAfterEvent: event.statusAfterEvent || "none",
+      lifecycleStageAfterEvent: event.lifecycleStageAfterEvent || "none",
+    });
+  }
+
+  async function handleUpdateTimeline(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingTimelineEvent) return;
+    if (!editTimelineForm.title.trim()) return;
+    setIsUpdatingTimeline(true);
+
+    try {
+      const res = await fetch(`/api/timeline/${editingTimelineEvent._id || editingTimelineEvent.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...editTimelineForm,
+          statusAfterEvent: editTimelineForm.statusAfterEvent === "none" ? null : editTimelineForm.statusAfterEvent,
+          lifecycleStageAfterEvent: editTimelineForm.lifecycleStageAfterEvent === "none" ? null : editTimelineForm.lifecycleStageAfterEvent,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      toast.success("Timeline event updated");
+      setEditingTimelineEvent(null);
+      fetchDetails();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update event");
+    } finally {
+      setIsUpdatingTimeline(false);
+    }
+  }
+
+  function requestDeleteTimeline(eventId: string) {
+    setDeleteConfirm({ isOpen: true, type: "timeline", id: eventId });
+  }
+
+  async function executeDeleteTimeline(eventId: string) {
     try {
       const res = await fetch(`/api/timeline/${eventId}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete failed");
@@ -303,19 +505,17 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
       fetchDetails();
     } catch (err) {
       toast.error("Failed to delete event");
+    } finally {
+      setDeleteConfirm((prev) => ({ ...prev, isOpen: false }));
     }
   }
 
-  async function handleDeleteApplication() {
-    if (
-      !confirm(
-        "Are you sure you want to delete this application? All related notes, files, and timeline history will be permanently deleted."
-      )
-    ) {
-      return;
-    }
-    setIsDeleting(true);
+  function requestDeleteApplication() {
+    setDeleteConfirm({ isOpen: true, type: "application" });
+  }
 
+  async function executeDeleteApplication() {
+    setIsDeleting(true);
     try {
       const res = await fetch(`/api/applications/${applicationId}`, {
         method: "DELETE",
@@ -328,6 +528,8 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to delete application");
       setIsDeleting(false);
+    } finally {
+      setDeleteConfirm((prev) => ({ ...prev, isOpen: false }));
     }
   }
 
@@ -355,7 +557,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
         <Button
           variant="destructive"
           size="sm"
-          onClick={handleDeleteApplication}
+          onClick={requestDeleteApplication}
           disabled={isDeleting}
         >
           {isDeleting ? (
@@ -400,14 +602,14 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <div className="text-right md:block">
+              <div className="text-left md:text-right md:block">
                 <span className="block text-xs text-muted-foreground">Current Status</span>
-                <Badge variant={getStatusColor(app.currentStatus)} className="text-sm font-medium mt-1">
+                <Badge variant={getStatusVariant(app.currentStatus)} className="text-sm font-medium mt-1">
                   {app.currentStatus}
                 </Badge>
               </div>
               <Separator orientation="vertical" className="h-10 mx-2 hidden md:block" />
-              <div className="text-right md:block">
+              <div className="text-left md:text-right md:block">
                 <span className="block text-xs text-muted-foreground">Lifecycle Stage</span>
                 <Badge variant="outline" className="text-sm font-medium mt-1">
                   {app.lifecycleStage}
@@ -452,22 +654,25 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
         {/* Left Column (Timeline, Notes, Q&A) */}
         <div className="md:col-span-2 space-y-6">
           <Tabs defaultValue="timeline" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 border-b rounded-none bg-transparent p-0 h-auto">
+            <TabsList variant="line" className="flex w-full justify-start border-b border-border/60 bg-transparent p-0 rounded-none h-12 group-data-horizontal/tabs:h-12 gap-6 mb-6">
               <TabsTrigger
                 value="timeline"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2.5"
+                className="flex-none rounded-none bg-transparent px-6 text-sm font-semibold text-muted-foreground hover:text-foreground data-active:text-primary group-data-[variant=line]/tabs-list:data-active:after:bg-primary after:bottom-0 transition-all"
               >
                 Timeline
               </TabsTrigger>
               <TabsTrigger
                 value="notes"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2.5"
+                className="flex-none rounded-none bg-transparent px-6 text-sm font-semibold text-muted-foreground hover:text-foreground data-active:text-primary group-data-[variant=line]/tabs-list:data-active:after:bg-primary after:bottom-0 transition-all flex items-center gap-1.5"
               >
-                Notes ({notes.length})
+                Notes
+                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-muted px-1.5 text-xs font-semibold text-muted-foreground">
+                  {notes.length}
+                </span>
               </TabsTrigger>
               <TabsTrigger
                 value="description"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2.5"
+                className="flex-none rounded-none bg-transparent px-6 text-sm font-semibold text-muted-foreground hover:text-foreground data-active:text-primary group-data-[variant=line]/tabs-list:data-active:after:bg-primary after:bottom-0 transition-all"
               >
                 Job Description
               </TabsTrigger>
@@ -508,7 +713,9 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                             onValueChange={(v) => setTimelineForm((p) => ({ ...p, type: v || "" }))}
                           >
                             <SelectTrigger id="event-type">
-                              <SelectValue />
+                              <SelectValue>
+                                {timelineForm.type ? timelineForm.type.replace("_", " ").toUpperCase() : ""}
+                              </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                               {TIMELINE_EVENT_TYPES.map((t) => (
@@ -543,7 +750,9 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                             }
                           >
                             <SelectTrigger id="status-after">
-                              <SelectValue placeholder="Keep current" />
+                              <SelectValue>
+                                {timelineForm.statusAfterEvent === "none" ? "Keep current" : timelineForm.statusAfterEvent || "Keep current"}
+                              </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="none">Keep current</SelectItem>
@@ -562,7 +771,9 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                             }
                           >
                             <SelectTrigger id="lifecycle-after">
-                              <SelectValue placeholder="Keep current" />
+                              <SelectValue>
+                                {timelineForm.lifecycleStageAfterEvent === "none" ? "Keep current" : timelineForm.lifecycleStageAfterEvent || "Keep current"}
+                              </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="none">Keep current</SelectItem>
@@ -603,49 +814,59 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                 </div>
               ) : (
                 <div className="relative border-l border-border pl-6 ml-3 space-y-6">
-                  {timeline.map((event) => (
-                    <div key={event.id} className="relative group">
-                      {/* Timeline dot */}
-                      <span className="absolute -left-[31px] top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-background border-2 border-primary">
-                        <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                      </span>
+                  {timeline.map((event) => {
+                    const theme = TIMELINE_EVENT_THEMES[event.type] || TIMELINE_EVENT_THEMES["custom"];
+                    return (
+                      <div key={event._id || event.id} className="relative group">
+                        {/* Timeline dot */}
+                        <span className={cn("absolute -left-[31px] top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-background border-2 transition-colors", theme.dotBorder)}>
+                          <span className={cn("h-1.5 w-1.5 rounded-full transition-colors", theme.dotBg)} />
+                        </span>
 
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-sm">{event.title}</span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(event.eventDate).toLocaleDateString()}
-                            </span>
-                            <button
-                              onClick={() => handleDeleteTimeline(event.id)}
-                              className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                              aria-label="Delete event"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </button>
+                        <div className={cn("space-y-1 p-3 rounded-lg border transition-all duration-200", theme.bg || "bg-card/50", theme.border || "border-border/40")}>
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-sm">{event.title}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(event.eventDate).toLocaleDateString()}
+                              </span>
+                              <button
+                                onClick={() => startEditTimeline(event)}
+                                className="text-muted-foreground hover:text-foreground p-1.5 hover:bg-muted rounded-md transition-all sm:opacity-0 sm:group-hover:opacity-100 flex items-center justify-center"
+                                aria-label="Edit event"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={() => requestDeleteTimeline(event._id || event.id)}
+                                className="text-muted-foreground hover:text-destructive p-1.5 hover:bg-muted rounded-md transition-all sm:opacity-0 sm:group-hover:opacity-100 flex items-center justify-center"
+                                aria-label="Delete event"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {event.description && (
+                            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                              {event.description}
+                            </p>
+                          )}
+
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            <Badge className={cn("text-[10px] py-0 px-1.5 h-4 uppercase border font-semibold", theme.badge)}>
+                              {event.type.replace("_", " ")}
+                            </Badge>
+                            {event.statusAfterEvent && (
+                              <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4">
+                                Status: {event.statusAfterEvent}
+                              </Badge>
+                            )}
                           </div>
                         </div>
-
-                        {event.description && (
-                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                            {event.description}
-                          </p>
-                        )}
-
-                        <div className="flex flex-wrap gap-1.5 pt-1">
-                          <Badge variant="secondary" className="text-[10px] py-0 px-1.5 h-4 uppercase">
-                            {event.type.replace("_", " ")}
-                          </Badge>
-                          {event.statusAfterEvent && (
-                            <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4">
-                              Status: {event.statusAfterEvent}
-                            </Badge>
-                          )}
-                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </TabsContent>
@@ -707,44 +928,48 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
 
               {/* Notes List */}
               <div className="space-y-3">
-                {notes.map((note) => (
-                  <Card key={note.id} className={cn("border-border/60", note.pinned && "border-primary/30")}>
-                    <CardHeader className="flex flex-row items-start justify-between py-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={note.pinned ? "default" : "outline"} className="text-[10px] py-0 px-1.5 h-4">
-                            {note.type.toUpperCase()}
-                          </Badge>
-                          {note.title && <h4 className="font-semibold text-sm">{note.title}</h4>}
+                {notes.map((note) => {
+                  const theme = NOTE_TYPE_THEMES[note.type] || NOTE_TYPE_THEMES["general"];
+                  return (
+                    <Card key={note._id || note.id} className={cn("border-l-4 transition-all duration-200", theme.border, theme.bg, note.pinned && "ring-1 ring-primary/20")}>
+                      <CardHeader className="flex flex-row items-start justify-between py-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className={cn("inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase border", theme.badge)}>
+                              {theme.badgeText}
+                            </span>
+                            {note.title && <h4 className="font-semibold text-sm">{note.title}</h4>}
+                            {note.pinned && <Pin className="h-3 w-3 fill-primary text-primary" />}
+                          </div>
+                          <span className="text-[10px] text-muted-foreground block mt-1">
+                            {new Date(note.createdAt).toLocaleString()}
+                          </span>
                         </div>
-                        <span className="text-[10px] text-muted-foreground block mt-1">
-                          {new Date(note.createdAt).toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                          onClick={() => handlePinNote(note.id, note.pinned)}
-                        >
-                          <Pin className={cn("h-3.5 w-3.5", note.pinned && "fill-primary text-primary")} />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                          onClick={() => handleDeleteNote(note.id)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pb-3 pt-0">
-                      <p className="text-sm whitespace-pre-wrap text-foreground/80">{note.body}</p>
-                    </CardContent>
-                  </Card>
-                ))}
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            onClick={() => handlePinNote(note._id || note.id, note.pinned)}
+                          >
+                            <Pin className={cn("h-3.5 w-3.5", note.pinned && "fill-primary text-primary")} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            onClick={() => requestDeleteNote(note._id || note.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="pb-3 pt-0">
+                        <p className="text-sm whitespace-pre-wrap text-foreground/80">{note.body}</p>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             </TabsContent>
 
@@ -912,6 +1137,180 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
           </Card>
         </div>
       </div>
+
+      <Dialog
+        open={deleteConfirm.isOpen}
+        onOpenChange={(isOpen) => setDeleteConfirm((prev) => ({ ...prev, isOpen }))}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" />
+              Confirm Deletion
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              {deleteConfirm.type === "note" && "Are you sure you want to delete this note? This action cannot be undone."}
+              {deleteConfirm.type === "timeline" && "Are you sure you want to delete this timeline event? This action cannot be undone."}
+              {deleteConfirm.type === "application" && "Are you sure you want to delete this application? All related notes, files, and timeline history will be permanently deleted."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 flex items-center justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteConfirm((prev) => ({ ...prev, isOpen: false }))}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (deleteConfirm.type === "note" && deleteConfirm.id) {
+                  executeDeleteNote(deleteConfirm.id);
+                } else if (deleteConfirm.type === "timeline" && deleteConfirm.id) {
+                  executeDeleteTimeline(deleteConfirm.id);
+                } else if (deleteConfirm.type === "application") {
+                  executeDeleteApplication();
+                }
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={editingTimelineEvent !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setEditingTimelineEvent(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Timeline Event</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleUpdateTimeline} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-event-title">Event Title *</Label>
+              <Input
+                id="edit-event-title"
+                placeholder="e.g. Call with recruiter, Technical round"
+                value={editTimelineForm.title}
+                onChange={(e) =>
+                  setEditTimelineForm((p) => ({ ...p, title: e.target.value }))
+                }
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="edit-event-type">Event Type</Label>
+                <Select
+                  value={editTimelineForm.type}
+                  onValueChange={(v) => setEditTimelineForm((p) => ({ ...p, type: v || "" }))}
+                >
+                  <SelectTrigger id="edit-event-type">
+                    <SelectValue>
+                      {editTimelineForm.type ? editTimelineForm.type.replace("_", " ").toUpperCase() : ""}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIMELINE_EVENT_TYPES.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {t.replace("_", " ").toUpperCase()}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-event-date">Event Date</Label>
+                <Input
+                  id="edit-event-date"
+                  type="date"
+                  value={editTimelineForm.eventDate}
+                  onChange={(e) =>
+                    setEditTimelineForm((p) => ({ ...p, eventDate: e.target.value }))
+                  }
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="edit-status-after">Update Status</Label>
+                <Select
+                  value={editTimelineForm.statusAfterEvent}
+                  onValueChange={(v) =>
+                    setEditTimelineForm((p) => ({ ...p, statusAfterEvent: v || "" }))
+                  }
+                >
+                  <SelectTrigger id="edit-status-after">
+                    <SelectValue>
+                      {editTimelineForm.statusAfterEvent === "none" ? "Keep current" : editTimelineForm.statusAfterEvent || "Keep current"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Keep current</SelectItem>
+                    {APPLICATION_STATUSES.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-lifecycle-after">Update Lifecycle</Label>
+                <Select
+                  value={editTimelineForm.lifecycleStageAfterEvent}
+                  onValueChange={(v) =>
+                    setEditTimelineForm((p) => ({ ...p, lifecycleStageAfterEvent: v || "" }))
+                  }
+                >
+                  <SelectTrigger id="edit-lifecycle-after">
+                    <SelectValue>
+                      {editTimelineForm.lifecycleStageAfterEvent === "none" ? "Keep current" : editTimelineForm.lifecycleStageAfterEvent || "Keep current"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Keep current</SelectItem>
+                    {LIFECYCLE_STAGES.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-event-description">Description / Notes</Label>
+              <Textarea
+                id="edit-event-description"
+                placeholder="Add details about what happened, questions asked, etc."
+                value={editTimelineForm.description}
+                onChange={(e) =>
+                  setEditTimelineForm((p) => ({ ...p, description: e.target.value }))
+                }
+                rows={3}
+              />
+            </div>
+
+            <DialogFooter className="mt-4 flex items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditingTimelineEvent(null)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isUpdatingTimeline}>
+                {isUpdatingTimeline && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

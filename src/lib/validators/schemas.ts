@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { sanitizeText, sanitizeUrl } from "@/lib/security/sanitize";
 
 // ============================================
 // Authentication Schemas
@@ -52,13 +53,13 @@ export type RegisterInput = z.infer<typeof registerSchema>;
 // ============================================
 
 export const createCompanySchema = z.object({
-  name: z.string().min(1, "Company name is required").max(200).trim(),
-  website: z.string().url().max(2000).optional().or(z.literal("")),
-  careersUrl: z.string().url().max(2000).optional().or(z.literal("")),
-  linkedinUrl: z.string().url().max(2000).optional().or(z.literal("")),
-  industry: z.string().max(100).optional().default(""),
-  location: z.string().max(200).optional().default(""),
-  notes: z.string().max(5000).optional().default(""),
+  name: z.string().min(1, "Company name is required").max(200).trim().transform(val => sanitizeText(val, 200)),
+  website: z.preprocess((val) => val || undefined, z.string().url().max(2000).optional().transform((val) => (val ? sanitizeUrl(val) || "" : ""))),
+  careersUrl: z.preprocess((val) => val || undefined, z.string().url().max(2000).optional().transform((val) => (val ? sanitizeUrl(val) || "" : ""))),
+  linkedinUrl: z.preprocess((val) => val || undefined, z.string().url().max(2000).optional().transform((val) => (val ? sanitizeUrl(val) || "" : ""))),
+  industry: z.string().max(100).optional().default("").transform(val => sanitizeText(val, 100)),
+  location: z.string().max(200).optional().default("").transform(val => sanitizeText(val, 200)),
+  notes: z.string().max(5000).optional().default("").transform(val => sanitizeText(val, 5000)),
   rating: z.number().min(0).max(5).optional().default(0),
   tags: z.array(z.string().max(50)).max(20).optional().default([]),
   doNotApplyAgain: z.boolean().optional().default(false),
@@ -135,15 +136,15 @@ export const JOB_SOURCES = [
 
 export const createApplicationSchema = z.object({
   companyId: z.string().min(1, "Company is required"),
-  jobTitle: z.string().min(1, "Job title is required").max(300).trim(),
-  jobDescription: z.string().max(50000).optional().default(""),
-  jobUrl: z.string().url().max(2000).optional().or(z.literal("")),
-  applicationUrl: z.string().url().max(2000).optional().or(z.literal("")),
+  jobTitle: z.string().min(1, "Job title is required").max(300).trim().transform(val => sanitizeText(val, 300)),
+  jobDescription: z.string().max(50000).optional().default("").transform(val => sanitizeText(val, 50000)),
+  jobUrl: z.preprocess((val) => val || undefined, z.string().url().max(2000).optional().transform((val) => (val ? sanitizeUrl(val) || "" : ""))),
+  applicationUrl: z.preprocess((val) => val || undefined, z.string().url().max(2000).optional().transform((val) => (val ? sanitizeUrl(val) || "" : ""))),
   source: z.enum(JOB_SOURCES).optional().default("Other"),
-  location: z.string().max(200).optional().default(""),
+  location: z.string().max(200).optional().default("").transform(val => sanitizeText(val, 200)),
   workMode: z.enum(WORK_MODES).optional(),
   employmentType: z.enum(EMPLOYMENT_TYPES).optional(),
-  seniorityLevel: z.string().max(100).optional().default(""),
+  seniorityLevel: z.string().max(100).optional().default("").transform(val => sanitizeText(val, 100)),
   salaryMin: z.number().min(0).optional(),
   salaryMax: z.number().min(0).optional(),
   currency: z.string().max(3).optional().default("USD"),
@@ -152,7 +153,7 @@ export const createApplicationSchema = z.object({
   appliedAt: z.string().optional(),
   currentStatus: z.enum(APPLICATION_STATUSES).optional().default("Saved"),
   lifecycleStage: z.enum(LIFECYCLE_STAGES).optional().default("Saved"),
-  nextAction: z.string().max(500).optional().default(""),
+  nextAction: z.string().max(500).optional().default("").transform(val => sanitizeText(val, 500)),
   nextActionDueAt: z.string().optional(),
   priority: z.number().min(0).max(5).optional().default(0),
   tags: z.array(z.string().max(50)).max(20).optional().default([]),
@@ -184,8 +185,8 @@ export const TIMELINE_EVENT_TYPES = [
 export const createTimelineEventSchema = z.object({
   applicationId: z.string().min(1),
   type: z.enum(TIMELINE_EVENT_TYPES),
-  title: z.string().min(1, "Title is required").max(300).trim(),
-  description: z.string().max(5000).optional().default(""),
+  title: z.string().min(1, "Title is required").max(300).trim().transform(val => sanitizeText(val, 300)),
+  description: z.string().max(5000).optional().default("").transform(val => sanitizeText(val, 5000)),
   statusAfterEvent: z.enum(APPLICATION_STATUSES).optional(),
   lifecycleStageAfterEvent: z.enum(LIFECYCLE_STAGES).optional(),
   eventDate: z.string().min(1, "Event date is required"),
@@ -197,6 +198,14 @@ export const createTimelineEventSchema = z.object({
 
 export type CreateTimelineEventInput = z.infer<
   typeof createTimelineEventSchema
+>;
+
+export const updateTimelineEventSchema = createTimelineEventSchema.partial().omit({
+  applicationId: true,
+});
+
+export type UpdateTimelineEventInput = z.infer<
+  typeof updateTimelineEventSchema
 >;
 
 // ============================================
@@ -217,8 +226,8 @@ export const NOTE_TYPES = [
 export const createNoteSchema = z.object({
   applicationId: z.string().min(1),
   type: z.enum(NOTE_TYPES).optional().default("general"),
-  title: z.string().max(300).optional().default(""),
-  body: z.string().min(1, "Note body is required").max(10000),
+  title: z.string().max(300).optional().default("").transform(val => sanitizeText(val, 300)),
+  body: z.string().min(1, "Note body is required").max(10000).transform(val => sanitizeText(val, 10000)),
   pinned: z.boolean().optional().default(false),
 });
 
@@ -234,10 +243,10 @@ export type UpdateNoteInput = z.infer<typeof updateNoteSchema>;
 // ============================================
 
 export const createResumeVersionSchema = z.object({
-  name: z.string().min(1, "Name is required").max(200).trim(),
+  name: z.string().min(1, "Name is required").max(200).trim().transform(val => sanitizeText(val, 200)),
   versionNumber: z.number().min(1).optional(),
-  targetRole: z.string().max(200).optional().default(""),
-  targetIndustry: z.string().max(200).optional().default(""),
+  targetRole: z.string().max(200).optional().default("").transform(val => sanitizeText(val, 200)),
+  targetIndustry: z.string().max(200).optional().default("").transform(val => sanitizeText(val, 200)),
   skillsEmphasized: z.array(z.string().max(100)).max(30).optional().default([]),
   experienceEmphasized: z
     .array(z.string().max(200))
@@ -249,7 +258,7 @@ export const createResumeVersionSchema = z.object({
     .max(20)
     .optional()
     .default([]),
-  notes: z.string().max(5000).optional().default(""),
+  notes: z.string().max(5000).optional().default("").transform(val => sanitizeText(val, 5000)),
   isActive: z.boolean().optional().default(true),
 });
 
@@ -297,11 +306,13 @@ export type FileMetadataInput = z.infer<typeof fileMetadataSchema>;
 // Pagination Schema
 // ============================================
 
+const preprocessEmpty = (val: unknown) => (val === null || val === "" ? undefined : val);
+
 export const paginationSchema = z.object({
-  page: z.coerce.number().min(1).default(1),
-  limit: z.coerce.number().min(1).max(100).default(20),
-  sortBy: z.string().optional().default("createdAt"),
-  sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
+  page: z.preprocess(preprocessEmpty, z.coerce.number().min(1).default(1)),
+  limit: z.preprocess(preprocessEmpty, z.coerce.number().min(1).max(100).default(20)),
+  sortBy: z.preprocess(preprocessEmpty, z.string().optional().default("createdAt")),
+  sortOrder: z.preprocess(preprocessEmpty, z.enum(["asc", "desc"]).optional().default("desc")),
 });
 
 export type PaginationInput = z.infer<typeof paginationSchema>;

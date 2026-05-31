@@ -8,6 +8,27 @@ import { requireAuth } from "@/lib/auth/session";
 import { paginationSchema } from "@/lib/validators/schemas";
 import { successResponse, errorResponse, handleApiError } from "@/lib/api/response";
 import { createAuditLog } from "@/models/AuditLog";
+import { escapeRegex } from "@/lib/utils/escape-regex";
+import {
+  checkRateLimit,
+  getClientIp,
+  RATE_LIMITS,
+  rateLimitHeaders,
+} from "@/lib/rate-limit";
+
+// Allowed extensions and corresponding mime types
+const ALLOWED_EXTENSIONS = [".pdf", ".doc", ".docx", ".txt", ".rtf", ".png", ".jpg", ".jpeg"];
+const ALLOWED_MIME_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "text/plain",
+  "application/rtf",
+  "text/rtf",
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+];
 
 /**
  * GET /api/files
@@ -16,6 +37,17 @@ import { createAuditLog } from "@/models/AuditLog";
 export async function GET(request: Request): Promise<NextResponse> {
   try {
     const session = await requireAuth();
+
+    // Rate limit check
+    const ip = getClientIp(request);
+    const rateLimit = checkRateLimit(`api-files:${session.id || ip}`, RATE_LIMITS.api);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: "Too many requests. Please try again later." },
+        { status: 429, headers: rateLimitHeaders(rateLimit, RATE_LIMITS.api) }
+      );
+    }
+
     await dbConnect();
 
     const url = new URL(request.url);
@@ -34,7 +66,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 
     const search = url.searchParams.get("search");
     if (search) {
-      query.displayName = { $regex: search, $options: "i" };
+      query.displayName = { $regex: escapeRegex(search), $options: "i" };
     }
 
     const skip = (params.page - 1) * params.limit;
@@ -70,6 +102,17 @@ export async function GET(request: Request): Promise<NextResponse> {
 export async function POST(request: Request): Promise<NextResponse> {
   try {
     const session = await requireAuth();
+
+    // Rate limit check for file uploads
+    const ip = getClientIp(request);
+    const rateLimit = checkRateLimit(`upload-files:${session.id || ip}`, RATE_LIMITS.upload);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: "Too many upload attempts. Please try again later." },
+        { status: 429, headers: rateLimitHeaders(rateLimit, RATE_LIMITS.upload) }
+      );
+    }
+
     await dbConnect();
 
     const formData = await request.formData();
@@ -78,6 +121,18 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     if (!file) {
       return errorResponse("No file uploaded", 400);
+    }
+
+    // Validate extension
+    const ext = path.extname(file.name).toLowerCase();
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      return errorResponse("File extension not allowed. Allowed types: PDF, Word, TXT, RTF, Images.", 400);
+    }
+
+    // Validate MIME type (if provided, fallback to browser type or basic checks)
+    const mime = file.type || "application/octet-stream";
+    if (mime !== "application/octet-stream" && !ALLOWED_MIME_TYPES.includes(mime)) {
+      return errorResponse("File type not allowed.", 400);
     }
 
     // Validate size (max 10MB)
@@ -116,8 +171,8 @@ export async function POST(request: Request): Promise<NextResponse> {
       userId: session.id,
       originalFileName: file.name,
       displayName: file.name,
-      fileType: path.extname(file.name).toLowerCase(),
-      mimeType: file.type || "application/octet-stream",
+      fileType: ext,
+      mimeType: mime,
       fileSize: file.size,
       storageProvider: "local",
       storageKey: uniqueKey, // select: false so hidden from standard queries

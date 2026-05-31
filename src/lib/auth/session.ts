@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
+import { AppError } from "@/lib/api/app-error";
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET!;
@@ -165,7 +166,7 @@ export function getSessionFromRequest(
 export async function requireAuth(): Promise<SessionUser> {
   const session = await getSession();
   if (!session) {
-    throw new Error("Authentication required");
+    throw new AppError("Authentication required", 401);
   }
   return session;
 }

@@ -5,6 +5,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Loader2, TrendingUp, HelpCircle, Briefcase, Award, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface AnalyticsData {
   totalCount: number;
@@ -17,14 +24,28 @@ interface AnalyticsData {
   monthlyTrends: Array<{ label: string; count: number }>;
 }
 
+const PERIODS = [
+  { value: "all", label: "All Time" },
+  { value: "ytd", label: "Year to Date" },
+  { value: "this_month", label: "This Month" },
+  { value: "last_month", label: "Last Month" },
+  { value: "this_quarter", label: "This Quarter" },
+  { value: "last_quarter", label: "Last Quarter" },
+  { value: "last_year", label: "Last Year" },
+];
+
 export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [period, setPeriod] = useState("this_month");
+  const [isFetching, setIsFetching] = useState(false);
 
   useEffect(() => {
     async function fetchAnalytics() {
+      setIsFetching(true);
       try {
-        const res = await fetch("/api/analytics");
+        const query = period !== "all" ? `?period=${period}` : "";
+        const res = await fetch(`/api/analytics${query}`);
         const json = await res.json();
         if (json.success) {
           setData(json.data);
@@ -35,10 +56,11 @@ export default function AnalyticsPage() {
         toast.error("Error connecting to server");
       } finally {
         setIsLoading(false);
+        setIsFetching(false);
       }
     }
     fetchAnalytics();
-  }, []);
+  }, [period]);
 
   if (isLoading) {
     return (
@@ -58,11 +80,30 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Analytics & KPIs</h1>
-        <p className="text-sm text-muted-foreground">
-          Gain insights into your job search application funnel and conversion rates.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Analytics & KPIs</h1>
+          <p className="text-sm text-muted-foreground">
+            Gain insights into your job search application funnel and conversion rates.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          {isFetching && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+          <Select value={period} onValueChange={(val) => setPeriod(val || "all")}>
+            <SelectTrigger className="w-[180px] bg-card h-10" id="period-filter">
+              <SelectValue>
+                {PERIODS.find((p) => p.value === period)?.label || "This Month"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {PERIODS.map((p) => (
+                <SelectItem key={p.value} value={p.value}>
+                  {p.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -248,10 +289,9 @@ export default function AnalyticsPage() {
                       <span className="absolute bottom-full mb-1 opacity-0 group-hover:opacity-100 transition-opacity bg-primary text-primary-foreground text-[10px] py-0.5 px-1.5 rounded pointer-events-none">
                         {trend.count}
                       </span>
-                      {/* Visual Bar */}
                       <div
                         className="w-8 sm:w-12 bg-primary/80 rounded-t hover:bg-primary transition-all duration-150 cursor-pointer"
-                        style={{ height: `${heightPercent || 4}px`, minHeight: "6px" }}
+                        style={{ height: `${heightPercent || 4}%`, minHeight: "6px" }}
                       />
                     </div>
                     <span className="text-[10px] text-muted-foreground text-center truncate w-full">

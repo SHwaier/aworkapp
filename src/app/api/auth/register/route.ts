@@ -6,6 +6,7 @@ import { setAuthCookies } from "@/lib/auth/session";
 import { registerSchema } from "@/lib/validators/schemas";
 import { handleApiError, successResponse } from "@/lib/api/response";
 import { createAuditLog } from "@/models/AuditLog";
+import { AppError } from "@/lib/api/app-error";
 import {
   checkRateLimit,
   getClientIp,
@@ -24,7 +25,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { success: false, error: "Too many registration attempts. Please try again later." },
-        { status: 429, headers: rateLimitHeaders(rateLimit) }
+        { status: 429, headers: rateLimitHeaders(rateLimit, RATE_LIMITS.strict) }
       );
     }
 
@@ -38,7 +39,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     // Check if email already exists
     const existingUser = await User.findOne({ email: validated.email });
     if (existingUser) {
-      throw new Error("Email already registered");
+      throw new AppError("Email already registered", 409);
     }
 
     // Hash password

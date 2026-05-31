@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -14,15 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import {
   Plus,
@@ -31,20 +22,21 @@ import {
   Loader2,
   Building2,
   MapPin,
-  ExternalLink,
   Filter,
-  X,
+  Kanban,
+  List,
+  Calendar,
+  ChevronRight,
+  Sparkles,
 } from "lucide-react";
+import { getStatusVariant } from "@/lib/utils/status";
+import { useDebounce } from "@/lib/utils/use-debounce";
 
-import {
-  APPLICATION_STATUSES,
-  WORK_MODES,
-  EMPLOYMENT_TYPES,
-  JOB_SOURCES,
-} from "@/lib/validators/schemas";
+import { APPLICATION_STATUSES } from "@/lib/validators/schemas";
 
 interface Application {
-  _id: string;
+  _id?: string;
+  id?: string;
   jobTitle: string;
   currentStatus: string;
   lifecycleStage: string;
@@ -55,63 +47,92 @@ interface Application {
   nextActionDueAt: string | null;
   createdAt: string;
   appliedAt: string | null;
-  companyId: { _id: string; name: string; industry: string; location: string } | null;
+  companyId: { id?: string; _id?: string; name: string; industry: string; location: string } | null;
 }
 
-interface Company {
-  _id: string;
-  name: string;
-}
-
-function getStatusColor(status: string): "default" | "secondary" | "destructive" | "outline" {
-  const positive = ["Offer received", "Offer accepted", "Interview scheduled", "Interview completed", "Final round"];
-  const negative = ["Rejected", "Ghosted", "Withdrawn", "Closed / posting removed"];
-  const warning = ["Follow-up needed", "Technical assessment pending", "Preparing documents"];
-  if (positive.includes(status)) return "default";
-  if (negative.includes(status)) return "destructive";
-  if (warning.includes(status)) return "secondary";
-  return "outline";
-}
+// Group definitions for Kanban Columns
+const KANBAN_COLUMNS = [
+  {
+    id: "Saved",
+    title: "Saved & Interested",
+    bgClass: "bg-muted/30 border-muted-foreground/10",
+    textClass: "text-muted-foreground",
+    dotClass: "bg-muted-foreground/60",
+    statuses: ["Saved", "Interested", "Preparing documents"],
+    defaultStatus: "Saved",
+  },
+  {
+    id: "Applied",
+    title: "Applied & Waiting",
+    bgClass: "bg-blue-500/5 border-blue-500/10",
+    textClass: "text-blue-500",
+    dotClass: "bg-blue-500",
+    statuses: ["Applied", "Waiting for response", "Follow-up needed", "Follow-up sent"],
+    defaultStatus: "Applied",
+  },
+  {
+    id: "Interviewing",
+    title: "Interviewing",
+    bgClass: "bg-amber-500/5 border-amber-500/10",
+    textClass: "text-amber-500",
+    dotClass: "bg-amber-500",
+    statuses: [
+      "Screening scheduled",
+      "Screening completed",
+      "Interview scheduled",
+      "Interview completed",
+      "Technical assessment pending",
+      "Technical assessment completed",
+      "Final round",
+      "Recruiter contacted",
+    ],
+    defaultStatus: "Interview scheduled",
+  },
+  {
+    id: "Offer",
+    title: "Offers",
+    bgClass: "bg-emerald-500/5 border-emerald-500/10",
+    textClass: "text-emerald-500",
+    dotClass: "bg-emerald-500",
+    statuses: ["Offer received", "Offer accepted"],
+    defaultStatus: "Offer received",
+  },
+  {
+    id: "Closed",
+    title: "Closed / Ended",
+    bgClass: "bg-rose-500/5 border-rose-500/10",
+    textClass: "text-rose-500",
+    dotClass: "bg-rose-500",
+    statuses: ["Rejected", "Ghosted", "Withdrawn", "Offer declined", "Closed / posting removed"],
+    defaultStatus: "Rejected",
+  },
+];
 
 export default function ApplicationsPage() {
-  const searchParams = useSearchParams();
   const router = useRouter();
   const [applications, setApplications] = useState<Application[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [viewType, setViewType] = useState<"list" | "board">("board");
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [showNewDialog, setShowNewDialog] = useState(
-    searchParams.get("new") === "true"
-  );
 
-  // New application form state
-  const [newApp, setNewApp] = useState({
-    companyId: "",
-    newCompanyName: "",
-    jobTitle: "",
-    jobDescription: "",
-    jobUrl: "",
-    location: "",
-    workMode: "" as string,
-    employmentType: "" as string,
-    source: "Other" as string,
-    currentStatus: "Saved" as string,
-  });
-  const [isCreating, setIsCreating] = useState(false);
+  // Drag and drop state
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [activeOverColumn, setActiveOverColumn] = useState<string | null>(null);
 
   const fetchApplications = useCallback(async () => {
     try {
       const params = new URLSearchParams({
-        page: page.toString(),
-        limit: "20",
+        page: viewType === "board" ? "1" : page.toString(),
+        limit: viewType === "board" ? "100" : "15",
         sortBy: "createdAt",
         sortOrder: "desc",
       });
-      if (search) params.set("search", search);
+      if (debouncedSearch) params.set("search", debouncedSearch);
       if (statusFilter && statusFilter !== "all") params.set("status", statusFilter);
 
       const res = await fetch(`/api/applications?${params}`);
@@ -126,236 +147,280 @@ export default function ApplicationsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, search, statusFilter]);
-
-  const fetchCompanies = useCallback(async () => {
-    try {
-      const res = await fetch("/api/companies?limit=100");
-      const data = await res.json();
-      if (data.success) {
-        setCompanies(data.data.companies);
-      }
-    } catch {
-      // Silently fail — companies are optional
-    }
-  }, []);
+  }, [page, debouncedSearch, statusFilter, viewType]);
 
   useEffect(() => {
     fetchApplications();
   }, [fetchApplications]);
 
-  useEffect(() => {
-    fetchCompanies();
-  }, [fetchCompanies]);
+  // HTML5 Drag and Drop Handlers
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    setDraggedId(id);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", id);
+  };
 
-  async function handleCreateApplication(e: React.FormEvent) {
+  const handleDragEnd = () => {
+    setDraggedId(null);
+    setActiveOverColumn(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent, colId: string) => {
     e.preventDefault();
-    setIsCreating(true);
+    if (activeOverColumn !== colId) {
+      setActiveOverColumn(colId);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent, colId: string) => {
+    e.preventDefault();
+    const transferId = e.dataTransfer.getData("text/plain");
+    const isValidId = /^[0-9a-fA-F]{24}$/.test(transferId);
+    const appId = isValidId ? transferId : draggedId;
+    if (!appId) return;
+
+    // Reset indicator state
+    setActiveOverColumn(null);
+
+    const column = KANBAN_COLUMNS.find((c) => c.id === colId);
+    if (!column) return;
+
+    const newStatus = column.defaultStatus;
+
+    // Instantly update UI locally (optimistic update)
+    setApplications((prev) =>
+      prev.map((app) =>
+        (app.id || app._id) === appId ? { ...app, currentStatus: newStatus } : app
+      )
+    );
 
     try {
-      let companyId = newApp.companyId;
-
-      // Create company if new
-      if (!companyId && newApp.newCompanyName) {
-        const companyRes = await fetch("/api/companies", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: newApp.newCompanyName }),
-        });
-        const companyData = await companyRes.json();
-        if (!companyRes.ok) throw new Error(companyData.error);
-        companyId = companyData.data.company._id;
-        setCompanies((prev) => [...prev, companyData.data.company]);
-      }
-
-      if (!companyId) {
-        toast.error("Please select or create a company");
-        return;
-      }
-
-      const res = await fetch("/api/applications", {
-        method: "POST",
+      const res = await fetch(`/api/applications/${appId}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...newApp,
-          companyId,
-          workMode: newApp.workMode || undefined,
-          employmentType: newApp.employmentType || undefined,
-        }),
+        body: JSON.stringify({ currentStatus: newStatus }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-
-      toast.success("Application created");
-      setShowNewDialog(false);
-      setNewApp({
-        companyId: "",
-        newCompanyName: "",
-        jobTitle: "",
-        jobDescription: "",
-        jobUrl: "",
-        location: "",
-        workMode: "",
-        employmentType: "",
-        source: "Other",
-        currentStatus: "Saved",
-      });
-      router.push(`/applications/${data.data.application._id}`);
+      toast.success(`Moved to ${column.title}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create");
-    } finally {
-      setIsCreating(false);
+      toast.error("Failed to update status");
+      // Rollback
+      fetchApplications();
     }
-  }
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Applications</h1>
-          <p className="text-sm text-muted-foreground">
-            {total} application{total !== 1 ? "s" : ""} tracked
-          </p>
+    <div className="space-y-6 max-w-7xl mx-auto px-1">
+      {/* Dynamic Dashboard/Aesthetics Header */}
+      <div className="relative overflow-hidden rounded-2xl border border-primary/10 bg-linear-to-r from-primary/5 via-transparent to-primary/5 p-6 sm:p-8">
+        <div className="absolute right-0 top-0 h-40 w-40 bg-primary/5 blur-3xl rounded-full" />
+        <div className="relative z-10 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold mb-2">
+              <Sparkles className="h-3 w-3" />
+              Job Search Control Center
+            </div>
+            <h1 className="text-3xl font-extrabold tracking-tight bg-linear-to-r from-foreground to-foreground/80 bg-clip-text">
+              Applications
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1 max-w-md">
+              Organize, track, and move your applications in real-time. Drag and drop cards to change their active stage.
+            </p>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-3">
+            {/* View Toggle */}
+            <div className="inline-flex items-center rounded-lg border border-border p-1 bg-muted/20">
+              <button
+                onClick={() => {
+                  setViewType("board");
+                  fetchApplications();
+                }}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                  viewType === "board"
+                    ? "bg-card text-foreground shadow-xs border border-border"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                title="Board View"
+              >
+                <Kanban className="h-3.5 w-3.5" />
+                Board
+              </button>
+              <button
+                onClick={() => {
+                  setViewType("list");
+                  fetchApplications();
+                }}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                  viewType === "list"
+                    ? "bg-card text-foreground shadow-xs border border-border"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                title="List View"
+              >
+                <List className="h-3.5 w-3.5" />
+                List
+              </button>
+            </div>
+
+            <Button onClick={() => router.push("/applications/new")} className="shadow-md shadow-primary/10 hover:shadow-lg transition-all" id="create-application-btn">
+              <Plus className="mr-1.5 h-4 w-4" />
+              New Application
+            </Button>
+          </div>
         </div>
-        <Button onClick={() => setShowNewDialog(true)} id="create-application-btn">
-          <Plus className="mr-2 h-4 w-4" />
-          New Application
-        </Button>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      {/* Filters Toolbar */}
+      <div className="flex flex-col gap-3 sm:flex-row items-stretch sm:items-center justify-between">
+        <div className="relative flex-1 max-w-lg">
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search by job title, description, or tags..."
+            placeholder="Search by job title, company, description, or tags..."
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
               setPage(1);
             }}
-            className="pl-9"
+            className="pl-10 h-10 bg-card border-border/80 shadow-xs focus:ring-1 focus:ring-primary/20"
             id="search-applications"
           />
         </div>
-        <Select
-          value={statusFilter}
-          onValueChange={(v) => {
-            setStatusFilter(v || "all");
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-full sm:w-[200px]" id="status-filter">
-            <Filter className="mr-2 h-3.5 w-3.5" />
-            <SelectValue placeholder="All statuses" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            {APPLICATION_STATUSES.map((s) => (
-              <SelectItem key={s} value={s}>{s}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        
+        {/* Only show status filter in list view */}
+        {viewType === "list" && (
+          <Select
+            value={statusFilter}
+            onValueChange={(v) => {
+              setStatusFilter(v || "all");
+              setPage(1);
+            }}
+          >
+            <SelectTrigger className="w-full sm:w-[220px] h-10 bg-card border-border/80" id="status-filter">
+              <div className="flex items-center gap-2">
+                <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                <SelectValue placeholder="All statuses" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              {APPLICATION_STATUSES.map((s) => (
+                <SelectItem key={s} value={s}>{s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
-      {/* Applications List */}
+      {/* Dynamic Views Container */}
       {isLoading ? (
-        <div className="flex justify-center py-16">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <div className="flex flex-col items-center justify-center py-24 gap-3">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <span className="text-sm text-muted-foreground font-medium">Gathering applications...</span>
         </div>
       ) : applications.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <Briefcase className="mb-4 h-12 w-12 text-muted-foreground/30" />
-            <h3 className="text-lg font-medium">No applications found</h3>
-            <p className="mt-1 text-sm text-muted-foreground max-w-sm">
+        <Card className="border border-dashed border-border/80 bg-card/50">
+          <CardContent className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="h-16 w-16 rounded-full bg-primary/5 flex items-center justify-center mb-4">
+              <Briefcase className="h-8 w-8 text-primary/50" />
+            </div>
+            <h3 className="text-xl font-bold tracking-tight">No applications found</h3>
+            <p className="mt-2 text-sm text-muted-foreground max-w-sm">
               {search || statusFilter !== "all"
-                ? "Try adjusting your filters."
-                : "Start tracking your job search by adding your first application."}
+                ? "We couldn't find any matches. Try modifying your search query or filters."
+                : "Your application stream is empty! Log your active opportunities and track progress."}
             </p>
             {!search && statusFilter === "all" && (
               <Button
-                className="mt-4"
-                onClick={() => setShowNewDialog(true)}
+                className="mt-6"
+                onClick={() => router.push("/applications/new")}
               >
                 <Plus className="mr-2 h-4 w-4" />
-                Add Your First Application
+                Log Your First Application
               </Button>
             )}
           </CardContent>
         </Card>
-      ) : (
-        <div className="space-y-2">
-          {applications.map((app) => (
-            <Link
-              key={app._id}
-              href={`/applications/${app._id}`}
-              className="group block"
-            >
-              <Card className="transition-all duration-150 hover:border-primary/30 hover:shadow-sm">
-                <CardContent className="flex items-center gap-4 p-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <Briefcase className="h-5 w-5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-medium truncate group-hover:text-primary transition-colors">
-                        {app.jobTitle}
-                      </h3>
+      ) : viewType === "list" ? (
+        /* ================= LIST VIEW ================= */
+        <div className="space-y-3">
+          <div className="grid gap-2.5">
+            {applications.map((app) => (
+              <Link
+                key={app.id || app._id}
+                href={`/applications/${app.id || app._id}`}
+                className="group block"
+              >
+                <Card className="border border-border/80 bg-card transition-all duration-200 hover:border-primary/20 hover:shadow-xs group-hover:-translate-y-[1px]">
+                  <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5">
+                    <div className="flex items-start gap-4 min-w-0">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/5 text-primary border border-primary/10">
+                        <Briefcase className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex items-center flex-wrap gap-2">
+                          <h3 className="font-semibold text-base leading-tight truncate group-hover:text-primary transition-colors">
+                            {app.jobTitle}
+                          </h3>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-muted-foreground">
+                          {app.companyId && (
+                            <span className="flex items-center gap-1 font-medium text-foreground/80">
+                              <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                              {app.companyId.name}
+                            </span>
+                          )}
+                          {app.location && (
+                            <span className="flex items-center gap-1">
+                              <MapPin className="h-3.5 w-3.5" />
+                              {app.location}
+                            </span>
+                          )}
+                          {app.workMode && (
+                            <Badge variant="secondary" className="capitalize text-[11px] px-2 py-0 h-5">
+                              {app.workMode}
+                            </Badge>
+                          )}
+                        </div>
+                        {app.nextAction && (
+                          <div className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md bg-warning/5 border border-warning/10 text-warning-foreground font-medium">
+                            <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse" />
+                            Next action: {app.nextAction}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                      {app.companyId && (
-                        <span className="flex items-center gap-1">
-                          <Building2 className="h-3 w-3" />
-                          {app.companyId.name}
-                        </span>
-                      )}
-                      {app.location && (
-                        <span className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {app.location}
-                        </span>
-                      )}
-                      {app.workMode && (
-                        <Badge variant="outline" className="text-xs py-0 h-5">
-                          {app.workMode}
-                        </Badge>
-                      )}
+                    <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 border-t sm:border-0 border-border/40 pt-3 sm:pt-0 shrink-0">
+                      <Badge variant={getStatusVariant(app.currentStatus)} className="text-xs px-2.5 py-0.5 shadow-2xs font-semibold">
+                        {app.currentStatus}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {app.appliedAt
+                          ? new Date(app.appliedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+                          : new Date(app.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                      </span>
                     </div>
-                    {app.nextAction && (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Next: {app.nextAction}
-                      </p>
-                    )}
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <Badge variant={getStatusColor(app.currentStatus)}>
-                      {app.currentStatus}
-                    </Badge>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {app.appliedAt
-                        ? new Date(app.appliedAt).toLocaleDateString()
-                        : new Date(app.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 pt-4">
+            <div className="flex items-center justify-center gap-3 pt-6">
               <Button
                 variant="outline"
                 size="sm"
                 disabled={page === 1}
                 onClick={() => setPage((p) => p - 1)}
+                className="h-9"
               >
                 Previous
               </Button>
-              <span className="text-sm text-muted-foreground">
+              <span className="text-xs font-semibold text-muted-foreground">
                 Page {page} of {totalPages}
               </span>
               <Button
@@ -363,207 +428,111 @@ export default function ApplicationsPage() {
                 size="sm"
                 disabled={page === totalPages}
                 onClick={() => setPage((p) => p + 1)}
+                className="h-9"
               >
                 Next
               </Button>
             </div>
           )}
         </div>
-      )}
+      ) : (
+        /* ================= KANBAN BOARD VIEW ================= */
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 overflow-x-auto pb-4 items-start select-none">
+          {KANBAN_COLUMNS.map((column) => {
+            const columnApps = applications.filter((app) =>
+              column.statuses.includes(app.currentStatus)
+            );
 
-      {/* New Application Dialog */}
-      <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>New Application</DialogTitle>
-            <DialogDescription>
-              Track a new job application. You can add more details later.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleCreateApplication} className="space-y-4">
-            {/* Company Selection */}
-            <div className="space-y-2">
-              <Label htmlFor="new-app-company">Company</Label>
-              {companies.length > 0 ? (
-                <Select
-                  value={newApp.companyId}
-                  onValueChange={(v) => {
-                    if (v === "new") {
-                      setNewApp((p) => ({ ...p, companyId: "" }));
-                    } else {
-                      setNewApp((p) => ({
-                        ...p,
-                        companyId: v || "",
-                        newCompanyName: "",
-                      }));
-                    }
-                  }}
-                >
-                  <SelectTrigger id="new-app-company">
-                    <SelectValue placeholder="Select or create a company" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {companies.map((c) => (
-                      <SelectItem key={c._id} value={c._id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                    <SelectItem value="new">+ Create new company</SelectItem>
-                  </SelectContent>
-                </Select>
-              ) : null}
-              {(!newApp.companyId || companies.length === 0) && (
-                <Input
-                  placeholder="Company name"
-                  value={newApp.newCompanyName}
-                  onChange={(e) =>
-                    setNewApp((p) => ({
-                      ...p,
-                      newCompanyName: e.target.value,
-                    }))
-                  }
-                  id="new-app-company-name"
-                />
-              )}
-            </div>
+            const isOver = activeOverColumn === column.id;
 
-            <div className="space-y-2">
-              <Label htmlFor="new-app-title">Job Title *</Label>
-              <Input
-                id="new-app-title"
-                value={newApp.jobTitle}
-                onChange={(e) =>
-                  setNewApp((p) => ({ ...p, jobTitle: e.target.value }))
-                }
-                placeholder="e.g. Software Engineer"
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="new-app-status">Status</Label>
-                <Select
-                  value={newApp.currentStatus}
-                  onValueChange={(v) =>
-                    setNewApp((p) => ({ ...p, currentStatus: v || "" }))
-                  }
-                >
-                  <SelectTrigger id="new-app-status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {APPLICATION_STATUSES.map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="new-app-source">Source</Label>
-                <Select
-                  value={newApp.source}
-                  onValueChange={(v) =>
-                    setNewApp((p) => ({ ...p, source: v || "" }))
-                  }
-                >
-                  <SelectTrigger id="new-app-source">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {JOB_SOURCES.map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="new-app-location">Location</Label>
-                <Input
-                  id="new-app-location"
-                  value={newApp.location}
-                  onChange={(e) =>
-                    setNewApp((p) => ({ ...p, location: e.target.value }))
-                  }
-                  placeholder="e.g. Toronto, ON"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="new-app-workmode">Work Mode</Label>
-                <Select
-                  value={newApp.workMode}
-                  onValueChange={(v) =>
-                    setNewApp((p) => ({ ...p, workMode: v || "" }))
-                  }
-                >
-                  <SelectTrigger id="new-app-workmode">
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {WORK_MODES.map((m) => (
-                      <SelectItem key={m} value={m}>
-                        {m.charAt(0).toUpperCase() + m.slice(1)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="new-app-url">Job Posting URL</Label>
-              <div className="relative">
-                <Input
-                  id="new-app-url"
-                  type="url"
-                  value={newApp.jobUrl}
-                  onChange={(e) =>
-                    setNewApp((p) => ({ ...p, jobUrl: e.target.value }))
-                  }
-                  placeholder="https://..."
-                  className="pr-8"
-                />
-                {newApp.jobUrl && (
-                  <ExternalLink className="absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="new-app-description">Job Description</Label>
-              <Textarea
-                id="new-app-description"
-                value={newApp.jobDescription}
-                onChange={(e) =>
-                  setNewApp((p) => ({
-                    ...p,
-                    jobDescription: e.target.value,
-                  }))
-                }
-                placeholder="Paste the job description here..."
-                rows={4}
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowNewDialog(false)}
+            return (
+              <div
+                key={column.id}
+                onDragOver={(e) => handleDragOver(e, column.id)}
+                onDrop={(e) => handleDrop(e, column.id)}
+                className={`flex flex-col rounded-xl border p-3 min-h-[500px] transition-all duration-200 ${column.bgClass} ${
+                  isOver ? "border-dashed ring-2 ring-primary/20 scale-[1.01] bg-primary/[0.02]" : "border-border/60"
+                }`}
               >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isCreating} id="submit-new-application">
-                {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create Application
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+                {/* Column Header */}
+                <div className="flex items-center justify-between pb-3.5 border-b border-border/40 mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className={`h-2 w-2 rounded-full ${column.dotClass}`} />
+                    <h3 className="font-semibold text-sm tracking-tight text-foreground/90">
+                      {column.title}
+                    </h3>
+                  </div>
+                  <Badge variant="secondary" className="px-2 py-0 h-5 font-bold rounded-md bg-muted/60 text-foreground/80">
+                    {columnApps.length}
+                  </Badge>
+                </div>
+
+                {/* Cards List */}
+                <div className="flex-1 flex flex-col gap-2.5 overflow-y-auto">
+                  {columnApps.length === 0 ? (
+                    <div className="flex-1 flex items-center justify-center py-10 border border-dashed border-border/20 rounded-lg text-center">
+                      <span className="text-xs text-muted-foreground/60 font-medium">Drop here to update</span>
+                    </div>
+                  ) : (
+                    columnApps.map((app) => (
+                      <div
+                        key={app.id || app._id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, app.id || app._id || "")}
+                        onDragEnd={handleDragEnd}
+                        className={`group relative border border-border/80 bg-card rounded-lg p-3.5 cursor-grab active:cursor-grabbing transition-all hover:border-primary/20 hover:shadow-xs hover:-translate-y-[1px] ${
+                          draggedId === (app.id || app._id) ? "opacity-30 border-dashed" : "opacity-100"
+                        }`}
+                      >
+                        {/* Go to Detail Icon */}
+                        <Link
+                          href={`/applications/${app.id || app._id}`}
+                          className="absolute right-3 top-3 h-5 w-5 rounded-md bg-muted/20 text-muted-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-primary/5 hover:text-primary transition-all duration-150"
+                        >
+                          <ChevronRight className="h-3.5 w-3.5" />
+                        </Link>
+
+                        <div className="space-y-1">
+                          <h4 className="font-bold text-sm text-foreground leading-snug truncate pr-4 group-hover:text-primary transition-colors">
+                            {app.jobTitle}
+                          </h4>
+                          {app.companyId && (
+                            <p className="text-xs font-semibold text-foreground/75 truncate flex items-center gap-1">
+                              <Building2 className="h-3 w-3 shrink-0 text-muted-foreground" />
+                              {app.companyId.name}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Badges/Details Grid */}
+                        <div className="mt-3 flex flex-wrap gap-1 items-center">
+                          {app.location && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-border/40 text-muted-foreground max-w-[120px] truncate">
+                              {app.location}
+                            </Badge>
+                          )}
+                          {app.workMode && (
+                            <Badge variant="secondary" className="capitalize text-[10px] px-1.5 py-0 h-4 bg-muted/65 text-foreground/70">
+                              {app.workMode}
+                            </Badge>
+                          )}
+                        </div>
+
+                        {app.nextAction && (
+                          <div className="mt-2.5 pt-2 border-t border-border/30 text-[10px] text-warning-foreground font-medium flex items-center gap-1">
+                            <span className="h-1 w-1 rounded-full bg-warning animate-pulse" />
+                            <span className="truncate">Next: {app.nextAction}</span>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

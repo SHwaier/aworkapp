@@ -14,6 +14,14 @@ import {
   handleApiError,
 } from "@/lib/api/response";
 import { createAuditLog } from "@/models/AuditLog";
+import { escapeRegex } from "@/lib/utils/escape-regex";
+
+import {
+  checkRateLimit,
+  getClientIp,
+  RATE_LIMITS,
+  rateLimitHeaders,
+} from "@/lib/rate-limit";
 
 /**
  * GET /api/applications
@@ -22,6 +30,17 @@ import { createAuditLog } from "@/models/AuditLog";
 export async function GET(request: Request): Promise<NextResponse> {
   try {
     const session = await requireAuth();
+
+    // Rate limit check
+    const ip = getClientIp(request);
+    const rateLimit = checkRateLimit(`api-applications:${session.id || ip}`, RATE_LIMITS.api);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: "Too many requests. Please try again later." },
+        { status: 429, headers: rateLimitHeaders(rateLimit, RATE_LIMITS.api) }
+      );
+    }
+
     await dbConnect();
 
     const url = new URL(request.url);
@@ -35,7 +54,7 @@ export async function GET(request: Request): Promise<NextResponse> {
     // Build query — always scoped by userId
     const query: Record<string, unknown> = { userId: session.id };
 
-    // Filters
+// Filters
     const status = url.searchParams.get("status");
     const lifecycleStage = url.searchParams.get("lifecycleStage");
     const companyId = url.searchParams.get("companyId");
@@ -49,10 +68,11 @@ export async function GET(request: Request): Promise<NextResponse> {
     if (source) query.source = source;
     if (workMode) query.workMode = workMode;
     if (search) {
+      const escaped = escapeRegex(search);
       query.$or = [
-        { jobTitle: { $regex: search, $options: "i" } },
-        { jobDescription: { $regex: search, $options: "i" } },
-        { tags: { $in: [new RegExp(search, "i")] } },
+        { jobTitle: { $regex: escaped, $options: "i" } },
+        { jobDescription: { $regex: escaped, $options: "i" } },
+        { tags: { $in: [new RegExp(escaped, "i")] } },
       ];
     }
 
@@ -90,6 +110,17 @@ export async function GET(request: Request): Promise<NextResponse> {
 export async function POST(request: Request): Promise<NextResponse> {
   try {
     const session = await requireAuth();
+
+    // Rate limit check
+    const ip = getClientIp(request);
+    const rateLimit = checkRateLimit(`create-application:${session.id || ip}`, RATE_LIMITS.api);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: "Too many requests. Please try again later." },
+        { status: 429, headers: rateLimitHeaders(rateLimit, RATE_LIMITS.api) }
+      );
+    }
+
     await dbConnect();
 
     const body = await request.json();

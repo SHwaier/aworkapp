@@ -6,6 +6,7 @@ import { setAuthCookies } from "@/lib/auth/session";
 import { loginSchema } from "@/lib/validators/schemas";
 import { handleApiError, successResponse } from "@/lib/api/response";
 import { createAuditLog } from "@/models/AuditLog";
+import { AppError } from "@/lib/api/app-error";
 import {
   checkRateLimit,
   getClientIp,
@@ -21,7 +22,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { success: false, error: "Too many login attempts. Please try again later." },
-        { status: 429, headers: rateLimitHeaders(rateLimit) }
+        { status: 429, headers: rateLimitHeaders(rateLimit, RATE_LIMITS.auth) }
       );
     }
 
@@ -39,7 +40,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     if (!user) {
       // Use same error message whether email or password is wrong (prevents user enumeration)
-      throw new Error("Invalid credentials");
+      throw new AppError("Invalid credentials", 401);
     }
 
     // Verify password
@@ -48,7 +49,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       user.passwordHash
     );
     if (!isValid) {
-      throw new Error("Invalid credentials");
+      throw new AppError("Invalid credentials", 401);
     }
 
     // Set auth cookies

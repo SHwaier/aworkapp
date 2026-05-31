@@ -121,9 +121,12 @@ export function getClientIp(request: Request): string {
 /**
  * Create rate limit response headers
  */
-export function rateLimitHeaders(result: RateLimitResult): HeadersInit {
+export function rateLimitHeaders(
+  result: RateLimitResult,
+  config?: RateLimitConfig
+): HeadersInit {
   return {
-    "X-RateLimit-Limit": result.remaining.toString(),
+    "X-RateLimit-Limit": (config?.maxRequests ?? result.remaining).toString(),
     "X-RateLimit-Remaining": Math.max(0, result.remaining).toString(),
     "X-RateLimit-Reset": new Date(result.resetAt).toISOString(),
     ...(result.retryAfterMs > 0 && {

@@ -8,6 +8,13 @@ import {
 } from "@/lib/validators/schemas";
 import { successResponse, handleApiError } from "@/lib/api/response";
 import { createAuditLog } from "@/models/AuditLog";
+import { escapeRegex } from "@/lib/utils/escape-regex";
+import {
+  checkRateLimit,
+  getClientIp,
+  RATE_LIMITS,
+  rateLimitHeaders,
+} from "@/lib/rate-limit";
 
 /**
  * GET /api/resumes
@@ -16,6 +23,17 @@ import { createAuditLog } from "@/models/AuditLog";
 export async function GET(request: Request): Promise<NextResponse> {
   try {
     const session = await requireAuth();
+
+    // Rate limit check
+    const ip = getClientIp(request);
+    const rateLimit = checkRateLimit(`api-resumes:${session.id || ip}`, RATE_LIMITS.api);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: "Too many requests. Please try again later." },
+        { status: 429, headers: rateLimitHeaders(rateLimit, RATE_LIMITS.api) }
+      );
+    }
+
     await dbConnect();
 
     const url = new URL(request.url);
@@ -35,9 +53,10 @@ export async function GET(request: Request): Promise<NextResponse> {
 
     const search = url.searchParams.get("search");
     if (search) {
+      const escaped = escapeRegex(search);
       query.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { targetRole: { $regex: search, $options: "i" } },
+        { name: { $regex: escaped, $options: "i" } },
+        { targetRole: { $regex: escaped, $options: "i" } },
       ];
     }
 
@@ -74,6 +93,17 @@ export async function GET(request: Request): Promise<NextResponse> {
 export async function POST(request: Request): Promise<NextResponse> {
   try {
     const session = await requireAuth();
+
+    // Rate limit check
+    const ip = getClientIp(request);
+    const rateLimit = checkRateLimit(`create-resume:${session.id || ip}`, RATE_LIMITS.api);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: "Too many requests. Please try again later." },
+        { status: 429, headers: rateLimitHeaders(rateLimit, RATE_LIMITS.api) }
+      );
+    }
+
     await dbConnect();
 
     const body = await request.json();

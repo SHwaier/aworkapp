@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
+import { AppError } from "@/lib/api/app-error";
 
 /**
  * Standard API response format.
@@ -58,7 +59,12 @@ export function handleApiError(error: unknown): NextResponse<ApiResponse> {
     return validationErrorResponse(error);
   }
 
-  // Known error messages (auth, not found, etc.)
+  // AppError: business-logic errors that are safe to expose to clients
+  if (error instanceof AppError) {
+    return errorResponse(error.message, error.statusCode);
+  }
+
+  // Known error messages (auth, not found, etc.) — backward compatibility
   if (error instanceof Error) {
     const safeMessages = [
       "Authentication required",

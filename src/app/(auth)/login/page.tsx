@@ -39,18 +39,18 @@ export default function LoginPage() {
   }
 
   return (
-    <Card className="border-border/60 shadow-sm">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-xl">Welcome back</CardTitle>
-        <CardDescription>
+    <Card className="border border-border/80 bg-card/60 backdrop-blur-lg shadow-xl shadow-foreground/2 rounded-2xl overflow-hidden">
+      <CardHeader className="space-y-1.5 p-6 pb-4">
+        <CardTitle className="text-xl font-bold tracking-tight">Welcome back</CardTitle>
+        <CardDescription className="text-muted-foreground/80 font-medium">
           Sign in to your account to continue
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 p-6 pt-0">
           {error && (
             <div
-              className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+              className="rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive font-medium"
               role="alert"
               id="login-error"
             >
@@ -58,8 +58,8 @@ export default function LoginPage() {
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="login-email">Email</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="login-email" className="text-xs font-bold text-muted-foreground tracking-wide uppercase">Email</Label>
             <Input
               id="login-email"
               type="email"
@@ -70,11 +70,12 @@ export default function LoginPage() {
               autoComplete="email"
               autoFocus
               disabled={isSubmitting}
+              className="h-11 rounded-xl bg-background/50 border-border/60 focus:bg-background transition-all"
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="login-password">Password</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="login-password" className="text-xs font-bold text-muted-foreground tracking-wide uppercase">Password</Label>
             <div className="relative">
               <Input
                 id="login-password"
@@ -85,12 +86,12 @@ export default function LoginPage() {
                 required
                 autoComplete="current-password"
                 disabled={isSubmitting}
-                className="pr-10"
+                className="pr-10 h-11 rounded-xl bg-background/50 border-border/60 focus:bg-background transition-all"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground transition-colors"
                 tabIndex={-1}
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
@@ -104,23 +105,23 @@ export default function LoginPage() {
           </div>
         </CardContent>
 
-        <CardFooter className="flex flex-col gap-4">
+        <CardFooter className="flex flex-col gap-4 p-6 pt-2">
           <Button
             type="submit"
-            className="w-full"
+            className="w-full h-11 rounded-xl font-semibold shadow-md shadow-primary/10 transition-all active:scale-[0.98]"
             disabled={isSubmitting}
             id="login-submit"
           >
-            {isSubmitting && (
+            {isSubmitting ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            )}
+            ) : null}
             Sign in
           </Button>
-          <p className="text-center text-sm text-muted-foreground">
+          <p className="text-center text-sm text-muted-foreground font-medium">
             Don&apos;t have an account?{" "}
             <Link
               href="/register"
-              className="font-medium text-primary hover:underline"
+              className="font-bold text-primary hover:text-primary/90 transition-colors underline underline-offset-4"
               id="login-register-link"
             >
               Create one

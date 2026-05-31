@@ -22,6 +22,15 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { useDebounce } from "@/lib/utils/use-debounce";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   Download,
   File,
@@ -48,6 +57,7 @@ export default function FilesPage() {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -56,6 +66,13 @@ export default function FilesPage() {
   const [selectedFile, setSelectedFile] = useState<globalThis.File | null>(null);
   const [uploadCategory, setUploadCategory] = useState("resume");
   const [isUploading, setIsUploading] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    isOpen: boolean;
+    id: string;
+  }>({
+    isOpen: false,
+    id: "",
+  });
 
   const fetchFiles = useCallback(async () => {
     try {
@@ -65,7 +82,7 @@ export default function FilesPage() {
         sortBy: "uploadedAt",
         sortOrder: "desc",
       });
-      if (search) params.set("search", search);
+      if (debouncedSearch) params.set("search", debouncedSearch);
       if (categoryFilter && categoryFilter !== "all") {
         params.set("category", categoryFilter);
       }
@@ -81,7 +98,7 @@ export default function FilesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, search, categoryFilter]);
+  }, [page, debouncedSearch, categoryFilter]);
 
   useEffect(() => {
     fetchFiles();
@@ -108,7 +125,7 @@ export default function FilesPage() {
 
       if (!res.ok) throw new Error(data.error);
 
-      if (data.success && data.duplicate) {
+      if (data.success && data.data?.duplicate) {
         toast.info("File already exists in your library. Skipped duplication.");
       } else {
         toast.success("File uploaded successfully");
@@ -127,9 +144,11 @@ export default function FilesPage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm("Are you sure you want to delete this file? This action is permanent.")) return;
+  function requestDelete(id: string) {
+    setDeleteConfirm({ isOpen: true, id });
+  }
 
+  async function executeDelete(id: string) {
     try {
       const res = await fetch(`/api/files/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Deletion failed");
@@ -138,6 +157,8 @@ export default function FilesPage() {
       fetchFiles();
     } catch {
       toast.error("Failed to delete file");
+    } finally {
+      setDeleteConfirm({ isOpen: false, id: "" });
     }
   }
 
@@ -178,7 +199,9 @@ export default function FilesPage() {
               <Label htmlFor="upload-category" className="text-xs font-semibold">Category</Label>
               <Select value={uploadCategory} onValueChange={(v) => setUploadCategory(v || "resume")} disabled={isUploading}>
                 <SelectTrigger id="upload-category" className="h-10">
-                  <SelectValue />
+                  <SelectValue>
+                    {uploadCategory.toUpperCase()}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {FILE_CATEGORIES.map((c) => (
@@ -223,7 +246,9 @@ export default function FilesPage() {
           }}
         >
           <SelectTrigger className="w-full sm:w-[200px]" id="category-filter">
-            <SelectValue placeholder="All Categories" />
+            <SelectValue>
+              {categoryFilter === "all" ? "All Categories" : categoryFilter.toUpperCase()}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Categories</SelectItem>
@@ -293,7 +318,7 @@ export default function FilesPage() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        onClick={() => handleDelete(file.id)}
+                        onClick={() => requestDelete(file.id)}
                         title="Delete file"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -331,6 +356,38 @@ export default function FilesPage() {
           )}
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteConfirm.isOpen}
+        onOpenChange={(isOpen) => setDeleteConfirm((prev) => ({ ...prev, isOpen }))}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Confirm Deletion
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              Are you sure you want to delete this file? This action is permanent and cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 flex items-center justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteConfirm({ isOpen: false, id: "" })}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => executeDelete(deleteConfirm.id)}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

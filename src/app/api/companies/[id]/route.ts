@@ -13,6 +13,12 @@ import {
   handleApiError,
 } from "@/lib/api/response";
 import { createAuditLog } from "@/models/AuditLog";
+import {
+  checkRateLimit,
+  getClientIp,
+  RATE_LIMITS,
+  rateLimitHeaders,
+} from "@/lib/rate-limit";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -30,6 +36,16 @@ export async function GET(
     const session = await requireAuth();
     const { id } = await params;
     mongoIdSchema.parse(id);
+
+    // Rate limit check
+    const ip = getClientIp(request);
+    const rateLimit = checkRateLimit(`get-company:${session.id || ip}`, RATE_LIMITS.api);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: "Too many requests. Please try again later." },
+        { status: 429, headers: rateLimitHeaders(rateLimit, RATE_LIMITS.api) }
+      );
+    }
 
     await dbConnect();
 
@@ -69,6 +85,16 @@ export async function PATCH(
     const session = await requireAuth();
     const { id } = await params;
     mongoIdSchema.parse(id);
+
+    // Rate limit check
+    const ip = getClientIp(request);
+    const rateLimit = checkRateLimit(`update-company:${session.id || ip}`, RATE_LIMITS.api);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: "Too many requests. Please try again later." },
+        { status: 429, headers: rateLimitHeaders(rateLimit, RATE_LIMITS.api) }
+      );
+    }
 
     const body = await request.json();
     const validated = updateCompanySchema.parse(body);
@@ -113,6 +139,16 @@ export async function DELETE(
     const session = await requireAuth();
     const { id } = await params;
     mongoIdSchema.parse(id);
+
+    // Rate limit check
+    const ip = getClientIp(request);
+    const rateLimit = checkRateLimit(`delete-company:${session.id || ip}`, RATE_LIMITS.api);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: "Too many requests. Please try again later." },
+        { status: 429, headers: rateLimitHeaders(rateLimit, RATE_LIMITS.api) }
+      );
+    }
 
     await dbConnect();
 

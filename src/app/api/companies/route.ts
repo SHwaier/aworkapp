@@ -12,6 +12,14 @@ import {
 } from "@/lib/api/response";
 import { createAuditLog } from "@/models/AuditLog";
 
+import { escapeRegex } from "@/lib/utils/escape-regex";
+import {
+  checkRateLimit,
+  getClientIp,
+  RATE_LIMITS,
+  rateLimitHeaders,
+} from "@/lib/rate-limit";
+
 /**
  * GET /api/companies
  * List companies for the authenticated user.
@@ -19,6 +27,17 @@ import { createAuditLog } from "@/models/AuditLog";
 export async function GET(request: Request): Promise<NextResponse> {
   try {
     const session = await requireAuth();
+
+    // Rate limit check
+    const ip = getClientIp(request);
+    const rateLimit = checkRateLimit(`api-companies:${session.id || ip}`, RATE_LIMITS.api);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: "Too many requests. Please try again later." },
+        { status: 429, headers: rateLimitHeaders(rateLimit, RATE_LIMITS.api) }
+      );
+    }
+
     await dbConnect();
 
     const url = new URL(request.url);
@@ -34,7 +53,7 @@ export async function GET(request: Request): Promise<NextResponse> {
     // Build query — always scoped by userId
     const query: Record<string, unknown> = { userId: session.id };
     if (search) {
-      query.name = { $regex: search, $options: "i" };
+      query.name = { $regex: escapeRegex(search), $options: "i" };
     }
 
     const skip = (params.page - 1) * params.limit;
@@ -70,6 +89,17 @@ export async function GET(request: Request): Promise<NextResponse> {
 export async function POST(request: Request): Promise<NextResponse> {
   try {
     const session = await requireAuth();
+
+    // Rate limit check
+    const ip = getClientIp(request);
+    const rateLimit = checkRateLimit(`create-company:${session.id || ip}`, RATE_LIMITS.api);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: "Too many requests. Please try again later." },
+        { status: 429, headers: rateLimitHeaders(rateLimit, RATE_LIMITS.api) }
+      );
+    }
+
     await dbConnect();
 
     const body = await request.json();

@@ -18,6 +18,14 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   Building2,
   Calendar,
   ExternalLink,
@@ -45,7 +53,8 @@ interface CompanyDetails {
 }
 
 interface CompanyApplication {
-  id: string;
+  id?: string;
+  _id?: string;
   jobTitle: string;
   currentStatus: string;
   appliedAt: string | null;
@@ -62,6 +71,7 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   // Edit states
   const [editNotes, setEditNotes] = useState("");
@@ -114,17 +124,18 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
     }
   }
 
-  async function handleDeleteCompany() {
+  function requestDeleteCompany() {
     if (applications.length > 0) {
       toast.error(
         `Cannot delete company. There are ${applications.length} applications linked to it. Delete them first.`
       );
       return;
     }
+    setDeleteConfirm(true);
+  }
 
-    if (!confirm("Are you sure you want to delete this company?")) return;
+  async function executeDeleteCompany() {
     setIsDeleting(true);
-
     try {
       const res = await fetch(`/api/companies/${companyId}`, {
         method: "DELETE",
@@ -137,6 +148,8 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to delete company");
       setIsDeleting(false);
+    } finally {
+      setDeleteConfirm(false);
     }
   }
 
@@ -164,7 +177,7 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
         <Button
           variant="destructive"
           size="sm"
-          onClick={handleDeleteCompany}
+          onClick={requestDeleteCompany}
           disabled={isDeleting || applications.length > 0}
           title={applications.length > 0 ? "Cannot delete company with applications" : ""}
         >
@@ -339,7 +352,7 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
                   Create an application and associate it with {company.name}.
                 </p>
                 <Link
-                  href={`/applications?new=true&companyId=${company.id}`}
+                  href="/applications/new"
                   className={buttonVariants({ size: "sm", className: "mt-4" })}
                 >
                   Create Application
@@ -349,7 +362,7 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
           ) : (
             <div className="space-y-2">
               {applications.map((app) => (
-                <Link key={app.id} href={`/applications/${app.id}`} className="block">
+                <Link key={app._id || app.id} href={`/applications/${app._id || app.id}`} className="block">
                   <Card className="hover:border-primary/30 transition-all">
                     <CardContent className="flex items-center justify-between p-4">
                       <div>
@@ -367,6 +380,38 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteConfirm}
+        onOpenChange={setDeleteConfirm}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Confirm Deletion
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              Are you sure you want to delete this company? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 flex items-center justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteConfirm(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={executeDeleteCompany}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

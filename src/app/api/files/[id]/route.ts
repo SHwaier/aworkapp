@@ -7,6 +7,12 @@ import { requireAuth } from "@/lib/auth/session";
 import { mongoIdSchema } from "@/lib/validators/schemas";
 import { successResponse, errorResponse, handleApiError } from "@/lib/api/response";
 import { createAuditLog } from "@/models/AuditLog";
+import {
+  checkRateLimit,
+  getClientIp,
+  RATE_LIMITS,
+  rateLimitHeaders,
+} from "@/lib/rate-limit";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -24,6 +30,16 @@ export async function GET(
     const session = await requireAuth();
     const { id } = await params;
     mongoIdSchema.parse(id);
+
+    // Rate limit check
+    const ip = getClientIp(request);
+    const rateLimit = checkRateLimit(`download-file:${session.id || ip}`, RATE_LIMITS.api);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: "Too many download requests. Please try again later." },
+        { status: 429, headers: rateLimitHeaders(rateLimit, RATE_LIMITS.api) }
+      );
+    }
 
     await dbConnect();
 
@@ -56,6 +72,8 @@ export async function GET(
           "Content-Type": file.mimeType || "application/octet-stream",
           "Content-Disposition": `attachment; filename*=UTF-8''${safeName}`,
           "Content-Length": file.fileSize.toString(),
+          "X-Content-Type-Options": "nosniff",
+          "Content-Security-Policy": "default-src 'none'; sandbox;",
         },
       });
     } catch (err) {
@@ -79,6 +97,16 @@ export async function DELETE(
     const session = await requireAuth();
     const { id } = await params;
     mongoIdSchema.parse(id);
+
+    // Rate limit check
+    const ip = getClientIp(request);
+    const rateLimit = checkRateLimit(`delete-file:${session.id || ip}`, RATE_LIMITS.api);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: "Too many delete attempts. Please try again later." },
+        { status: 429, headers: rateLimitHeaders(rateLimit, RATE_LIMITS.api) }
+      );
+    }
 
     await dbConnect();
 

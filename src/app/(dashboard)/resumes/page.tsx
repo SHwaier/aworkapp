@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,7 +27,8 @@ import {
 } from "lucide-react";
 
 interface ResumeVersion {
-  _id: string;
+  _id?: string;
+  id?: string;
   name: string;
   versionNumber: number;
   targetRole: string;
@@ -39,7 +41,8 @@ interface ResumeVersion {
 }
 
 interface FileItem {
-  _id: string;
+  _id?: string;
+  id?: string;
   displayName: string;
 }
 
@@ -49,6 +52,13 @@ export default function ResumesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    isOpen: boolean;
+    id: string;
+  }>({
+    isOpen: false,
+    id: "",
+  });
 
   // New Resume state
   const [newResume, setNewResume] = useState({
@@ -136,9 +146,11 @@ export default function ResumesPage() {
     }
   }
 
-  async function handleDeleteResume(id: string) {
-    if (!confirm("Are you sure you want to delete this resume version?")) return;
+  function requestDeleteResume(id: string) {
+    setDeleteConfirm({ isOpen: true, id });
+  }
 
+  async function executeDeleteResume(id: string) {
     try {
       const res = await fetch(`/api/resumes/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Deletion failed");
@@ -147,6 +159,8 @@ export default function ResumesPage() {
       fetchResumes();
     } catch {
       toast.error("Failed to delete resume");
+    } finally {
+      setDeleteConfirm({ isOpen: false, id: "" });
     }
   }
 
@@ -184,7 +198,7 @@ export default function ResumesPage() {
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {resumes.map((resume) => (
-            <Card key={resume._id} className="flex flex-col h-full border-border/60 hover:border-primary/20 transition-all">
+            <Card key={resume.id || resume._id} className="flex flex-col h-full border-border/60 hover:border-primary/20 transition-all">
               <CardHeader className="pb-3 flex flex-row items-start justify-between space-y-0">
                 <div>
                   <div className="flex items-center gap-2">
@@ -201,7 +215,7 @@ export default function ResumesPage() {
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
-                  onClick={() => handleDeleteResume(resume._id)}
+                  onClick={() => requestDeleteResume(resume.id || resume._id || "")}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -335,7 +349,7 @@ export default function ResumesPage() {
               >
                 <option value="">-- Optional: Choose Document --</option>
                 {files.map((f) => (
-                  <option key={f._id} value={f._id}>
+                  <option key={f.id || f._id} value={f.id || f._id}>
                     {f.displayName}
                   </option>
                 ))}
@@ -369,6 +383,38 @@ export default function ResumesPage() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteConfirm.isOpen}
+        onOpenChange={(isOpen) => setDeleteConfirm((prev) => ({ ...prev, isOpen }))}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Confirm Deletion
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              Are you sure you want to delete this resume version? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 flex items-center justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteConfirm({ isOpen: false, id: "" })}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => executeDeleteResume(deleteConfirm.id)}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
