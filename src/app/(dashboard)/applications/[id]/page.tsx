@@ -11,6 +11,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
 import {
   Select,
   SelectContent,
@@ -31,7 +34,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import {
   Building2,
-  Calendar,
+  Calendar as CalendarIcon,
   Clock,
   ExternalLink,
   FileText,
@@ -569,85 +572,81 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
         </Button>
       </div>
 
-      {/* Main Header Card */}
-      <Card className="border-border/60">
-        <CardContent className="p-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div className="space-y-2">
-              <h1 className="text-2xl font-bold tracking-tight">{app.jobTitle}</h1>
-              <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1 font-medium text-foreground">
-                  <Building2 className="h-4 w-4" />
-                  <Link href={`/companies/${app.companyId.id}`} className="hover:underline">
-                    {app.companyId.name}
-                  </Link>
+      {/* Main Header Container (Decluttered flat view) */}
+      <div className="pb-6 border-b border-border/60">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="space-y-1.5">
+            <h1 className="text-3xl font-extrabold tracking-tight">{app.jobTitle}</h1>
+            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1.5 font-medium text-foreground">
+                <Building2 className="h-4 w-4 text-muted-foreground" />
+                <Link href={`/companies/${app.companyId.id}`} className="hover:underline hover:text-primary transition-colors">
+                  {app.companyId.name}
+                </Link>
+              </span>
+              {app.location && (
+                <span className="flex items-center gap-1.5">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  {app.location}
                 </span>
-                {app.location && (
-                  <span className="flex items-center gap-1">
-                    <MapPin className="h-4 w-4" />
-                    {app.location}
-                  </span>
-                )}
-                {app.workMode && (
-                  <Badge variant="outline" className="text-xs">
-                    {app.workMode}
-                  </Badge>
-                )}
-                {app.employmentType && (
-                  <Badge variant="outline" className="text-xs">
-                    {app.employmentType}
-                  </Badge>
-                )}
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <div className="text-left md:text-right md:block">
-                <span className="block text-xs text-muted-foreground">Current Status</span>
-                <Badge variant={getStatusVariant(app.currentStatus)} className="text-sm font-medium mt-1">
-                  {app.currentStatus}
+              )}
+              {app.workMode && (
+                <Badge variant="outline" className="text-xs font-semibold px-2 py-0.5 bg-muted/30">
+                  {app.workMode}
                 </Badge>
-              </div>
-              <Separator orientation="vertical" className="h-10 mx-2 hidden md:block" />
-              <div className="text-left md:text-right md:block">
-                <span className="block text-xs text-muted-foreground">Lifecycle Stage</span>
-                <Badge variant="outline" className="text-sm font-medium mt-1">
-                  {app.lifecycleStage}
+              )}
+              {app.employmentType && (
+                <Badge variant="outline" className="text-xs font-semibold px-2 py-0.5 bg-muted/30">
+                  {app.employmentType}
                 </Badge>
-              </div>
+              )}
             </div>
           </div>
 
-          <Separator className="my-4" />
-
-          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
-            <div>
-              <span className="block text-xs text-muted-foreground">Source</span>
-              <span className="text-sm font-medium">{app.source || "—"}</span>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="text-left md:text-right">
+              <span className="block text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Current Status</span>
+              <Badge variant={getStatusVariant(app.currentStatus)} className="text-xs font-semibold mt-1 px-2.5 py-0.5 uppercase tracking-wide">
+                {app.currentStatus}
+              </Badge>
             </div>
-            <div>
-              <span className="block text-xs text-muted-foreground">Seniority</span>
-              <span className="text-sm font-medium">{app.seniorityLevel || "—"}</span>
-            </div>
-            <div>
-              <span className="block text-xs text-muted-foreground">Salary Range</span>
-              <span className="text-sm font-medium">
-                {app.salaryMin !== null || app.salaryMax !== null
-                  ? `${app.salaryMin ? `${app.currency} ${app.salaryMin.toLocaleString()}` : "—"} to ${
-                      app.salaryMax ? `${app.currency} ${app.salaryMax.toLocaleString()}` : "—"
-                    }`
-                  : "—"}
-              </span>
-            </div>
-            <div>
-              <span className="block text-xs text-muted-foreground">Applied Date</span>
-              <span className="text-sm font-medium">
-                {app.appliedAt ? new Date(app.appliedAt).toLocaleDateString() : "—"}
-              </span>
+            <Separator orientation="vertical" className="h-8 mx-1 hidden md:block" />
+            <div className="text-left md:text-right">
+              <span className="block text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Lifecycle Stage</span>
+              <Badge variant="outline" className="text-xs font-semibold mt-1 px-2.5 py-0.5 uppercase tracking-wide bg-muted/10">
+                {app.lifecycleStage}
+              </Badge>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+
+        <div className="grid gap-6 mt-6 sm:grid-cols-2 md:grid-cols-4 bg-muted/20 dark:bg-muted/5 p-4 rounded-xl border border-border/40">
+          <div>
+            <span className="block text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Source</span>
+            <span className="text-sm font-semibold mt-0.5 block">{app.source || "—"}</span>
+          </div>
+          <div>
+            <span className="block text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Seniority</span>
+            <span className="text-sm font-semibold mt-0.5 block">{app.seniorityLevel || "—"}</span>
+          </div>
+          <div>
+            <span className="block text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Salary Range</span>
+            <span className="text-sm font-semibold mt-0.5 block">
+              {app.salaryMin !== null || app.salaryMax !== null
+                ? `${app.salaryMin ? `${app.currency} ${app.salaryMin.toLocaleString()}` : "—"} to ${
+                    app.salaryMax ? `${app.currency} ${app.salaryMax.toLocaleString()}` : "—"
+                  }`
+                : "—"}
+            </span>
+          </div>
+          <div>
+            <span className="block text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Applied Date</span>
+            <span className="text-sm font-semibold mt-0.5 block">
+              {app.appliedAt ? new Date(app.appliedAt).toLocaleDateString() : "—"}
+            </span>
+          </div>
+        </div>
+      </div>
 
       {/* Main Grid */}
       <div className="grid gap-6 md:grid-cols-3">
@@ -726,17 +725,40 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="space-y-2">
+                        <div className="space-y-2 flex flex-col">
                           <Label htmlFor="event-date">Event Date</Label>
-                          <Input
-                            id="event-date"
-                            type="date"
-                            value={timelineForm.eventDate}
-                            onChange={(e) =>
-                              setTimelineForm((p) => ({ ...p, eventDate: e.target.value }))
-                            }
-                            required
-                          />
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                id="event-date"
+                                variant="outline"
+                                className={cn(
+                                  "w-full h-9 justify-start text-left font-normal px-3 py-1.5 text-sm border-border/60",
+                                  !timelineForm.eventDate && "text-muted-foreground"
+                                )}
+                              >
+                                <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                                {timelineForm.eventDate ? (
+                                  format(new Date(timelineForm.eventDate + "T00:00:00"), "PPP")
+                                ) : (
+                                  <span>Pick a date</span>
+                                )}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0 bg-popover border border-border rounded-md shadow-md" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={timelineForm.eventDate ? new Date(timelineForm.eventDate + "T00:00:00") : undefined}
+                                onSelect={(date) => {
+                                  setTimelineForm((p) => ({
+                                    ...p,
+                                    eventDate: date ? date.toISOString().split("T")[0] : "",
+                                  }));
+                                }}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
                         </div>
                       </div>
 
@@ -1042,17 +1064,40 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                   />
                 </div>
 
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 flex flex-col">
                   <Label htmlFor="sidebar-due-date" className="text-xs">Next Action Due Date</Label>
-                  <Input
-                    id="sidebar-due-date"
-                    type="date"
-                    value={editStatus.nextActionDueAt}
-                    onChange={(e) =>
-                      setEditStatus((p) => ({ ...p, nextActionDueAt: e.target.value }))
-                    }
-                    className="h-9 text-sm"
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="sidebar-due-date"
+                        variant="outline"
+                        className={cn(
+                          "w-full h-9 justify-start text-left font-normal px-3 py-1.5 text-sm border-border/60",
+                          !editStatus.nextActionDueAt && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                        {editStatus.nextActionDueAt ? (
+                          format(new Date(editStatus.nextActionDueAt + "T00:00:00"), "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 bg-popover border border-border rounded-md shadow-md" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={editStatus.nextActionDueAt ? new Date(editStatus.nextActionDueAt + "T00:00:00") : undefined}
+                        onSelect={(date) => {
+                          setEditStatus((p) => ({
+                            ...p,
+                            nextActionDueAt: date ? date.toISOString().split("T")[0] : "",
+                          }));
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
                 <Button type="submit" className="w-full h-9" disabled={isUpdatingStatus}>
@@ -1223,17 +1268,40 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 flex flex-col">
                 <Label htmlFor="edit-event-date">Event Date</Label>
-                <Input
-                  id="edit-event-date"
-                  type="date"
-                  value={editTimelineForm.eventDate}
-                  onChange={(e) =>
-                    setEditTimelineForm((p) => ({ ...p, eventDate: e.target.value }))
-                  }
-                  required
-                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="edit-event-date"
+                      variant="outline"
+                      className={cn(
+                        "w-full h-9 justify-start text-left font-normal px-3 py-1.5 text-sm border-border/60",
+                        !editTimelineForm.eventDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                      {editTimelineForm.eventDate ? (
+                        format(new Date(editTimelineForm.eventDate + "T00:00:00"), "PPP")
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-popover border border-border rounded-md shadow-md" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={editTimelineForm.eventDate ? new Date(editTimelineForm.eventDate + "T00:00:00") : undefined}
+                      onSelect={(date) => {
+                        setEditTimelineForm((p) => ({
+                          ...p,
+                          eventDate: date ? date.toISOString().split("T")[0] : "",
+                        }));
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
 
