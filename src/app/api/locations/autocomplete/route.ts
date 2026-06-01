@@ -98,7 +98,7 @@ export async function GET(request: Request): Promise<NextResponse> {
           {
             headers: {
               // Nominatim strictly requires a valid User-Agent identifying the application
-              "User-Agent": "ApplicationOS-JobTracker/1.0 (contact@example.com)",
+              "User-Agent": "AWorkApp-JobTracker/1.0 (https://aworkapp.vercel.app)",
             },
             signal: controller.signal,
           }

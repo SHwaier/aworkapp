@@ -1,4 +1,4 @@
-# Project Brain & Handoff (ApplicationOS)
+# Project Brain & Handoff (AWorkApp)
 
 This document serves as the pairing context and history log for the AI agent context window. Keep this updated as a source of truth for features implemented, architectural changes, database setups, and pending tasks.
 
@@ -6,7 +6,7 @@ This document serves as the pairing context and history log for the AI agent con
 
 ## 1. Context & Architecture
 
-ApplicationOS is a modern, premium SaaS platform built on **Next.js** (using App Router and Turbopack compiler) and **MongoDB (Mongoose)** for tracking job applications, resumes, files, and target companies.
+AWorkApp is a modern, premium SaaS platform built on **Next.js** (using App Router and Turbopack compiler) and **MongoDB (Mongoose)** for tracking job applications, resumes, files, and target companies.
 
 ### Key Tech Stack
 - **Framework**: Next.js 16 (Turbopack, App Router)

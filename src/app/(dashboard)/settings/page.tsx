@@ -118,7 +118,7 @@ export default function SettingsPage() {
           <Card className="border-border/60">
             <CardHeader>
               <CardTitle className="text-base">App Appearance</CardTitle>
-              <CardDescription>Select how ApplicationOS looks in your browser.</CardDescription>
+              <CardDescription>Select how AWorkApp looks in your browser.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-3">
               <Button

@@ -233,7 +233,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
         {(!collapsed || mobile) && (
           <span className="text-lg font-bold tracking-tight">
-            ApplicationOS
+            AWorkApp
           </span>
         )}
       </div>

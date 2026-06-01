@@ -4,7 +4,7 @@
 
 ### Product Name
 
-Working title: **ApplicationOS**
+Working title: **AWorkApp**
 
 ### Product Type
 

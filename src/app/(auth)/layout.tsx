@@ -30,7 +30,7 @@ export default function AuthLayout({
               </svg>
             </div>
             <span className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-              ApplicationOS
+              AWorkApp
             </span>
           </div>
           <p className="text-sm text-muted-foreground font-medium max-w-xs mx-auto">
