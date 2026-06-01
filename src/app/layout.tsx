@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { PwaProvider } from "@/components/providers/pwa-provider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -18,8 +19,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "ApplicationOS — Job Application Tracker",
-    template: "%s | ApplicationOS",
+    default: "AWorkApp — Job Application Tracker",
+    template: "%s | AWorkApp",
   },
   description:
     "Track every job application, resume version, timeline event, and submitted document in one secure place.",
@@ -27,6 +28,18 @@ export const metadata: Metadata = {
     index: false, // Private app — no indexing
     follow: false,
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "AWorkApp",
+  },
+};
+
+export const viewport = {
+  themeColor: "#0f766e",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({
@@ -44,8 +57,10 @@ export default function RootLayout({
         <ThemeProvider defaultTheme="system" storageKey="aos-theme">
           <AuthProvider>
             <TooltipProvider>
-              {children}
-              <Toaster position="top-right" richColors />
+              <PwaProvider>
+                {children}
+                <Toaster position="top-right" richColors />
+              </PwaProvider>
             </TooltipProvider>
           </AuthProvider>
         </ThemeProvider>
