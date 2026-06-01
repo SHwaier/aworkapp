@@ -56,6 +56,28 @@ AWorkApp is a modern, premium SaaS platform built on **Next.js** (using App Rout
 - **Monthly Bar Chart Heights**: Fixed visual rendering bug where bar heights were calculated as pixel values instead of percentage values.
 - **File Upload Deduplication**: Fixed property access to `data.data.duplicate` in the files upload UI.
 
+### H. Full-Screen Document Previews
+- **Route-based Previews**: Added `/files/[id]/preview` and `/resumes/[id]/preview` full-screen routes to preview PDFs (using native browser iframe) and Word documents (rendering client-side via `docx-preview`).
+- **Metadata Fetching**: Refactored `/api/files/[id]?metadata=true` to let the viewer load details first without downloading large binary streams upfront.
+- **Schema Correction**: Added `fileId` schema mapping to `createResumeVersionSchema` in `src/lib/validators/schemas.ts` to prevent mongoose relation stripping.
+
+### I. Progressive Web App (PWA) Support
+- **Manifest Config**: Created `src/app/manifest.ts` defining names, colors, stand-alone display mode, and maskable icons.
+- **Service Worker**: Added `public/sw.js` and wrapped layout children inside `PwaProvider` to register worker threads.
+- **Custom Icons**: Generated and saved minimalist `icon-192x192.png` and `icon-512x512.png` using a clean abstract letter A combined with a briefcase shape.
+
+### J. Duplicate Application Protection
+- **Warning Warning Alert**: Added `/api/applications/check-duplicate` checking for existing matches when completing wizard workflows.
+- **UI Dialog Modals**: Integrated a dialog popup warning of duplicate applications allowing users to skip, cancel, or redirect to the existing application.
+
+### K. Build Warning Cleanups & Telemetry Opt-out
+- **Turbopack NFT Warnings**: Fixed dynamic path tracing alerts by prefixing `process.cwd()` with `/*turbopackIgnore: true*/` inside files route path resolutions.
+- **Telemetry Disabling**: Disabled telemetry locally and set `NEXT_TELEMETRY_DISABLED=1` in environment configuration.
+
+### L. Rebranding to AWorkApp
+- Renamed the project from `ApplicationOS` to `AWorkApp` across PRD docs, CSS theme classes, shell layouts, metadata headers, and Nominatim API User-Agents.
+
+
 
 ---
 
@@ -86,9 +108,9 @@ AWorkApp is a modern, premium SaaS platform built on **Next.js** (using App Rout
 ## 4. Work State & Handoff Notes
 
 ### Dev Environment Status
-- Running locally on `http://localhost:3000` (Process ID `11967`).
-- All code compilation and static site generation passes Next.js checks cleanly (`npm run build` outputs 0 compilation/type errors).
-- Automated browser testing confirms drag-and-drop operations and auto-suggestions function correctly.
+- All code compilation, static page production, and TypeScript checks pass Next.js cleanly with **0 compilation errors and 0 warnings**.
+- Next.js anonymous telemetry has been completely opted out and deactivated.
+- PWA manifests, custom service workers, and visual app icons are integrated and configured.
 
 ### Suggested Next Steps
 1. **Analytics Customization**: Build detailed analytics graphs and report summaries in `src/app/(dashboard)/analytics/page.tsx`.
