@@ -61,8 +61,8 @@ export async function GET(
         const { downloadFromS3 } = await import("@/lib/storage/s3");
         buffer = await downloadFromS3(file.storageKey);
       } else {
-        const storageDir = path.resolve(process.env.FILE_STORAGE_PATH || "./uploads");
-        const filePath = path.join(storageDir, file.storageKey);
+        const storageDir = path.resolve(/*turbopackIgnore: true*/ process.cwd(), process.env.FILE_STORAGE_PATH || "./uploads");
+        const filePath = path.resolve(/*turbopackIgnore: true*/ process.cwd(), storageDir, file.storageKey);
         buffer = await fs.readFile(filePath);
       }
 
@@ -136,8 +136,8 @@ export async function DELETE(
         const { deleteFromS3 } = await import("@/lib/storage/s3");
         await deleteFromS3(file.storageKey);
       } else {
-        const storageDir = path.resolve(process.env.FILE_STORAGE_PATH || "./uploads");
-        const filePath = path.join(storageDir, file.storageKey);
+        const storageDir = path.resolve(/*turbopackIgnore: true*/ process.cwd(), process.env.FILE_STORAGE_PATH || "./uploads");
+        const filePath = path.resolve(/*turbopackIgnore: true*/ process.cwd(), storageDir, file.storageKey);
         await fs.unlink(filePath);
       }
     } catch (err) {

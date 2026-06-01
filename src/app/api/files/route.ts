@@ -156,9 +156,9 @@ export async function POST(request: Request): Promise<NextResponse> {
       const { uploadToS3 } = await import("@/lib/storage/s3");
       await uploadToS3(uniqueKey, buffer, mime);
     } else {
-      const storageDir = path.resolve(process.env.FILE_STORAGE_PATH || "./uploads");
+      const storageDir = path.resolve(/*turbopackIgnore: true*/ process.cwd(), process.env.FILE_STORAGE_PATH || "./uploads");
       await fs.mkdir(storageDir, { recursive: true });
-      const fullPath = path.join(storageDir, uniqueKey);
+      const fullPath = path.resolve(/*turbopackIgnore: true*/ process.cwd(), storageDir, uniqueKey);
       await fs.writeFile(fullPath, buffer);
     }
 
