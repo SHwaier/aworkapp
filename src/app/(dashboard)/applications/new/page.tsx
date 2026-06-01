@@ -7,6 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -75,6 +83,9 @@ export default function NewApplicationPage() {
   const [showValidationErrors, setShowValidationErrors] = useState(false);
   const [focusedCompanyIndex, setFocusedCompanyIndex] = useState(-1);
   const [parseProgress, setParseProgress] = useState(0);
+  const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [duplicateInfo, setDuplicateInfo] = useState<{ id: string; jobTitle: string; companyName: string } | null>(null);
 
   // Form state
   const [jobUrl, setJobUrl] = useState("");
@@ -185,7 +196,7 @@ export default function NewApplicationPage() {
     setStep(s);
   }
 
-  function handleNext() {
+  async function handleNext() {
     if (step === 2) {
       if (!companySearchText.trim() || !form.jobTitle.trim()) {
         setShowValidationErrors(true);
@@ -199,6 +210,33 @@ export default function NewApplicationPage() {
         return;
       }
     }
+
+    if (step === 3) {
+      setIsCheckingDuplicate(true);
+      try {
+        const res = await fetch("/api/applications/check-duplicate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            jobUrl: jobUrl || undefined,
+            jobTitle: form.jobTitle,
+            jobDescription: form.jobDescription,
+          }),
+        });
+        const data = await res.json();
+        if (data.success && data.data?.duplicate) {
+          setDuplicateInfo(data.data.application);
+          setShowDuplicateDialog(true);
+          setIsCheckingDuplicate(false);
+          return;
+        }
+      } catch (err) {
+        // Fallback: ignore duplicate check error to let user continue
+      } finally {
+        setIsCheckingDuplicate(false);
+      }
+    }
+
     setShowValidationErrors(false);
     goToStep(step + 1);
   }
@@ -745,11 +783,21 @@ export default function NewApplicationPage() {
           {step < 4 ? (
             <Button
               onClick={handleNext}
+              disabled={isCheckingDuplicate}
               className="h-11 px-6 shadow-md shadow-primary/10"
               id="wizard-next-btn"
             >
-              Next
-              <ArrowRight className="ml-1.5 h-4 w-4" />
+              {isCheckingDuplicate ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Checking...
+                </>
+              ) : (
+                <>
+                  Next
+                  <ArrowRight className="ml-1.5 h-4 w-4" />
+                </>
+              )}
             </Button>
           ) : (
             <Button
@@ -773,6 +821,50 @@ export default function NewApplicationPage() {
           )}
         </div>
       )}
+      {/* Duplicate Warning Dialog */}
+      <Dialog open={showDuplicateDialog} onOpenChange={setShowDuplicateDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Duplicate Application</DialogTitle>
+            <DialogDescription>
+              We detected an existing application for <strong>{duplicateInfo?.jobTitle}</strong> at <strong>{duplicateInfo?.companyName}</strong>. 
+              Applying twice to the same job might cause confusion.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-between flex-row-reverse sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDuplicateDialog(false);
+                goToStep(4);
+              }}
+              id="duplicate-ignore-btn"
+            >
+              Ignore & Continue
+            </Button>
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="ghost"
+                onClick={() => setShowDuplicateDialog(false)}
+                id="duplicate-cancel-btn"
+              >
+                Cancel
+              </Button>
+              {duplicateInfo?.id && (
+                <Button
+                  onClick={() => {
+                    setShowDuplicateDialog(false);
+                    router.push(`/applications/${duplicateInfo.id}`);
+                  }}
+                  id="duplicate-view-btn"
+                >
+                  View Existing
+                </Button>
+              )}
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

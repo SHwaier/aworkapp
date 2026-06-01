@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db/mongoose";
 import ResumeVersion from "@/models/ResumeVersion";
+import File from "@/models/File";
 import { requireAuth } from "@/lib/auth/session";
 import {
   updateResumeVersionSchema,
@@ -50,7 +51,9 @@ export async function GET(
     const resume = await ResumeVersion.findOne({
       _id: id,
       userId: session.id,
-    }).lean();
+    })
+      .populate("fileId", "displayName fileType mimeType")
+      .lean();
 
     if (!resume) {
       return errorResponse("Not found", 404);

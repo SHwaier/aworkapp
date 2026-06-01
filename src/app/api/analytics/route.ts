@@ -4,10 +4,27 @@ import dbConnect from "@/lib/db/mongoose";
 import Application from "@/models/Application";
 import { requireAuth } from "@/lib/auth/session";
 import { successResponse, handleApiError } from "@/lib/api/response";
+import {
+  checkRateLimit,
+  getClientIp,
+  RATE_LIMITS,
+  rateLimitHeaders,
+} from "@/lib/rate-limit";
 
 export async function GET(request: Request): Promise<NextResponse> {
   try {
     const session = await requireAuth();
+
+    // Rate limit check
+    const ip = getClientIp(request);
+    const rateLimit = checkRateLimit(`analytics:${session.id || ip}`, RATE_LIMITS.api);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: "Too many requests. Please try again later." },
+        { status: 429, headers: rateLimitHeaders(rateLimit, RATE_LIMITS.api) }
+      );
+    }
+
     await dbConnect();
 
     const userId = new mongoose.Types.ObjectId(session.id);

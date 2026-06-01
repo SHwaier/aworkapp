@@ -258,6 +258,11 @@ export const createResumeVersionSchema = z.object({
     .max(20)
     .optional()
     .default([]),
+  fileId: z
+    .string()
+    .regex(/^[0-9a-fA-F]{24}$/, "Invalid ID format")
+    .optional()
+    .nullable(),
   notes: z.string().max(5000).optional().default("").transform(val => sanitizeText(val, 5000)),
   isActive: z.boolean().optional().default(true),
 });

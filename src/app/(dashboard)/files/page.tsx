@@ -1,10 +1,13 @@
 "use client";
 
+import Link from "next/link";
+
 import { useEffect, useState, useCallback } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { DocxViewer } from "@/components/ui/docx-viewer";
 import {
   Table,
   TableBody,
@@ -39,11 +42,13 @@ import {
   Search,
   Trash2,
   Upload,
+  Eye,
 } from "lucide-react";
 import { FILE_CATEGORIES } from "@/lib/validators/schemas";
 
 interface FileItem {
-  id: string;
+  id?: string;
+  _id?: string;
   displayName: string;
   originalFileName: string;
   fileType: string;
@@ -186,10 +191,11 @@ export default function FilesPage() {
         <CardContent className="p-4">
           <form onSubmit={handleUpload} className="flex flex-col gap-4 sm:flex-row sm:items-end">
             <div className="flex-1 space-y-1.5">
-              <Label htmlFor="file-input-el" className="text-xs font-semibold">Select File (Max 10MB)</Label>
+              <Label htmlFor="file-input-el" className="text-xs font-semibold">Select File (PDF or DOCX, Max 10MB)</Label>
               <Input
                 id="file-input-el"
                 type="file"
+                accept=".pdf,.docx"
                 onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                 className="h-10 cursor-pointer"
                 disabled={isUploading}
@@ -290,7 +296,7 @@ export default function FilesPage() {
             </TableHeader>
             <TableBody>
               {files.map((file) => (
-                <TableRow key={file.id}>
+                <TableRow key={file.id || file._id}>
                   <TableCell className="font-medium truncate max-w-[300px]">
                     <div className="flex items-center gap-2">
                       <File className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -306,8 +312,15 @@ export default function FilesPage() {
                   <TableCell>{new Date(file.uploadedAt).toLocaleDateString()}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1.5">
+                      <Link
+                        href={`/files/${file.id || file._id}/preview`}
+                        className={buttonVariants({ variant: "ghost", size: "icon", className: "h-8 w-8 text-muted-foreground justify-center" })}
+                        title="Preview file"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Link>
                       <a
-                        href={`/api/files/${file.id}`}
+                        href={`/api/files/${file.id || file._id}`}
                         download
                         title="Download file"
                         className={buttonVariants({ variant: "ghost", size: "icon", className: "h-8 w-8 justify-center" })}
@@ -318,7 +331,7 @@ export default function FilesPage() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        onClick={() => requestDelete(file.id)}
+                        onClick={() => requestDelete(file.id || file._id || "")}
                         title="Delete file"
                       >
                         <Trash2 className="h-4 w-4" />

@@ -49,11 +49,22 @@ export async function GET(
       return errorResponse("Not found", 404);
     }
 
-    const storageDir = path.resolve(process.env.FILE_STORAGE_PATH || "./uploads");
-    const filePath = path.join(storageDir, file.storageKey);
+    const url = new URL(request.url);
+    if (url.searchParams.get("metadata") === "true") {
+      return successResponse({ file });
+    }
+
+    let buffer: any;
 
     try {
-      const buffer = await fs.readFile(filePath);
+      if (file.storageProvider === "r2" || file.storageProvider === "s3") {
+        const { downloadFromS3 } = await import("@/lib/storage/s3");
+        buffer = await downloadFromS3(file.storageKey);
+      } else {
+        const storageDir = path.resolve(process.env.FILE_STORAGE_PATH || "./uploads");
+        const filePath = path.join(storageDir, file.storageKey);
+        buffer = await fs.readFile(filePath);
+      }
 
       // Clean header parameters to prevent header injection or encoding issues
       const safeName = encodeURIComponent(file.displayName).replace(/['()]/g, escape);
@@ -77,7 +88,7 @@ export async function GET(
         },
       });
     } catch (err) {
-      console.error("Local file system error:", err);
+      console.error("File storage read error:", err);
       return errorResponse("File storage read error", 500);
     }
   } catch (error) {
@@ -121,12 +132,17 @@ export async function DELETE(
 
     // Attempt physical deletion
     try {
-      const storageDir = path.resolve(process.env.FILE_STORAGE_PATH || "./uploads");
-      const filePath = path.join(storageDir, file.storageKey);
-      await fs.unlink(filePath);
+      if (file.storageProvider === "r2" || file.storageProvider === "s3") {
+        const { deleteFromS3 } = await import("@/lib/storage/s3");
+        await deleteFromS3(file.storageKey);
+      } else {
+        const storageDir = path.resolve(process.env.FILE_STORAGE_PATH || "./uploads");
+        const filePath = path.join(storageDir, file.storageKey);
+        await fs.unlink(filePath);
+      }
     } catch (err) {
       // Log error but don't break the response if file was already missing
-      console.error("Failed to delete physical file:", err);
+      console.error("Failed to delete stored file:", err);
     }
 
     await createAuditLog({

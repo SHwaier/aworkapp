@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db/mongoose";
 import ResumeVersion from "@/models/ResumeVersion";
+import File from "@/models/File";
 import { requireAuth } from "@/lib/auth/session";
 import {
   createResumeVersionSchema,
@@ -65,6 +66,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 
     const [resumes, total] = await Promise.all([
       ResumeVersion.find(query)
+        .populate("fileId", "displayName fileType mimeType")
         .sort({ [params.sortBy]: sortDirection })
         .skip(skip)
         .limit(params.limit)

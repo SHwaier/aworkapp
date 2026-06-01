@@ -17,17 +17,10 @@ import {
 } from "@/lib/rate-limit";
 
 // Allowed extensions and corresponding mime types
-const ALLOWED_EXTENSIONS = [".pdf", ".doc", ".docx", ".txt", ".rtf", ".png", ".jpg", ".jpeg"];
+const ALLOWED_EXTENSIONS = [".pdf", ".docx"];
 const ALLOWED_MIME_TYPES = [
   "application/pdf",
-  "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "text/plain",
-  "application/rtf",
-  "text/rtf",
-  "image/png",
-  "image/jpeg",
-  "image/jpg",
 ];
 
 /**
@@ -126,7 +119,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     // Validate extension
     const ext = path.extname(file.name).toLowerCase();
     if (!ALLOWED_EXTENSIONS.includes(ext)) {
-      return errorResponse("File extension not allowed. Allowed types: PDF, Word, TXT, RTF, Images.", 400);
+      return errorResponse("File extension not allowed. Allowed types: PDF, DOCX.", 400);
     }
 
     // Validate MIME type (if provided, fallback to browser type or basic checks)
@@ -153,18 +146,21 @@ export async function POST(request: Request): Promise<NextResponse> {
       return successResponse({ file: existingFile, duplicate: true });
     }
 
-    // Determine storage paths
-    const storageDir = path.resolve(process.env.FILE_STORAGE_PATH || "./uploads");
-    await fs.mkdir(storageDir, { recursive: true });
-
-    // Store with unique random name to prevent path traversal/overwrite vulnerability
+    // Determine storage provider
+    const provider = (process.env.FILE_STORAGE_PROVIDER || "local").toLowerCase();
     const uniqueKey = `${session.id}_${crypto.randomBytes(16).toString("hex")}_${path.basename(
       file.name
     )}`;
-    const fullPath = path.join(storageDir, uniqueKey);
 
-    // Save locally
-    await fs.writeFile(fullPath, buffer);
+    if (provider === "s3" || provider === "r2") {
+      const { uploadToS3 } = await import("@/lib/storage/s3");
+      await uploadToS3(uniqueKey, buffer, mime);
+    } else {
+      const storageDir = path.resolve(process.env.FILE_STORAGE_PATH || "./uploads");
+      await fs.mkdir(storageDir, { recursive: true });
+      const fullPath = path.join(storageDir, uniqueKey);
+      await fs.writeFile(fullPath, buffer);
+    }
 
     // Create DB entry
     const doc = await File.create({
@@ -174,7 +170,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       fileType: ext,
       mimeType: mime,
       fileSize: file.size,
-      storageProvider: "local",
+      storageProvider: provider === "r2" ? "r2" : provider === "s3" ? "s3" : "local",
       storageKey: uniqueKey, // select: false so hidden from standard queries
       fileHash: hash,
       category,

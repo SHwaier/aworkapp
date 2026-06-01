@@ -4,6 +4,12 @@ import AuditLog from "@/models/AuditLog";
 import { requireAuth } from "@/lib/auth/session";
 import { paginationSchema } from "@/lib/validators/schemas";
 import { successResponse, handleApiError } from "@/lib/api/response";
+import {
+  checkRateLimit,
+  getClientIp,
+  RATE_LIMITS,
+  rateLimitHeaders,
+} from "@/lib/rate-limit";
 
 /**
  * GET /api/audit-logs
@@ -12,6 +18,17 @@ import { successResponse, handleApiError } from "@/lib/api/response";
 export async function GET(request: Request): Promise<NextResponse> {
   try {
     const session = await requireAuth();
+
+    // Rate limit check
+    const ip = getClientIp(request);
+    const rateLimit = checkRateLimit(`get-audit-logs:${session.id || ip}`, RATE_LIMITS.api);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: "Too many requests. Please try again later." },
+        { status: 429, headers: rateLimitHeaders(rateLimit, RATE_LIMITS.api) }
+      );
+    }
+
     await dbConnect();
 
     const url = new URL(request.url);

@@ -1,10 +1,13 @@
 "use client";
 
+import Link from "next/link";
+
 import { useEffect, useState, useCallback } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DocxViewer } from "@/components/ui/docx-viewer";
 import {
   Dialog,
   DialogContent,
@@ -24,7 +27,16 @@ import {
   ExternalLink,
   Target,
   FileDown,
+  Eye,
 } from "lucide-react";
+
+interface FileItem {
+  _id?: string;
+  id?: string;
+  displayName: string;
+  fileType?: string;
+  mimeType?: string;
+}
 
 interface ResumeVersion {
   _id?: string;
@@ -36,14 +48,8 @@ interface ResumeVersion {
   skillsEmphasized: string[];
   notes: string;
   isActive: boolean;
-  fileId?: string;
+  fileId?: string | FileItem;
   createdAt: string;
-}
-
-interface FileItem {
-  _id?: string;
-  id?: string;
-  displayName: string;
 }
 
 export default function ResumesPage() {
@@ -258,19 +264,30 @@ export default function ResumesPage() {
                   </div>
                 )}
 
-                {/* Download file button if attached */}
-                {resume.fileId && (
-                  <div className="pt-2 border-t border-border/50">
+                {/* Preview/Download buttons */}
+                <div className="pt-2 border-t border-border/50 flex gap-2">
+                  <Link
+                    href={`/resumes/${resume.id || resume._id}/preview`}
+                    className={buttonVariants({ variant: "outline", size: "sm", className: "flex-1 h-8 text-xs justify-center" })}
+                  >
+                    <Eye className="mr-1.5 h-3.5 w-3.5" />
+                    Preview
+                  </Link>
+                  {resume.fileId && (
                     <a
-                      href={`/api/files/${resume.fileId}`}
+                      href={`/api/files/${
+                        typeof resume.fileId === "object"
+                          ? (resume.fileId?._id || resume.fileId?.id)
+                          : resume.fileId
+                      }`}
                       download
-                      className={buttonVariants({ variant: "outline", size: "sm", className: "w-full h-8 text-xs justify-center" })}
+                      title="Download attached document"
+                      className={buttonVariants({ variant: "outline", size: "icon", className: "h-8 w-8 shrink-0 justify-center" })}
                     >
-                      <FileDown className="mr-1.5 h-3.5 w-3.5" />
-                      Download Attached Document
+                      <FileDown className="h-3.5 w-3.5" />
                     </a>
-                  </div>
-                )}
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))}

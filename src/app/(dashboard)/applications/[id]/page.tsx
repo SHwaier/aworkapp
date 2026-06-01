@@ -728,22 +728,24 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                         <div className="space-y-2 flex flex-col">
                           <Label htmlFor="event-date">Event Date</Label>
                           <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                id="event-date"
-                                variant="outline"
-                                className={cn(
-                                  "w-full h-9 justify-start text-left font-normal px-3 py-1.5 text-sm border-border/60",
-                                  !timelineForm.eventDate && "text-muted-foreground"
-                                )}
-                              >
-                                <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
-                                {timelineForm.eventDate ? (
-                                  format(new Date(timelineForm.eventDate + "T00:00:00"), "PPP")
-                                ) : (
-                                  <span>Pick a date</span>
-                                )}
-                              </Button>
+                            <PopoverTrigger
+                              render={
+                                <Button
+                                  id="event-date"
+                                  variant="outline"
+                                  className={cn(
+                                    "w-full h-9 justify-start text-left font-normal px-3 py-1.5 text-sm border-border/60",
+                                    !timelineForm.eventDate && "text-muted-foreground"
+                                  )}
+                                />
+                              }
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                              {timelineForm.eventDate ? (
+                                format(new Date(timelineForm.eventDate + "T00:00:00"), "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0 bg-popover border border-border rounded-md shadow-md" align="start">
                               <Calendar
@@ -755,7 +757,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                                     eventDate: date ? date.toISOString().split("T")[0] : "",
                                   }));
                                 }}
-                                initialFocus
+                                autoFocus
                               />
                             </PopoverContent>
                           </Popover>
@@ -1067,22 +1069,24 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                 <div className="space-y-1.5 flex flex-col">
                   <Label htmlFor="sidebar-due-date" className="text-xs">Next Action Due Date</Label>
                   <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        id="sidebar-due-date"
-                        variant="outline"
-                        className={cn(
-                          "w-full h-9 justify-start text-left font-normal px-3 py-1.5 text-sm border-border/60",
-                          !editStatus.nextActionDueAt && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
-                        {editStatus.nextActionDueAt ? (
-                          format(new Date(editStatus.nextActionDueAt + "T00:00:00"), "PPP")
-                        ) : (
-                          <span>Pick a date</span>
-                        )}
-                      </Button>
+                    <PopoverTrigger
+                      render={
+                        <Button
+                          id="sidebar-due-date"
+                          variant="outline"
+                          className={cn(
+                            "w-full h-9 justify-start text-left font-normal px-3 py-1.5 text-sm border-border/60",
+                            !editStatus.nextActionDueAt && "text-muted-foreground"
+                          )}
+                        />
+                      }
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                      {editStatus.nextActionDueAt ? (
+                        format(new Date(editStatus.nextActionDueAt + "T00:00:00"), "PPP")
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0 bg-popover border border-border rounded-md shadow-md" align="start">
                       <Calendar
@@ -1094,7 +1098,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                             nextActionDueAt: date ? date.toISOString().split("T")[0] : "",
                           }));
                         }}
-                        initialFocus
+                        autoFocus
                       />
                     </PopoverContent>
                   </Popover>
@@ -1271,22 +1275,24 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
               <div className="space-y-2 flex flex-col">
                 <Label htmlFor="edit-event-date">Event Date</Label>
                 <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      id="edit-event-date"
-                      variant="outline"
-                      className={cn(
-                        "w-full h-9 justify-start text-left font-normal px-3 py-1.5 text-sm border-border/60",
-                        !editTimelineForm.eventDate && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
-                      {editTimelineForm.eventDate ? (
-                        format(new Date(editTimelineForm.eventDate + "T00:00:00"), "PPP")
-                      ) : (
-                        <span>Pick a date</span>
-                      )}
-                    </Button>
+                  <PopoverTrigger
+                    render={
+                      <Button
+                        id="edit-event-date"
+                        variant="outline"
+                        className={cn(
+                          "w-full h-9 justify-start text-left font-normal px-3 py-1.5 text-sm border-border/60",
+                          !editTimelineForm.eventDate && "text-muted-foreground"
+                        )}
+                      />
+                    }
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                    {editTimelineForm.eventDate ? (
+                      format(new Date(editTimelineForm.eventDate + "T00:00:00"), "PPP")
+                    ) : (
+                      <span>Pick a date</span>
+                    )}
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0 bg-popover border border-border rounded-md shadow-md" align="start">
                     <Calendar
@@ -1298,7 +1304,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                           eventDate: date ? date.toISOString().split("T")[0] : "",
                         }));
                       }}
-                      initialFocus
+                      autoFocus
                     />
                   </PopoverContent>
                 </Popover>
