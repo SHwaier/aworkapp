@@ -547,12 +547,12 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
   if (!app) return null;
 
   return (
-    <div className="space-y-6 w-full max-w-full min-w-0 overflow-hidden px-0.5">
+    <div className="space-y-6 max-w-full px-1 sm:px-2">
       {/* Back and actions */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
         <Link
           href="/applications"
-          className={buttonVariants({ variant: "ghost", className: "pl-0 text-muted-foreground hover:text-foreground" })}
+          className={buttonVariants({ variant: "ghost", className: "pl-0 text-muted-foreground hover:text-foreground self-start" })}
         >
           <Undo2 className="mr-2 h-4 w-4" />
           Back to applications
@@ -562,6 +562,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
           size="sm"
           onClick={requestDeleteApplication}
           disabled={isDeleting}
+          className="self-start sm:self-auto"
         >
           {isDeleting ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -572,22 +573,24 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
         </Button>
       </div>
 
-      {/* Main Header Container (Decluttered flat view) */}
+      {/* Main Header Container */}
       <div className="pb-6 border-b border-border/60">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div className="space-y-1.5 min-w-0 flex-1">
-            <h1 className="text-3xl font-extrabold tracking-tight break-words">{app.jobTitle}</h1>
-            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1.5 font-medium text-foreground max-w-full min-w-0">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-2 flex-1 min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight break-words text-foreground">
+              {app.jobTitle}
+            </h1>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1.5 font-medium text-foreground">
                 <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-                <Link href={`/companies/${app.companyId.id}`} className="hover:underline hover:text-primary transition-colors break-words truncate">
+                <Link href={`/companies/${app.companyId.id}`} className="hover:underline hover:text-primary transition-colors break-words">
                   {app.companyId.name}
                 </Link>
               </span>
               {app.location && (
-                <span className="flex items-center gap-1.5">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  {app.location}
+                <span className="flex items-center gap-1.5 break-words">
+                  <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span>{app.location}</span>
                 </span>
               )}
               {app.workMode && (
@@ -603,15 +606,15 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="text-left md:text-right">
+          <div className="flex flex-wrap items-center gap-4 shrink-0">
+            <div className="text-left lg:text-right">
               <span className="block text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Current Status</span>
               <Badge variant={getStatusVariant(app.currentStatus)} className="text-xs font-semibold mt-1 px-2.5 py-0.5 uppercase tracking-wide">
                 {app.currentStatus}
               </Badge>
             </div>
-            <Separator orientation="vertical" className="h-8 mx-1 hidden md:block" />
-            <div className="text-left md:text-right">
+            <Separator orientation="vertical" className="h-8 mx-1 hidden lg:block" />
+            <div className="text-left lg:text-right">
               <span className="block text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Lifecycle Stage</span>
               <Badge variant="outline" className="text-xs font-semibold mt-1 px-2.5 py-0.5 uppercase tracking-wide bg-muted/10">
                 {app.lifecycleStage}
@@ -620,18 +623,19 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
           </div>
         </div>
 
-        <div className="grid gap-6 mt-6 sm:grid-cols-2 md:grid-cols-4 bg-muted/20 dark:bg-muted/5 p-4 rounded-xl border border-border/40">
-          <div>
+        {/* Info Grid */}
+        <div className="grid gap-4 mt-6 grid-cols-2 md:grid-cols-4 bg-muted/20 dark:bg-muted/5 p-4 rounded-xl border border-border/40">
+          <div className="space-y-0.5 min-w-0">
             <span className="block text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Source</span>
-            <span className="text-sm font-semibold mt-0.5 block">{app.source || "—"}</span>
+            <span className="text-sm font-semibold mt-0.5 block break-words">{app.source || "—"}</span>
           </div>
-          <div>
+          <div className="space-y-0.5 min-w-0">
             <span className="block text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Seniority</span>
-            <span className="text-sm font-semibold mt-0.5 block">{app.seniorityLevel || "—"}</span>
+            <span className="text-sm font-semibold mt-0.5 block break-words">{app.seniorityLevel || "—"}</span>
           </div>
-          <div>
+          <div className="space-y-0.5 min-w-0">
             <span className="block text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Salary Range</span>
-            <span className="text-sm font-semibold mt-0.5 block">
+            <span className="text-sm font-semibold mt-0.5 block break-words">
               {app.salaryMin !== null || app.salaryMax !== null
                 ? `${app.salaryMin ? `${app.currency} ${app.salaryMin.toLocaleString()}` : "—"} to ${
                     app.salaryMax ? `${app.currency} ${app.salaryMax.toLocaleString()}` : "—"
@@ -639,30 +643,30 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                 : "—"}
             </span>
           </div>
-          <div>
+          <div className="space-y-0.5 min-w-0">
             <span className="block text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Applied Date</span>
-            <span className="text-sm font-semibold mt-0.5 block">
+            <span className="text-sm font-semibold mt-0.5 block whitespace-nowrap">
               {app.appliedAt ? new Date(app.appliedAt).toLocaleDateString() : "—"}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Main Grid */}
-      <div className="grid gap-6 md:grid-cols-3">
-        {/* Left Column (Timeline, Notes, Q&A) */}
-        <div className="md:col-span-2 space-y-6">
+      {/* Main Content Layout */}
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
+        {/* Left Column (Timeline, Notes, Job Description) */}
+        <div className="w-full lg:w-2/3 space-y-6 min-w-0">
           <Tabs defaultValue="timeline" className="w-full">
-            <TabsList variant="line" className="flex w-full justify-start border-b border-border/60 bg-transparent p-0 rounded-none h-12 group-data-horizontal/tabs:h-12 gap-6 mb-6 overflow-x-auto overflow-y-hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <TabsList variant="line" className="flex w-full justify-start border-b border-border/60 bg-transparent p-0 rounded-none h-12 gap-4 sm:gap-6 mb-6 overflow-x-auto overflow-y-hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden shrink-0">
               <TabsTrigger
                 value="timeline"
-                className="flex-none rounded-none bg-transparent px-6 text-sm font-semibold text-muted-foreground hover:text-foreground data-active:text-primary group-data-[variant=line]/tabs-list:data-active:after:bg-primary after:bottom-0 transition-all"
+                className="flex-none rounded-none bg-transparent px-4 sm:px-6 text-sm font-semibold text-muted-foreground hover:text-foreground data-active:text-primary group-data-[variant=line]/tabs-list:data-active:after:bg-primary after:bottom-0 transition-all"
               >
                 Timeline
               </TabsTrigger>
               <TabsTrigger
                 value="notes"
-                className="flex-none rounded-none bg-transparent px-6 text-sm font-semibold text-muted-foreground hover:text-foreground data-active:text-primary group-data-[variant=line]/tabs-list:data-active:after:bg-primary after:bottom-0 transition-all flex items-center gap-1.5"
+                className="flex-none rounded-none bg-transparent px-4 sm:px-6 text-sm font-semibold text-muted-foreground hover:text-foreground data-active:text-primary group-data-[variant=line]/tabs-list:data-active:after:bg-primary after:bottom-0 transition-all flex items-center gap-1.5"
               >
                 Notes
                 <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-muted px-1.5 text-xs font-semibold text-muted-foreground">
@@ -671,7 +675,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
               </TabsTrigger>
               <TabsTrigger
                 value="description"
-                className="flex-none rounded-none bg-transparent px-6 text-sm font-semibold text-muted-foreground hover:text-foreground data-active:text-primary group-data-[variant=line]/tabs-list:data-active:after:bg-primary after:bottom-0 transition-all"
+                className="flex-none rounded-none bg-transparent px-4 sm:px-6 text-sm font-semibold text-muted-foreground hover:text-foreground data-active:text-primary group-data-[variant=line]/tabs-list:data-active:after:bg-primary after:bottom-0 transition-all"
               >
                 Job Description
               </TabsTrigger>
@@ -837,22 +841,37 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                   <p className="text-sm font-medium">No timeline events yet</p>
                 </div>
               ) : (
-                <div className="relative border-l border-border pl-6 ml-3 space-y-6 w-full min-w-0">
+                <div className="relative border-l border-border pl-6 ml-3 space-y-6">
                   {timeline.map((event) => {
                     const theme = TIMELINE_EVENT_THEMES[event.type] || TIMELINE_EVENT_THEMES["custom"];
                     return (
-                      <div key={event._id || event.id} className="relative group w-full min-w-0">
+                      <div key={event._id || event.id} className="relative group">
                         {/* Timeline dot */}
                         <span className={cn("absolute -left-[31px] top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-background border-2 transition-colors", theme.dotBorder)}>
                           <span className={cn("h-1.5 w-1.5 rounded-full transition-colors", theme.dotBg)} />
                         </span>
 
-                        <div className={cn("space-y-1.5 p-3 rounded-lg border transition-all duration-200 w-full min-w-0 overflow-hidden", theme.bg || "bg-card/50", theme.border || "border-border/40")}>
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-4 w-full min-w-0">
-                            <span className="font-semibold text-sm break-words sm:truncate">{event.title}</span>
-                            <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto shrink-0 border-t sm:border-0 border-border/20 pt-1.5 sm:pt-0">
-                              <span className="text-xs text-muted-foreground">
-                                {new Date(event.eventDate).toLocaleDateString()}
+                        <div className={cn("space-y-3 p-4 rounded-xl border bg-card text-card-foreground shadow-xs transition-all duration-200", theme.border || "border-border/40")}>
+                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                            <div className="space-y-1.5 flex-1 min-w-0">
+                              <h4 className="font-bold text-sm text-foreground break-words leading-tight">
+                                {event.title}
+                              </h4>
+                              <div className="flex flex-wrap gap-1.5">
+                                <Badge className={cn("text-[10px] py-0.5 px-1.5 h-auto uppercase border font-semibold", theme.badge)}>
+                                  {event.type.replace("_", " ")}
+                                </Badge>
+                                {event.statusAfterEvent && (
+                                  <Badge variant="outline" className="text-[10px] py-0.5 px-1.5 h-auto">
+                                    Status: {event.statusAfterEvent}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                {new Date(event.eventDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                               </span>
                               <div className="flex items-center gap-1">
                                 <button
@@ -874,21 +893,10 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                           </div>
 
                           {event.description && (
-                            <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words leading-relaxed">
+                            <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words leading-relaxed border-t border-border/20 pt-2 mt-1">
                               {event.description}
                             </p>
                           )}
-
-                          <div className="flex flex-wrap gap-1.5 pt-1">
-                            <Badge className={cn("text-[10px] py-0 px-1.5 h-4 uppercase border font-semibold", theme.badge)}>
-                              {event.type.replace("_", " ")}
-                            </Badge>
-                            {event.statusAfterEvent && (
-                              <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4">
-                                Status: {event.statusAfterEvent}
-                              </Badge>
-                            )}
-                          </div>
                         </div>
                       </div>
                     );
@@ -902,10 +910,10 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
               {/* Add Note Form */}
               <Card>
                 <CardHeader className="py-3">
-                  <CardTitle className="text-sm">Add Note</CardTitle>
+                  <CardTitle className="text-sm font-bold">Add Note</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3 pb-3">
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label htmlFor="note-type" className="text-xs">Category</Label>
                       <Select
@@ -931,7 +939,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                         placeholder="e.g. Interview preparation"
                         value={noteForm.title}
                         onChange={(e) => setNoteForm((p) => ({ ...p, title: e.target.value }))}
-                        className="h-8"
+                        className="h-8 text-sm"
                       />
                     </div>
                   </div>
@@ -959,19 +967,19 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                   return (
                     <Card key={note._id || note.id} className={cn("border-l-4 transition-all duration-200", theme.border, theme.bg, note.pinned && "ring-1 ring-primary/20")}>
                       <CardHeader className="flex flex-row items-start justify-between py-3">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className={cn("inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase border", theme.badge)}>
+                        <div className="min-w-0 flex-1 mr-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={cn("inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase border shrink-0", theme.badge)}>
                               {theme.badgeText}
                             </span>
-                            {note.title && <h4 className="font-semibold text-sm">{note.title}</h4>}
-                            {note.pinned && <Pin className="h-3 w-3 fill-primary text-primary" />}
+                            {note.title && <h4 className="font-semibold text-sm break-words">{note.title}</h4>}
+                            {note.pinned && <Pin className="h-3 w-3 fill-primary text-primary shrink-0" />}
                           </div>
                           <span className="text-[10px] text-muted-foreground block mt-1">
                             {new Date(note.createdAt).toLocaleString()}
                           </span>
                         </div>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1 shrink-0">
                           <Button
                             variant="ghost"
                             size="icon"
@@ -991,7 +999,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                         </div>
                       </CardHeader>
                       <CardContent className="pb-3 pt-0">
-                        <p className="text-sm whitespace-pre-wrap text-foreground/80">{note.body}</p>
+                        <p className="text-sm whitespace-pre-wrap break-words text-foreground/80 leading-relaxed">{note.body}</p>
                       </CardContent>
                     </Card>
                   );
@@ -1002,7 +1010,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
             {/* Description Tab */}
             <TabsContent value="description" className="pt-4">
               <Card>
-                <CardContent className="p-4 whitespace-pre-wrap text-sm text-foreground/80">
+                <CardContent className="p-4 whitespace-pre-wrap text-sm text-foreground/80 break-words leading-relaxed">
                   {app.jobDescription || (
                     <span className="text-muted-foreground italic">No job description provided.</span>
                   )}
@@ -1013,11 +1021,11 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
         </div>
 
         {/* Right Sidebar (Metadata / CRM actions) */}
-        <div className="space-y-6">
+        <div className="w-full lg:w-1/3 space-y-6">
           {/* Status Tracker Panel */}
           <Card className="border-border/60">
             <CardHeader className="py-4">
-              <CardTitle className="text-sm">Quick Status Update</CardTitle>
+              <CardTitle className="text-sm font-bold">Quick Status Update</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <form onSubmit={handleUpdateStatus} className="space-y-4">
@@ -1083,7 +1091,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                         />
                       }
                     >
-                      <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                      <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground shrink-0" />
                       {editStatus.nextActionDueAt ? (
                         format(new Date(editStatus.nextActionDueAt + "T00:00:00"), "PPP")
                       ) : (
@@ -1117,68 +1125,68 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
           {/* Links & Details Card */}
           <Card className="border-border/60 text-sm">
             <CardHeader className="py-4">
-              <CardTitle className="text-sm">Links & Details</CardTitle>
+              <CardTitle className="text-sm font-bold">Links & Details</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-3 min-w-0">
               {app.jobUrl && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground text-xs">Job Posting</span>
+                <div className="flex flex-col gap-1 text-xs">
+                  <span className="text-muted-foreground">Job Posting</span>
                   <a
                     href={app.jobUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-primary hover:underline text-xs font-medium"
+                    className="inline-flex items-center gap-1 text-primary hover:underline font-medium break-all"
                   >
                     View Original
-                    <ExternalLink className="h-3 w-3" />
+                    <ExternalLink className="h-3 w-3 shrink-0" />
                   </a>
                 </div>
               )}
               {app.applicationUrl && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground text-xs">Applied Link</span>
+                <div className="flex flex-col gap-1 text-xs">
+                  <span className="text-muted-foreground">Applied Link</span>
                   <a
                     href={app.applicationUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-primary hover:underline text-xs font-medium"
+                    className="inline-flex items-center gap-1 text-primary hover:underline font-medium break-all"
                   >
                     Application Portal
-                    <ExternalLink className="h-3 w-3" />
+                    <ExternalLink className="h-3 w-3 shrink-0" />
                   </a>
                 </div>
               )}
 
-              <Separator />
+              {(app.jobUrl || app.applicationUrl) && <Separator />}
 
-              <div>
+              <div className="space-y-1">
                 <span className="text-muted-foreground text-xs block">Company Website</span>
                 {app.companyId.website ? (
                   <a
                     href={app.companyId.website}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-primary hover:underline text-xs font-medium mt-0.5"
+                    className="inline-flex items-center gap-1 text-primary hover:underline text-xs font-medium break-all"
                   >
                     {app.companyId.website}
-                    <ExternalLink className="h-3 w-3" />
+                    <ExternalLink className="h-3 w-3 shrink-0" />
                   </a>
                 ) : (
                   <span className="text-xs text-muted-foreground font-light">Not provided</span>
                 )}
               </div>
 
-              <div>
+              <div className="space-y-1">
                 <span className="text-muted-foreground text-xs block">Company LinkedIn</span>
                 {app.companyId.linkedinUrl ? (
                   <a
                     href={app.companyId.linkedinUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-primary hover:underline text-xs font-medium mt-0.5"
+                    className="inline-flex items-center gap-1 text-primary hover:underline text-xs font-medium break-all"
                   >
                     LinkedIn Profile
-                    <ExternalLink className="h-3 w-3" />
+                    <ExternalLink className="h-3 w-3 shrink-0" />
                   </a>
                 ) : (
                   <span className="text-xs text-muted-foreground font-light">Not provided</span>
@@ -1229,6 +1237,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
       <Dialog
         open={editingTimelineEvent !== null}
         onOpenChange={(isOpen) => {
