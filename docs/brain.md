@@ -59,6 +59,7 @@ AWorkApp is a modern, premium SaaS platform built on **Next.js** (using App Rout
 ### M. Mobile Responsiveness Enhancements
 - **Top Navigation Bar**: Introduced a structured header layout for mobile viewports to hold the hamburger menu and app name, completely resolving button/header overlaps.
 - **Wizard Grid Stacking**: Refactored rigid two-column layouts in the New Application Wizard (Step 3) to responsive stacked rows (`grid-cols-1 sm:grid-cols-2`), ensuring inputs are fully readable and clickable on mobile screens.
+- **Application List Card Overflows**: Cleaned up the nested flexbox truncation hierarchy in the list view card and capped the `companyId.name`, `location`, and `nextAction` tags to prevent long continuous words from stretching layout panels and producing horizontal scrollbars on mobile.
 
 
 ### H. Full-Screen Document Previews
