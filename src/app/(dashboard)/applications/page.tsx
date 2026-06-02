@@ -359,21 +359,19 @@ export default function ApplicationsPage() {
                         <Briefcase className="h-5 w-5" />
                       </div>
                       <div className="min-w-0 space-y-1">
-                        <div className="flex items-center flex-wrap gap-2">
-                          <h3 className="font-semibold text-base leading-tight truncate group-hover:text-primary transition-colors">
-                            {app.jobTitle}
-                          </h3>
-                        </div>
+                        <h3 className="font-semibold text-base leading-tight truncate group-hover:text-primary transition-colors w-full min-w-0">
+                          {app.jobTitle}
+                        </h3>
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-muted-foreground">
                           {app.companyId && (
-                            <span className="flex items-center gap-1 font-medium text-foreground/80">
-                              <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span className="flex items-center gap-1 font-medium text-foreground/80 max-w-[200px] truncate">
+                              <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                               {app.companyId.name}
                             </span>
                           )}
                           {app.location && (
-                            <span className="flex items-center gap-1">
-                              <MapPin className="h-3.5 w-3.5" />
+                            <span className="flex items-center gap-1 max-w-[150px] truncate">
+                              <MapPin className="h-3.5 w-3.5 shrink-0" />
                               {app.location}
                             </span>
                           )}
@@ -384,9 +382,9 @@ export default function ApplicationsPage() {
                           )}
                         </div>
                         {app.nextAction && (
-                          <div className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md bg-warning/5 border border-warning/10 text-warning-foreground font-medium">
-                            <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse" />
-                            Next action: {app.nextAction}
+                          <div className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md bg-warning/5 border border-warning/10 text-warning-foreground font-medium max-w-full">
+                            <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse shrink-0" />
+                            <span className="truncate">Next action: {app.nextAction}</span>
                           </div>
                         )}
                       </div>
