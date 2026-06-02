@@ -575,7 +575,7 @@ export default function NewApplicationPage() {
               All fields below are optional
             </p>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="wizard-location" className="text-sm font-semibold">Location</Label>
                 <LocationAutocomplete
@@ -610,7 +610,7 @@ export default function NewApplicationPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="wizard-emptype" className="text-sm font-semibold">Employment Type</Label>
                 <Select

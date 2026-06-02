@@ -271,7 +271,32 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen flex-col md:flex-row overflow-hidden bg-background">
+      {/* Mobile Top Bar */}
+      <div className="flex h-14 items-center justify-between border-b border-border bg-background px-4 md:hidden shrink-0">
+        <div className="flex items-center gap-3">
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  id="mobile-menu-trigger"
+                  className="h-9 w-9"
+                />
+              }
+            >
+              <Menu className="h-5 w-5" />
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[240px] p-0">
+              <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+              {sidebarContent(true)}
+            </SheetContent>
+          </Sheet>
+          <span className="text-base font-bold tracking-tight">AWorkApp</span>
+        </div>
+      </div>
+
       {/* Desktop Sidebar */}
       <aside
         className={cn(
@@ -299,26 +324,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           />
         </button>
       </aside>
-
-      {/* Mobile Sidebar */}
-      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon"
-              className="fixed left-3 top-3 z-40 md:hidden"
-              id="mobile-menu-trigger"
-            />
-          }
-        >
-          <Menu className="h-5 w-5" />
-        </SheetTrigger>
-        <SheetContent side="left" className="w-[240px] p-0">
-          <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-          {sidebarContent(true)}
-        </SheetContent>
-      </Sheet>
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto">

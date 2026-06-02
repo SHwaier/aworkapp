@@ -56,6 +56,11 @@ AWorkApp is a modern, premium SaaS platform built on **Next.js** (using App Rout
 - **Monthly Bar Chart Heights**: Fixed visual rendering bug where bar heights were calculated as pixel values instead of percentage values.
 - **File Upload Deduplication**: Fixed property access to `data.data.duplicate` in the files upload UI.
 
+### M. Mobile Responsiveness Enhancements
+- **Top Navigation Bar**: Introduced a structured header layout for mobile viewports to hold the hamburger menu and app name, completely resolving button/header overlaps.
+- **Wizard Grid Stacking**: Refactored rigid two-column layouts in the New Application Wizard (Step 3) to responsive stacked rows (`grid-cols-1 sm:grid-cols-2`), ensuring inputs are fully readable and clickable on mobile screens.
+
+
 ### H. Full-Screen Document Previews
 - **Route-based Previews**: Added `/files/[id]/preview` and `/resumes/[id]/preview` full-screen routes to preview PDFs (using native browser iframe) and Word documents (rendering client-side via `docx-preview`).
 - **Metadata Fetching**: Refactored `/api/files/[id]?metadata=true` to let the viewer load details first without downloading large binary streams upfront.
