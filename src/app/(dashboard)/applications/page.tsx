@@ -344,33 +344,33 @@ export default function ApplicationsPage() {
         </Card>
       ) : viewType === "list" ? (
         /* ================= LIST VIEW ================= */
-        <div className="space-y-3">
-          <div className="grid gap-2.5">
+        <div className="space-y-3 w-full min-w-0">
+          <div className="grid gap-2.5 w-full min-w-0">
             {applications.map((app) => (
               <Link
                 key={app.id || app._id}
                 href={`/applications/${app.id || app._id}`}
-                className="group block"
+                className="group block w-full min-w-0"
               >
-                <Card className="border border-border/80 bg-card transition-all duration-200 hover:border-primary/20 hover:shadow-xs group-hover:-translate-y-[1px]">
-                  <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5">
-                    <div className="flex items-start gap-4 min-w-0">
+                <Card className="w-full min-w-0 border border-border/80 bg-card transition-all duration-200 hover:border-primary/20 hover:shadow-xs group-hover:-translate-y-[1px] overflow-hidden">
+                  <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 w-full min-w-0">
+                    <div className="flex items-start gap-3 sm:gap-4 w-full min-w-0">
                       <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/5 text-primary border border-primary/10">
                         <Briefcase className="h-5 w-5" />
                       </div>
-                      <div className="min-w-0 space-y-1">
-                        <h3 className="font-semibold text-base leading-tight truncate group-hover:text-primary transition-colors w-full min-w-0">
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <h3 className="font-semibold text-base leading-tight truncate group-hover:text-primary transition-colors w-full">
                           {app.jobTitle}
                         </h3>
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-muted-foreground">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-muted-foreground w-full">
                           {app.companyId && (
-                            <span className="flex items-center gap-1 font-medium text-foreground/80 max-w-[200px] truncate">
+                            <span className="flex items-center gap-1 font-medium text-foreground/80 max-w-[120px] sm:max-w-[200px] truncate">
                               <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                               {app.companyId.name}
                             </span>
                           )}
                           {app.location && (
-                            <span className="flex items-center gap-1 max-w-[150px] truncate">
+                            <span className="flex items-center gap-1 max-w-[100px] sm:max-w-[150px] truncate">
                               <MapPin className="h-3.5 w-3.5 shrink-0" />
                               {app.location}
                             </span>
@@ -389,7 +389,7 @@ export default function ApplicationsPage() {
                         )}
                       </div>
                     </div>
-                    <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 border-t sm:border-0 border-border/40 pt-3 sm:pt-0 shrink-0">
+                    <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 border-t sm:border-0 border-border/40 pt-3 sm:pt-0 shrink-0 w-full sm:w-auto">
                       <Badge variant={getStatusVariant(app.currentStatus)} className="text-xs px-2.5 py-0.5 shadow-2xs font-semibold">
                         {app.currentStatus}
                       </Badge>
