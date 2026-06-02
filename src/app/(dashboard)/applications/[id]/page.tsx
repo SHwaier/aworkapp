@@ -547,7 +547,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
   if (!app) return null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-full min-w-0 overflow-hidden px-0.5">
       {/* Back and actions */}
       <div className="flex items-center justify-between">
         <Link
@@ -575,12 +575,12 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
       {/* Main Header Container (Decluttered flat view) */}
       <div className="pb-6 border-b border-border/60">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div className="space-y-1.5">
-            <h1 className="text-3xl font-extrabold tracking-tight">{app.jobTitle}</h1>
+          <div className="space-y-1.5 min-w-0 flex-1">
+            <h1 className="text-3xl font-extrabold tracking-tight break-words">{app.jobTitle}</h1>
             <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1.5 font-medium text-foreground">
-                <Building2 className="h-4 w-4 text-muted-foreground" />
-                <Link href={`/companies/${app.companyId.id}`} className="hover:underline hover:text-primary transition-colors">
+              <span className="flex items-center gap-1.5 font-medium text-foreground max-w-full min-w-0">
+                <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                <Link href={`/companies/${app.companyId.id}`} className="hover:underline hover:text-primary transition-colors break-words truncate">
                   {app.companyId.name}
                 </Link>
               </span>
@@ -653,7 +653,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
         {/* Left Column (Timeline, Notes, Q&A) */}
         <div className="md:col-span-2 space-y-6">
           <Tabs defaultValue="timeline" className="w-full">
-            <TabsList variant="line" className="flex w-full justify-start border-b border-border/60 bg-transparent p-0 rounded-none h-12 group-data-horizontal/tabs:h-12 gap-6 mb-6">
+            <TabsList variant="line" className="flex w-full justify-start border-b border-border/60 bg-transparent p-0 rounded-none h-12 group-data-horizontal/tabs:h-12 gap-6 mb-6 overflow-x-auto overflow-y-hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <TabsTrigger
                 value="timeline"
                 className="flex-none rounded-none bg-transparent px-6 text-sm font-semibold text-muted-foreground hover:text-foreground data-active:text-primary group-data-[variant=line]/tabs-list:data-active:after:bg-primary after:bottom-0 transition-all"
