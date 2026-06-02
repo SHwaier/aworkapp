@@ -372,8 +372,7 @@ export default function NewApplicationPage() {
               <div>
                 <h2 className="text-xl font-bold tracking-tight">Paste the Job Link</h2>
                 <p className="text-sm text-muted-foreground mt-1.5 max-w-md mx-auto">
-                  Drop the URL from LinkedIn, Indeed, Greenhouse, or any job board.
-                  We&apos;ll extract the job title, company, location, and description automatically.
+                  Drop a link from LinkedIn, Indeed, or any job board to automatically extract role and company details.
                 </p>
               </div>
 
@@ -571,13 +570,12 @@ export default function NewApplicationPage() {
       {step === 3 && (
         <Card className="border-border/60 shadow-sm">
           <CardContent className="p-6 sm:p-8 space-y-5">
-            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-              All fields below are optional
-            </p>
-
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="wizard-location" className="text-sm font-semibold">Location</Label>
+                <div className="flex justify-between items-baseline">
+                  <Label htmlFor="wizard-location" className="text-sm font-semibold">Location</Label>
+                  <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
+                </div>
                 <LocationAutocomplete
                   id="wizard-location"
                   value={form.location}
@@ -587,7 +585,10 @@ export default function NewApplicationPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="wizard-workmode" className="text-sm font-semibold">Work Mode</Label>
+                <div className="flex justify-between items-baseline">
+                  <Label htmlFor="wizard-workmode" className="text-sm font-semibold">Work Mode</Label>
+                  <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
+                </div>
                 <Select
                   value={form.workMode}
                   onValueChange={(v) => setForm((p) => ({ ...p, workMode: v || "" }))}
@@ -612,7 +613,10 @@ export default function NewApplicationPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="wizard-emptype" className="text-sm font-semibold">Employment Type</Label>
+                <div className="flex justify-between items-baseline">
+                  <Label htmlFor="wizard-emptype" className="text-sm font-semibold">Employment Type</Label>
+                  <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
+                </div>
                 <Select
                   value={form.employmentType}
                   onValueChange={(v) => setForm((p) => ({ ...p, employmentType: v || "" }))}
@@ -634,7 +638,10 @@ export default function NewApplicationPage() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="wizard-source" className="text-sm font-semibold">Source</Label>
+                <div className="flex justify-between items-baseline">
+                  <Label htmlFor="wizard-source" className="text-sm font-semibold">Source</Label>
+                  <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
+                </div>
                 <Select
                   value={form.source}
                   onValueChange={(v) => setForm((p) => ({ ...p, source: v || "" }))}
@@ -652,7 +659,10 @@ export default function NewApplicationPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="wizard-status" className="text-sm font-semibold">Initial Status</Label>
+              <div className="flex justify-between items-baseline w-full sm:w-1/2">
+                <Label htmlFor="wizard-status" className="text-sm font-semibold">Initial Status</Label>
+                <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
+              </div>
               <Select
                 value={form.currentStatus}
                 onValueChange={(v) => setForm((p) => ({ ...p, currentStatus: v || "" }))}
@@ -669,7 +679,10 @@ export default function NewApplicationPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="wizard-desc" className="text-sm font-semibold">Job Description</Label>
+              <div className="flex justify-between items-baseline">
+                <Label htmlFor="wizard-desc" className="text-sm font-semibold">Job Description</Label>
+                <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
+              </div>
               <Textarea
                 id="wizard-desc"
                 value={form.jobDescription}

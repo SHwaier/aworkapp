@@ -4,7 +4,7 @@ import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, ArrowLeft, Download, Loader2, AlertCircle, Target } from "lucide-react";
+import { FileText, ArrowLeft, Download, Loader2, AlertCircle, Target, ExternalLink } from "lucide-react";
 import { DocxViewer } from "@/components/ui/docx-viewer";
 
 interface RouteParams {
@@ -18,6 +18,7 @@ export default function ResumePreviewPage({ params }: RouteParams) {
   const [resume, setResume] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     async function fetchResumeDetails() {
@@ -37,6 +38,15 @@ export default function ResumePreviewPage({ params }: RouteParams) {
     }
     fetchResumeDetails();
   }, [id]);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   if (loading) {
     return (
@@ -69,20 +79,20 @@ export default function ResumePreviewPage({ params }: RouteParams) {
   const isDocx = fileType === ".docx" || file?.mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
   return (
-    <div className="flex flex-col h-[calc(100vh-6rem)] border border-border/60 rounded-md overflow-hidden bg-background">
+    <div className="flex flex-col h-[calc(100dvh-4rem)] md:h-[calc(100vh-6rem)] border border-border/60 rounded-md overflow-hidden bg-background">
       {/* Header bar */}
-      <div className="flex items-center justify-between p-4 border-b border-border/60 bg-muted/5">
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={() => router.back()}>
+      <div className="flex items-center justify-between p-4 border-b border-border/60 bg-muted/5 gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <Button variant="outline" size="sm" onClick={() => router.back()} className="shrink-0">
             <ArrowLeft className="mr-1.5 h-4 w-4" />
             Back
           </Button>
           <div className="min-w-0">
             <h1 className="text-sm font-bold truncate flex items-center gap-2">
               <FileText className="h-4 w-4 text-primary shrink-0" />
-              {resume.name}
+              <span className="truncate">{resume.name}</span>
             </h1>
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-[10px] text-muted-foreground truncate">
               Version {resume.versionNumber} • Targeting {resume.targetRole || "Any Role"}
             </p>
           </div>
@@ -92,10 +102,11 @@ export default function ResumePreviewPage({ params }: RouteParams) {
           <a
             href={`/api/files/${fileId}`}
             download
-            className={buttonVariants({ variant: "outline", size: "sm" })}
+            className={buttonVariants({ variant: "outline", size: "sm", className: "shrink-0" })}
           >
             <Download className="mr-1.5 h-4 w-4" />
-            Download Attached Document
+            <span className="hidden sm:inline">Download Document</span>
+            <span className="sm:hidden">Download</span>
           </a>
         )}
       </div>
@@ -164,11 +175,47 @@ export default function ResumePreviewPage({ params }: RouteParams) {
               </p>
             </div>
           ) : isPdf ? (
-            <iframe
-              src={`/api/files/${fileId}`}
-              className="w-full h-full border-0 bg-background"
-              title={`Document Preview`}
-            />
+            isMobile ? (
+              <div className="flex-grow flex flex-col items-center justify-center p-6 text-center bg-background space-y-4">
+                <div className="mx-auto h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/10">
+                  <FileText className="h-8 w-8 text-primary" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-sm font-bold tracking-tight">PDF Document Attached</h3>
+                  <p className="text-xs text-muted-foreground max-w-xs mx-auto truncate px-4">
+                    {file?.displayName || "Resume PDF"}
+                  </p>
+                </div>
+                <p className="text-xs text-muted-foreground max-w-xs leading-relaxed px-4">
+                  Interactive PDF previews are optimized for desktop screens. Open it in a new window or download to view.
+                </p>
+                <div className="flex flex-col w-full max-w-[200px] gap-2 pt-2">
+                  <a
+                    href={`/api/files/${fileId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={buttonVariants({ variant: "default", size: "sm", className: "w-full" })}
+                  >
+                    <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+                    Open Viewport
+                  </a>
+                  <a
+                    href={`/api/files/${fileId}`}
+                    download
+                    className={buttonVariants({ variant: "outline", size: "sm", className: "w-full" })}
+                  >
+                    <Download className="mr-1.5 h-3.5 w-3.5" />
+                    Download File
+                  </a>
+                </div>
+              </div>
+            ) : (
+              <iframe
+                src={`/api/files/${fileId}`}
+                className="w-full h-full border-0 bg-background"
+                title={`Document Preview`}
+              />
+            )
           ) : isDocx ? (
             <DocxViewer fileId={fileId} />
           ) : (

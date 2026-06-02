@@ -304,11 +304,13 @@ export default function ResumesPage() {
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateResume} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="resume-name">Friendly Name *</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="resume-name" className="text-sm font-semibold">
+                Version Name <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="resume-name"
-                placeholder="e.g. Master Resume 2026, Tailored for Web Dev"
+                placeholder="e.g. Master Resume, Web Dev focus"
                 value={newResume.name}
                 onChange={(e) =>
                   setNewResume((p) => ({ ...p, name: e.target.value }))
@@ -318,8 +320,11 @@ export default function ResumesPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="target-role">Target Role</Label>
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-baseline">
+                  <Label htmlFor="target-role" className="text-sm font-semibold">Target Role</Label>
+                  <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
+                </div>
                 <Input
                   id="target-role"
                   placeholder="e.g. Fullstack Engineer"
@@ -329,11 +334,14 @@ export default function ResumesPage() {
                   }
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="target-industry">Target Industry</Label>
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-baseline">
+                  <Label htmlFor="target-industry" className="text-sm font-semibold">Industry</Label>
+                  <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
+                </div>
                 <Input
                   id="target-industry"
-                  placeholder="e.g. SaaS / fintech"
+                  placeholder="e.g. SaaS / Fintech"
                   value={newResume.targetIndustry}
                   onChange={(e) =>
                     setNewResume((p) => ({ ...p, targetIndustry: e.target.value }))
@@ -342,11 +350,14 @@ export default function ResumesPage() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="skills-raw">Emphasized Skills (comma-separated)</Label>
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-baseline">
+                <Label htmlFor="skills-raw" className="text-sm font-semibold">Emphasized Skills</Label>
+                <span className="text-[10px] text-muted-foreground font-medium">Comma-separated</span>
+              </div>
               <Input
                 id="skills-raw"
-                placeholder="React, TypeScript, MongoDB, Next.js"
+                placeholder="e.g. React, TypeScript, Node.js"
                 value={newResume.skillsRaw}
                 onChange={(e) =>
                   setNewResume((p) => ({ ...p, skillsRaw: e.target.value }))
@@ -354,8 +365,11 @@ export default function ResumesPage() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="attached-file">Link to Uploaded Resume Document</Label>
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-baseline">
+                <Label htmlFor="attached-file" className="text-sm font-semibold">Attach Document</Label>
+                <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
+              </div>
               <select
                 id="attached-file"
                 value={newResume.fileId}
@@ -364,7 +378,7 @@ export default function ResumesPage() {
                 }
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <option value="">-- Optional: Choose Document --</option>
+                <option value="">-- Choose Document --</option>
                 {files.map((f) => (
                   <option key={f.id || f._id} value={f.id || f._id}>
                     {f.displayName}
@@ -373,11 +387,14 @@ export default function ResumesPage() {
               </select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="resume-notes">Version Notes</Label>
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-baseline">
+                <Label htmlFor="resume-notes" className="text-sm font-semibold">Version Notes</Label>
+                <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
+              </div>
               <Textarea
                 id="resume-notes"
-                placeholder="What changes did you make in this version? E.g. added new project section"
+                placeholder="What changes did you make in this version?"
                 value={newResume.notes}
                 onChange={(e) =>
                   setNewResume((p) => ({ ...p, notes: e.target.value }))

@@ -60,6 +60,26 @@ export function DocxViewer({ fileId }: DocxViewerProps) {
 
   return (
     <div className="relative w-full h-full overflow-auto flex flex-col bg-white text-black p-4 md:p-8">
+      <style>{`
+        /* Make docx rendering responsive on all screens, especially mobile */
+        .docx-container section.docx {
+          width: 100% !important;
+          max-width: 100% !important;
+          padding: 2.5rem !important;
+          margin: 0 auto 1.5rem auto !important;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+          border: 1px border-border/40 !important;
+          box-sizing: border-box !important;
+          height: auto !important;
+          min-height: auto !important;
+        }
+        @media (max-width: 640px) {
+          .docx-container section.docx {
+            padding: 1.5rem !important;
+          }
+        }
+      `}</style>
+
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-white/90 dark:bg-black/90 z-10">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
