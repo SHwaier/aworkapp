@@ -837,42 +837,44 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                   <p className="text-sm font-medium">No timeline events yet</p>
                 </div>
               ) : (
-                <div className="relative border-l border-border pl-6 ml-3 space-y-6">
+                <div className="relative border-l border-border pl-6 ml-3 space-y-6 w-full min-w-0">
                   {timeline.map((event) => {
                     const theme = TIMELINE_EVENT_THEMES[event.type] || TIMELINE_EVENT_THEMES["custom"];
                     return (
-                      <div key={event._id || event.id} className="relative group">
+                      <div key={event._id || event.id} className="relative group w-full min-w-0">
                         {/* Timeline dot */}
                         <span className={cn("absolute -left-[31px] top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-background border-2 transition-colors", theme.dotBorder)}>
                           <span className={cn("h-1.5 w-1.5 rounded-full transition-colors", theme.dotBg)} />
                         </span>
 
-                        <div className={cn("space-y-1 p-3 rounded-lg border transition-all duration-200", theme.bg || "bg-card/50", theme.border || "border-border/40")}>
-                          <div className="flex items-center justify-between">
-                            <span className="font-semibold text-sm">{event.title}</span>
-                            <div className="flex items-center gap-2">
+                        <div className={cn("space-y-1.5 p-3 rounded-lg border transition-all duration-200 w-full min-w-0 overflow-hidden", theme.bg || "bg-card/50", theme.border || "border-border/40")}>
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-4 w-full min-w-0">
+                            <span className="font-semibold text-sm break-words sm:truncate">{event.title}</span>
+                            <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto shrink-0 border-t sm:border-0 border-border/20 pt-1.5 sm:pt-0">
                               <span className="text-xs text-muted-foreground">
                                 {new Date(event.eventDate).toLocaleDateString()}
                               </span>
-                              <button
-                                onClick={() => startEditTimeline(event)}
-                                className="text-muted-foreground hover:text-foreground p-1.5 hover:bg-muted rounded-md transition-all sm:opacity-0 sm:group-hover:opacity-100 flex items-center justify-center"
-                                aria-label="Edit event"
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                onClick={() => requestDeleteTimeline(event._id || event.id)}
-                                className="text-muted-foreground hover:text-destructive p-1.5 hover:bg-muted rounded-md transition-all sm:opacity-0 sm:group-hover:opacity-100 flex items-center justify-center"
-                                aria-label="Delete event"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => startEditTimeline(event)}
+                                  className="text-muted-foreground hover:text-foreground p-1 hover:bg-muted rounded transition-all sm:opacity-0 sm:group-hover:opacity-100 flex items-center justify-center"
+                                  aria-label="Edit event"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => requestDeleteTimeline(event._id || event.id)}
+                                  className="text-muted-foreground hover:text-destructive p-1 hover:bg-muted rounded transition-all sm:opacity-0 sm:group-hover:opacity-100 flex items-center justify-center"
+                                  aria-label="Delete event"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
                             </div>
                           </div>
 
                           {event.description && (
-                            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                            <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words leading-relaxed">
                               {event.description}
                             </p>
                           )}
