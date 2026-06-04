@@ -1,0 +1,12 @@
+# Build and dependency files
+.next/
+node_modules/
+package-lock.json
+
+# Build outputs
+out/
+build/
+dist/
+
+# Static files
+public/
