@@ -72,10 +72,9 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     // Fetch the page with a browser-like User-Agent
     let html: string;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000); // 15s total timeout
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
-
       const response = await fetch(url, {
         headers: {
           "User-Agent":
@@ -88,9 +87,8 @@ export async function POST(request: Request): Promise<NextResponse> {
         redirect: "follow",
       });
 
-      clearTimeout(timeout);
-
       if (!response.ok) {
+        clearTimeout(timeout);
         return NextResponse.json(
           {
             success: true,
@@ -101,8 +99,36 @@ export async function POST(request: Request): Promise<NextResponse> {
         );
       }
 
+      // Check Content-Type to ensure it is HTML
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.includes("text/html") && !contentType.includes("xhtml")) {
+        clearTimeout(timeout);
+        return NextResponse.json(
+          {
+            success: true,
+            data: emptyResult(),
+            warning: "The URL did not return an HTML page.",
+          },
+          { status: 200 }
+        );
+      }
+
       html = await response.text();
+      clearTimeout(timeout);
+
+      // Limit HTML length to 2MB to prevent cheerio memory exhaustion
+      if (html.length > 2 * 1024 * 1024) {
+        return NextResponse.json(
+          {
+            success: true,
+            data: emptyResult(),
+            warning: "Page is too large to parse automatically.",
+          },
+          { status: 200 }
+        );
+      }
     } catch (err) {
+      clearTimeout(timeout);
       // Network errors are non-fatal — return empty result with warning
       return NextResponse.json(
         {
@@ -110,7 +136,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           data: emptyResult(),
           warning:
             err instanceof Error && err.name === "AbortError"
-              ? "Request timed out. You can fill in the details manually."
+              ? "Request timed out or page was too large. You can fill in the details manually."
               : "Could not fetch the page. You can fill in the details manually.",
         },
         { status: 200 }

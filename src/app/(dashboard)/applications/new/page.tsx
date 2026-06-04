@@ -94,6 +94,16 @@ export default function NewApplicationPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [companies, setCompanies] = useState<Company[]>([]);
   const companyRef = useRef<HTMLDivElement>(null);
+  const parseAbortControllerRef = useRef<AbortController | null>(null);
+
+  // Cleanup parse abort on unmount
+  useEffect(() => {
+    return () => {
+      if (parseAbortControllerRef.current) {
+        parseAbortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   const [form, setForm] = useState({
     jobTitle: "",
@@ -103,6 +113,10 @@ export default function NewApplicationPage() {
     employmentType: "" as string,
     source: "Other" as string,
     currentStatus: "Saved" as string,
+    salaryMin: "" as string | number,
+    salaryMax: "" as string | number,
+    currency: "USD",
+    seniorityLevel: "",
   });
 
   // Fetch companies for autocomplete
@@ -131,7 +145,7 @@ export default function NewApplicationPage() {
     ? companies.filter((c) =>
         c.name.toLowerCase().includes(companySearchText.toLowerCase())
       )
-    : [];
+    : companies;
 
   // ─── URL parsing ───
   async function handleParseUrl() {
@@ -139,6 +153,13 @@ export default function NewApplicationPage() {
       goToStep(2);
       return;
     }
+
+    if (parseAbortControllerRef.current) {
+      parseAbortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    parseAbortControllerRef.current = controller;
+
     setIsParsing(true);
     setParseWarning("");
     setParseProgress(10);
@@ -154,6 +175,7 @@ export default function NewApplicationPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: jobUrl.trim() }),
+        signal: controller.signal,
       });
       const data = await res.json();
       setParseProgress(100);
@@ -169,6 +191,9 @@ export default function NewApplicationPage() {
           workMode: p.workMode || prev.workMode,
           employmentType: p.employmentType || prev.employmentType,
           source: p.source || prev.source,
+          salaryMin: (p as any).salaryMin !== null && (p as any).salaryMin !== undefined ? (p as any).salaryMin : prev.salaryMin,
+          salaryMax: (p as any).salaryMax !== null && (p as any).salaryMax !== undefined ? (p as any).salaryMax : prev.salaryMax,
+          currency: (p as any).currency || prev.currency,
         }));
         if (p.companyName) {
           setCompanySearchText(p.companyName);
@@ -183,12 +208,17 @@ export default function NewApplicationPage() {
         }
         if (data.warning) setParseWarning(data.warning);
       }
-    } catch {
-      toast.error("Failed to parse URL");
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        toast.error("Failed to parse URL");
+      }
     } finally {
       clearInterval(interval);
       setIsParsing(false);
       goToStep(2);
+      if (parseAbortControllerRef.current === controller) {
+        parseAbortControllerRef.current = null;
+      }
     }
   }
 
@@ -284,6 +314,10 @@ export default function NewApplicationPage() {
           jobUrl: jobUrl || undefined,
           workMode: form.workMode || undefined,
           employmentType: form.employmentType || undefined,
+          salaryMin: form.salaryMin !== "" ? Number(form.salaryMin) : undefined,
+          salaryMax: form.salaryMax !== "" ? Number(form.salaryMax) : undefined,
+          currency: form.currency || "USD",
+          seniorityLevel: form.seniorityLevel || undefined,
         }),
       });
       const data = await res.json();
@@ -412,7 +446,13 @@ export default function NewApplicationPage() {
                   </Button>
                   <Button
                     variant="ghost"
-                    onClick={() => { goToStep(2); }}
+                    onClick={() => {
+                      if (parseAbortControllerRef.current) {
+                        parseAbortControllerRef.current.abort();
+                      }
+                      setIsParsing(false);
+                      goToStep(2);
+                    }}
                     className="h-11 text-sm text-muted-foreground"
                     id="skip-url-btn"
                   >
@@ -680,6 +720,77 @@ export default function NewApplicationPage() {
 
             <div className="space-y-1.5">
               <div className="flex justify-between items-baseline">
+                <Label htmlFor="wizard-joburl" className="text-sm font-semibold">Job URL</Label>
+                <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
+              </div>
+              <Input
+                id="wizard-joburl"
+                type="url"
+                value={jobUrl}
+                onChange={(e) => setJobUrl(e.target.value)}
+                placeholder="https://linkedin.com/jobs/view/..."
+                className="h-10 bg-card"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-baseline">
+                  <Label htmlFor="wizard-seniority" className="text-sm font-semibold">Seniority Level</Label>
+                  <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
+                </div>
+                <Input
+                  id="wizard-seniority"
+                  value={form.seniorityLevel}
+                  onChange={(e) => setForm((p) => ({ ...p, seniorityLevel: e.target.value }))}
+                  placeholder="e.g. Junior, Senior, Lead"
+                  className="h-10 bg-card"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-baseline">
+                  <Label className="text-sm font-semibold">Salary Range</Label>
+                  <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    value={form.salaryMin}
+                    onChange={(e) => setForm((p) => ({ ...p, salaryMin: e.target.value }))}
+                    placeholder="Min"
+                    className="h-10 bg-card flex-1"
+                  />
+                  <span className="text-muted-foreground text-xs font-semibold px-0.5">to</span>
+                  <Input
+                    type="number"
+                    value={form.salaryMax}
+                    onChange={(e) => setForm((p) => ({ ...p, salaryMax: e.target.value }))}
+                    placeholder="Max"
+                    className="h-10 bg-card flex-1"
+                  />
+                  <Select
+                    value={form.currency}
+                    onValueChange={(v) => setForm((p) => ({ ...p, currency: v || "USD" }))}
+                  >
+                    <SelectTrigger className="h-10 bg-card w-24">
+                      <SelectValue placeholder="USD" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="USD">USD</SelectItem>
+                      <SelectItem value="CAD">CAD</SelectItem>
+                      <SelectItem value="EUR">EUR</SelectItem>
+                      <SelectItem value="GBP">GBP</SelectItem>
+                      <SelectItem value="AUD">AUD</SelectItem>
+                      <SelectItem value="INR">INR</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-baseline">
                 <Label htmlFor="wizard-desc" className="text-sm font-semibold">Job Description</Label>
                 <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
               </div>
@@ -742,6 +853,8 @@ export default function NewApplicationPage() {
                     ["Work Mode", form.workMode ? form.workMode.charAt(0).toUpperCase() + form.workMode.slice(1) : ""],
                     ["Employment", form.employmentType ? form.employmentType.charAt(0).toUpperCase() + form.employmentType.slice(1) : ""],
                     ["Source", form.source],
+                    ["Seniority", form.seniorityLevel],
+                    ["Salary Range", (form.salaryMin || form.salaryMax) ? `${form.salaryMin ? `${form.currency} ${Number(form.salaryMin).toLocaleString()}` : "—"} to ${form.salaryMax ? `${form.currency} ${Number(form.salaryMax).toLocaleString()}` : "—"}` : ""],
                   ].map(([label, value]) => (
                     <div key={label}>
                       <p className="text-xs text-muted-foreground">{label}</p>

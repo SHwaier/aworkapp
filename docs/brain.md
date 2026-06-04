@@ -4,6 +4,14 @@ This document serves as the pairing context and history log for the AI agent con
 
 ---
 
+## SECURITY GUARDRAILS (CRITICAL)
+- **Zero-Secrets Policy**: Never hardcode or write sensitive secrets, connection strings (e.g., MongoDB URI, API keys, password strings) directly into files or commits.
+- **Environment Management**: Always reference environment variables dynamically via `process.env.*`.
+- **Pre-Commit Gate**: A local validation script (`scripts/check-secrets.js`) runs automatically on every commit to scan and block staged changes containing secrets.
+- **Clarification Rules**: If there is any confusion regarding a configuration value, or if you need to set up a new environment variable, *always* ask the user for explicit permission first.
+
+---
+
 ## 1. Context & Architecture
 
 AWorkApp is a modern, premium SaaS platform built on **Next.js** (using App Router and Turbopack compiler) and **MongoDB (Mongoose)** for tracking job applications, resumes, files, and target companies.

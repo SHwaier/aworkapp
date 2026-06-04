@@ -54,32 +54,35 @@ export async function GET(request: Request): Promise<NextResponse> {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 3000); // 3s timeout
 
-      const response = await fetch(
-        `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=10`,
-        {
-          headers: {
-            "Accept-Language": "en",
-          },
-          signal: controller.signal,
-        }
-      );
-      clearTimeout(timeout);
+      try {
+        const response = await fetch(
+          `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=10`,
+          {
+            headers: {
+              "Accept-Language": "en",
+            },
+            signal: controller.signal,
+          }
+        );
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data && Array.isArray(data.features)) {
-          suggestions = data.features.map((feature: any) => {
-            const p = feature.properties;
-            const parts: string[] = [];
-            
-            if (p.name) parts.push(p.name);
-            if (p.city && p.city !== p.name) parts.push(p.city);
-            if (p.state && p.state !== p.name && p.state !== p.city) parts.push(p.state);
-            if (p.country) parts.push(p.country);
+        if (response.ok) {
+          const data = await response.json();
+          if (data && Array.isArray(data.features)) {
+            suggestions = data.features.map((feature: any) => {
+              const p = feature.properties;
+              const parts: string[] = [];
+              
+              if (p.name) parts.push(p.name);
+              if (p.city && p.city !== p.name) parts.push(p.city);
+              if (p.state && p.state !== p.name && p.state !== p.city) parts.push(p.state);
+              if (p.country) parts.push(p.country);
 
-            return parts.filter(Boolean).join(", ");
-          });
+              return parts.filter(Boolean).join(", ");
+            });
+          }
         }
+      } finally {
+        clearTimeout(timeout);
       }
     } catch {
       // Fail silently to try Nominatim fallback
@@ -91,25 +94,28 @@ export async function GET(request: Request): Promise<NextResponse> {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 4000); // 4s timeout
 
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
-            query
-          )}&format=json&accept-language=en&limit=10`,
-          {
-            headers: {
-              // Nominatim strictly requires a valid User-Agent identifying the application
-              "User-Agent": "AWorkApp-JobTracker/1.0 (https://aworkapp.vercel.app)",
-            },
-            signal: controller.signal,
-          }
-        );
-        clearTimeout(timeout);
+        try {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
+              query
+            )}&format=json&accept-language=en&limit=10`,
+            {
+              headers: {
+                // Nominatim strictly requires a valid User-Agent identifying the application
+                "User-Agent": "AWorkApp-JobTracker/1.0 (https://aworkapp.vercel.app)",
+              },
+              signal: controller.signal,
+            }
+          );
 
-        if (response.ok) {
-          const data = await response.json();
-          if (Array.isArray(data)) {
-            suggestions = data.map((item: any) => item.display_name);
+          if (response.ok) {
+            const data = await response.json();
+            if (Array.isArray(data)) {
+              suggestions = data.map((item: any) => item.display_name);
+            }
           }
+        } finally {
+          clearTimeout(timeout);
         }
       } catch {
         // Both failed

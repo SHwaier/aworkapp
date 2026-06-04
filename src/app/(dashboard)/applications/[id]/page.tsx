@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, use } from "react";
+import { useEffect, useState, useCallback, use, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -49,6 +49,8 @@ import {
   User,
   AlertCircle,
   File,
+  UploadCloud,
+  FileUp,
 } from "lucide-react";
 import { getStatusVariant } from "@/lib/utils/status";
 import {
@@ -57,6 +59,7 @@ import {
   NOTE_TYPES,
   TIMELINE_EVENT_TYPES,
 } from "@/lib/validators/schemas";
+import { DocxViewer } from "@/components/ui/docx-viewer";
 
 interface ApplicationDetails {
   id: string;
@@ -245,12 +248,88 @@ const TIMELINE_EVENT_THEMES: Record<string, {
   },
 };
 
+import { LocationAutocomplete } from "@/components/ui/location-autocomplete";
+
+
 export default function ApplicationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const router = useRouter();
   const applicationId = resolvedParams.id;
 
+  // Edit details states
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isUpdatingDetails, setIsUpdatingDetails] = useState(false);
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [editCompanySearchText, setEditCompanySearchText] = useState("");
+  const [editCompanyId, setEditCompanyId] = useState("");
+  const [showEditSuggestions, setShowEditSuggestions] = useState(false);
+  const editCompanyRef = useRef<HTMLDivElement>(null);
+  const [focusedEditCompanyIndex, setFocusedEditCompanyIndex] = useState(-1);
+
+  const [editDetailsForm, setEditDetailsForm] = useState({
+    jobTitle: "",
+    jobUrl: "",
+    location: "",
+    workMode: "",
+    employmentType: "",
+    source: "",
+    seniorityLevel: "",
+    salaryMin: "" as string | number,
+    salaryMax: "" as string | number,
+    currency: "USD",
+    jobDescription: "",
+  });
+
+  const fetchCompanies = useCallback(async () => {
+    try {
+      const res = await fetch("/api/companies?limit=100");
+      const data = await res.json();
+      if (data.success) setCompanies(data.data.companies);
+    } catch { /* silent */ }
+  }, []);
+
+  useEffect(() => {
+    fetchCompanies();
+  }, [fetchCompanies]);
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (editCompanyRef.current && !editCompanyRef.current.contains(e.target as Node)) {
+        setShowEditSuggestions(false);
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const editFilteredSuggestions = editCompanySearchText.trim()
+    ? companies.filter((c) =>
+        c.name.toLowerCase().includes(editCompanySearchText.toLowerCase())
+      )
+    : companies;
+
   const [app, setApp] = useState<ApplicationDetails | null>(null);
+
+  const openEditDialog = useCallback(() => {
+    if (!app) return;
+    setEditDetailsForm({
+      jobTitle: app.jobTitle || "",
+      jobUrl: app.jobUrl || "",
+      location: app.location || "",
+      workMode: app.workMode || "",
+      employmentType: app.employmentType || "",
+      source: app.source || "Other",
+      seniorityLevel: app.seniorityLevel || "",
+      salaryMin: app.salaryMin !== null && app.salaryMin !== undefined ? app.salaryMin : "",
+      salaryMax: app.salaryMax !== null && app.salaryMax !== undefined ? app.salaryMax : "",
+      currency: app.currency || "USD",
+      jobDescription: app.jobDescription || "",
+    });
+    setEditCompanySearchText(app.companyId?.name || "");
+    setEditCompanyId(app.companyId?.id || "");
+    setIsEditDialogOpen(true);
+  }, [app]);
+
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -264,6 +343,15 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
     type: "note",
     id: undefined,
   });
+
+  // Resume states
+  const [resumeSnapshot, setResumeSnapshot] = useState<any | null>(null);
+  const [userResumes, setUserResumes] = useState<any[]>([]);
+  const [isFetchingResume, setIsFetchingResume] = useState(true);
+  const [selectedResumeId, setSelectedResumeId] = useState<string>("");
+  const [isAssigningResume, setIsAssigningResume] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Edit status/next action state
   const [editStatus, setEditStatus] = useState({
@@ -334,9 +422,176 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
     }
   }, [applicationId, router]);
 
+  const fetchResumeInfo = useCallback(async () => {
+    setIsFetchingResume(true);
+    try {
+      const snapshotRes = await fetch(`/api/applications/${applicationId}/resume`);
+      const snapshotData = await snapshotRes.json();
+      if (snapshotData.success) {
+        setResumeSnapshot(snapshotData.data.resumeSnapshot);
+        if (snapshotData.data.resumeSnapshot) {
+          setSelectedResumeId(snapshotData.data.resumeSnapshot.baseResumeVersionId?.id || snapshotData.data.resumeSnapshot.baseResumeVersionId || "");
+        }
+      }
+      
+      const resumesRes = await fetch(`/api/resumes?active=true`);
+      const resumesData = await resumesRes.json();
+      if (resumesData.success) {
+        setUserResumes(resumesData.data.resumes || []);
+      }
+    } catch (err) {
+      console.error("Error fetching resume snapshot:", err);
+    } finally {
+      setIsFetchingResume(false);
+    }
+  }, [applicationId]);
+
   useEffect(() => {
     fetchDetails();
-  }, [fetchDetails]);
+    fetchResumeInfo();
+  }, [fetchDetails, fetchResumeInfo]);
+
+  async function handleAssignResume(resumeId: string) {
+    if (!resumeId) return;
+    setIsAssigningResume(true);
+    try {
+      const res = await fetch(`/api/applications/${applicationId}/resume`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resumeVersionId: resumeId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Resume assigned to application");
+        fetchResumeInfo();
+      } else {
+        toast.error(data.error || "Failed to assign resume");
+      }
+    } catch {
+      toast.error("Failed to assign resume");
+    } finally {
+      setIsAssigningResume(false);
+    }
+  }
+
+  async function handleUploadAndAssignResume(file: globalThis.File) {
+    if (!file) return;
+    const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
+    if (ext !== ".pdf" && ext !== ".docx") {
+      toast.error("Only PDF and DOCX files are allowed");
+      return;
+    }
+    setIsAssigningResume(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await fetch(`/api/applications/${applicationId}/resume/upload-assign`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Resume uploaded and assigned successfully!");
+        fetchResumeInfo();
+        fetchDetails();
+      } else {
+        toast.error(data.error || "Failed to upload and assign resume");
+      }
+    } catch {
+      toast.error("Failed to upload and assign resume");
+    } finally {
+      setIsAssigningResume(false);
+    }
+  }
+
+  async function handleUnassignResume() {
+    if (!confirm("Are you sure you want to unassign this resume from the application? Any customized changes will be permanently deleted.")) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/applications/${applicationId}/resume`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Resume unassigned");
+        setResumeSnapshot(null);
+        setSelectedResumeId("");
+        fetchResumeInfo();
+      } else {
+        toast.error(data.error || "Failed to unassign resume");
+      }
+    } catch {
+      toast.error("Failed to unassign resume");
+    }
+  }
+
+  async function handleUpdateDetails(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editDetailsForm.jobTitle.trim() || !editCompanySearchText.trim()) {
+      toast.error("Job title and Company name are required");
+      return;
+    }
+    setIsUpdatingDetails(true);
+
+    try {
+      let finalCompanyId = editCompanyId;
+      // Create company if needed
+      if (!finalCompanyId && editCompanySearchText.trim()) {
+        const match = companies.find(
+          (c) => c.name.toLowerCase() === editCompanySearchText.trim().toLowerCase()
+        );
+        if (match) {
+          finalCompanyId = match.id || match._id || "";
+        } else {
+          const compRes = await fetch("/api/companies", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: editCompanySearchText.trim() }),
+          });
+          const compData = await compRes.json();
+          if (!compRes.ok) throw new Error(compData.error);
+          finalCompanyId = compData.data.company.id || compData.data.company._id || "";
+        }
+      }
+
+      if (!finalCompanyId) {
+        toast.error("Please select or type a company");
+        setIsUpdatingDetails(false);
+        return;
+      }
+
+      const res = await fetch(`/api/applications/${applicationId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobTitle: editDetailsForm.jobTitle.trim(),
+          companyId: finalCompanyId,
+          jobUrl: editDetailsForm.jobUrl.trim() || "",
+          location: editDetailsForm.location.trim() || "",
+          workMode: editDetailsForm.workMode || "",
+          employmentType: editDetailsForm.employmentType || "",
+          source: editDetailsForm.source || "Other",
+          seniorityLevel: editDetailsForm.seniorityLevel.trim() || "",
+          salaryMin: editDetailsForm.salaryMin !== "" ? Number(editDetailsForm.salaryMin) : null,
+          salaryMax: editDetailsForm.salaryMax !== "" ? Number(editDetailsForm.salaryMax) : null,
+          currency: editDetailsForm.currency || "USD",
+          jobDescription: editDetailsForm.jobDescription || "",
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      toast.success("Application details updated successfully! ✨");
+      setIsEditDialogOpen(false);
+      fetchDetails();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update details");
+    } finally {
+      setIsUpdatingDetails(false);
+    }
+  }
 
   async function handleUpdateStatus(e: React.FormEvent) {
     e.preventDefault();
@@ -557,20 +812,29 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
           <Undo2 className="mr-2 h-4 w-4" />
           Back to applications
         </Link>
-        <Button
-          variant="destructive"
-          size="sm"
-          onClick={requestDeleteApplication}
-          disabled={isDeleting}
-          className="self-start sm:self-auto"
-        >
-          {isDeleting ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Trash2 className="mr-2 h-4 w-4" />
-          )}
-          Delete Application
-        </Button>
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={openEditDialog}
+          >
+            <Pencil className="mr-2 h-4 w-4" />
+            Edit Details
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={requestDeleteApplication}
+            disabled={isDeleting}
+          >
+            {isDeleting ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="mr-2 h-4 w-4" />
+            )}
+            Delete Application
+          </Button>
+        </div>
       </div>
 
       {/* Main Header Container */}
@@ -678,6 +942,15 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                 className="flex-none rounded-none bg-transparent px-4 sm:px-6 text-sm font-semibold text-muted-foreground hover:text-foreground data-active:text-primary group-data-[variant=line]/tabs-list:data-active:after:bg-primary after:bottom-0 transition-all"
               >
                 Job Description
+              </TabsTrigger>
+              <TabsTrigger
+                value="resume"
+                className="flex-none rounded-none bg-transparent px-4 sm:px-6 text-sm font-semibold text-muted-foreground hover:text-foreground data-active:text-primary group-data-[variant=line]/tabs-list:data-active:after:bg-primary after:bottom-0 transition-all flex items-center gap-1.5"
+              >
+                Resume
+                {resumeSnapshot && (
+                  <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                )}
               </TabsTrigger>
             </TabsList>
 
@@ -1016,6 +1289,228 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                   )}
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            {/* Resume Tab */}
+            <TabsContent value="resume" className="space-y-4 pt-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-lg">Assigned Resume</h3>
+                {resumeSnapshot && (
+                  <Button variant="destructive" size="sm" onClick={handleUnassignResume}>
+                    Unassign Resume
+                  </Button>
+                )}
+              </div>
+
+              {isFetchingResume ? (
+                <div className="flex h-32 items-center justify-center">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : !resumeSnapshot ? (
+                <Card 
+                  className={cn(
+                    "border-2 border-dashed transition-all duration-300",
+                    isDragging 
+                      ? "border-primary bg-primary/5 shadow-sm" 
+                      : "border-border/80 hover:border-muted-foreground/30"
+                  )}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDragging(true);
+                  }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDragging(false);
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) handleUploadAndAssignResume(file);
+                  }}
+                >
+                  <CardContent className="flex flex-col items-center justify-center py-10 px-6 text-center space-y-6">
+                    <div className="flex flex-col items-center space-y-2">
+                      <div className={cn(
+                        "p-4 rounded-full transition-all duration-300",
+                        isDragging ? "bg-primary/10 scale-110" : "bg-muted"
+                      )}>
+                        {isAssigningResume ? (
+                          <Loader2 className="h-10 w-10 text-primary animate-spin" />
+                        ) : (
+                          <UploadCloud className={cn(
+                            "h-10 w-10 transition-colors",
+                            isDragging ? "text-primary" : "text-muted-foreground/60"
+                          )} />
+                        )}
+                      </div>
+                      <div className="space-y-1 pt-2">
+                        <p className="text-sm font-semibold">
+                          {isAssigningResume ? "Uploading and processing resume..." : "Drag & drop your tailored resume here"}
+                        </p>
+                        <p className="text-xs text-muted-foreground max-w-sm">
+                          Supports PDF and DOCX files up to 10MB
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-center">
+                      <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleUploadAndAssignResume(file);
+                        }} 
+                        accept=".pdf,.docx" 
+                        className="hidden" 
+                      />
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={isAssigningResume}
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <FileUp className="mr-1.5 h-4 w-4" />
+                        Choose File
+                      </Button>
+                    </div>
+
+                    <div className="relative w-full max-w-md py-2 flex items-center justify-center">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t border-border/80" />
+                      </div>
+                      <span className="relative bg-card px-3 text-xs text-muted-foreground uppercase font-medium">
+                        Or select from library
+                      </span>
+                    </div>
+                    
+                    <div className="flex flex-col sm:flex-row gap-3 w-full max-w-md items-center justify-center pt-1">
+                      {userResumes.length === 0 ? (
+                        <div className="text-xs text-muted-foreground italic">
+                          No resumes in your library yet. Upload one above to get started!
+                        </div>
+                      ) : (
+                        <>
+                          <Select
+                            value={selectedResumeId}
+                            onValueChange={(val) => setSelectedResumeId(val || "")}
+                            disabled={isAssigningResume}
+                          >
+                            <SelectTrigger className="w-full sm:w-64 h-9">
+                              <SelectValue placeholder="Select a resume..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {userResumes.map((r) => (
+                                <SelectItem key={r.id || r._id} value={r.id || r._id}>
+                                  {r.name} (V{r.versionNumber})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            size="sm"
+                            disabled={!selectedResumeId || isAssigningResume}
+                            onClick={() => handleAssignResume(selectedResumeId)}
+                          >
+                            {isAssigningResume && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                            Assign Resume
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                (() => {
+                  const finalFileId = typeof resumeSnapshot.finalSubmittedFileId === "object" && resumeSnapshot.finalSubmittedFileId
+                    ? (resumeSnapshot.finalSubmittedFileId._id || resumeSnapshot.finalSubmittedFileId.id)
+                    : resumeSnapshot.finalSubmittedFileId;
+
+                  const baseFileId = typeof resumeSnapshot.baseResumeVersionId?.fileId === "object" && resumeSnapshot.baseResumeVersionId?.fileId
+                    ? (resumeSnapshot.baseResumeVersionId.fileId._id || resumeSnapshot.baseResumeVersionId.fileId.id)
+                    : resumeSnapshot.baseResumeVersionId?.fileId;
+
+                  return (
+                    <div className="space-y-6">
+                      {/* Resume Details & Actions Card */}
+                      <Card className="border-border/60">
+                        <CardHeader className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                          <div className="space-y-1">
+                            <CardTitle className="text-sm font-bold flex items-center gap-2">
+                              <FileText className="h-4 w-4 text-primary" />
+                              {resumeSnapshot.baseResumeVersionId?.name || "Assigned Resume"}
+                            </CardTitle>
+                            <p className="text-xs text-muted-foreground">
+                              Base Version: {resumeSnapshot.baseResumeVersionId?.versionNumber || 1} • 
+                              Targeting: {resumeSnapshot.baseResumeVersionId?.targetRole || "Any Role"}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {resumeSnapshot.manuallyEdited ? (
+                              <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-xs py-1 h-7">
+                                Customized for this Application
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-xs py-1 h-7">
+                                Original Base Version
+                              </Badge>
+                            )}
+                            <Link
+                              href={`/applications/${applicationId}/resume/customize`}
+                              className={buttonVariants({ size: "sm", className: "h-7 text-xs bg-primary hover:bg-primary/90" })}
+                            >
+                              Customize Resume
+                            </Link>
+                            {finalFileId ? (
+                              <a
+                                href={`/api/files/${finalFileId}`}
+                                download
+                                className={buttonVariants({ variant: "outline", size: "sm", className: "h-7 text-xs" })}
+                              >
+                                Download Custom DOCX
+                              </a>
+                            ) : baseFileId ? (
+                              <a
+                                href={`/api/files/${baseFileId}`}
+                                download
+                                className={buttonVariants({ variant: "outline", size: "sm", className: "h-7 text-xs" })}
+                              >
+                                Download Base DOCX
+                              </a>
+                            ) : null}
+                          </div>
+                        </CardHeader>
+                        {resumeSnapshot.baseResumeVersionId?.notes && (
+                          <CardContent className="pb-4 pt-0 border-t border-border/20 pt-4 text-xs text-muted-foreground">
+                            <span className="font-bold text-foreground">Base Version Notes:</span>{" "}
+                            {resumeSnapshot.baseResumeVersionId.notes}
+                          </CardContent>
+                        )}
+                      </Card>
+
+                      {/* Document Preview Panel */}
+                      <div className="border border-border/60 rounded-xl overflow-hidden bg-background h-[600px] flex flex-col">
+                        <div className="bg-muted/10 px-4 py-3 border-b border-border/60 flex items-center justify-between shrink-0">
+                          <span className="text-xs font-bold text-foreground">Live Document Preview</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {resumeSnapshot.manuallyEdited ? "Showing customized DOCX version" : "Showing original base version"}
+                          </span>
+                        </div>
+                        <div className="flex-1 bg-muted/5 min-h-0 relative">
+                          {finalFileId ? (
+                            <DocxViewer fileId={finalFileId} />
+                          ) : baseFileId ? (
+                            <DocxViewer fileId={baseFileId} />
+                          ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center">
+                              <FileText className="h-12 w-12 text-muted-foreground/30 mb-2" />
+                              <p className="text-sm font-medium">No preview document available</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()
+              )}
             </TabsContent>
           </Tabs>
         </div>
@@ -1391,6 +1886,250 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
               <Button type="submit" disabled={isUpdatingTimeline}>
                 {isUpdatingTimeline && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save Changes
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isEditDialogOpen}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setIsEditDialogOpen(false);
+        }}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Application Details</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleUpdateDetails} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Job Title */}
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-title" className="text-sm font-semibold">
+                  Job Title <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="edit-title"
+                  value={editDetailsForm.jobTitle}
+                  onChange={(e) => setEditDetailsForm((p) => ({ ...p, jobTitle: e.target.value }))}
+                  required
+                />
+              </div>
+
+              {/* Company */}
+              <div className="space-y-1.5 relative" ref={editCompanyRef}>
+                <Label htmlFor="edit-company" className="text-sm font-semibold">
+                  Company <span className="text-destructive">*</span>
+                </Label>
+                <div className="relative">
+                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="edit-company"
+                    placeholder="Search or type company..."
+                    value={editCompanySearchText}
+                    onChange={(e) => {
+                      setEditCompanySearchText(e.target.value);
+                      setShowEditSuggestions(true);
+                      setEditCompanyId("");
+                      setFocusedEditCompanyIndex(-1);
+                    }}
+                    onFocus={() => setShowEditSuggestions(true)}
+                    className="pl-10 h-10 bg-card"
+                  />
+                  {showEditSuggestions && (
+                    <div className="absolute z-50 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-lg border border-border bg-popover py-1 shadow-md">
+                      {editFilteredSuggestions.length > 0 ? (
+                        editFilteredSuggestions.map((suggestion, idx) => (
+                          <button
+                            key={suggestion.id || suggestion._id}
+                            type="button"
+                            onClick={() => {
+                              setEditCompanySearchText(suggestion.name);
+                              setEditCompanyId(suggestion.id || suggestion._id || "");
+                              setShowEditSuggestions(false);
+                            }}
+                            className={cn(
+                              "w-full px-3 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground transition-colors",
+                              focusedEditCompanyIndex === idx && "bg-accent text-accent-foreground"
+                            )}
+                          >
+                            {suggestion.name}
+                          </button>
+                        ))
+                      ) : (
+                        <p className="px-3 py-1.5 text-xs text-muted-foreground italic">
+                          No matching companies. Typing will auto-create.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Job URL */}
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-joburl" className="text-sm font-semibold">Job URL</Label>
+                <Input
+                  id="edit-joburl"
+                  type="url"
+                  value={editDetailsForm.jobUrl}
+                  onChange={(e) => setEditDetailsForm((p) => ({ ...p, jobUrl: e.target.value }))}
+                  placeholder="https://..."
+                />
+              </div>
+
+              {/* Location */}
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-location" className="text-sm font-semibold">Location</Label>
+                <LocationAutocomplete
+                  id="edit-location"
+                  value={editDetailsForm.location}
+                  onChange={(v) => setEditDetailsForm((p) => ({ ...p, location: v }))}
+                  placeholder="e.g. Toronto, ON"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Work Mode */}
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-workmode" className="text-sm font-semibold">Work Mode</Label>
+                <Select
+                  value={editDetailsForm.workMode}
+                  onValueChange={(v) => setEditDetailsForm((p) => ({ ...p, workMode: v || "" }))}
+                >
+                  <SelectTrigger id="edit-workmode" className="h-10 bg-card">
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="remote">Remote</SelectItem>
+                    <SelectItem value="hybrid">Hybrid</SelectItem>
+                    <SelectItem value="onsite">Onsite</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Employment Type */}
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-emptype" className="text-sm font-semibold">Employment Type</Label>
+                <Select
+                  value={editDetailsForm.employmentType}
+                  onValueChange={(v) => setEditDetailsForm((p) => ({ ...p, employmentType: v || "" }))}
+                >
+                  <SelectTrigger id="edit-emptype" className="h-10 bg-card">
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="full-time">Full-time</SelectItem>
+                    <SelectItem value="part-time">Part-time</SelectItem>
+                    <SelectItem value="contract">Contract</SelectItem>
+                    <SelectItem value="internship">Internship</SelectItem>
+                    <SelectItem value="co-op">Co-op</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Source */}
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-source" className="text-sm font-semibold">Source</Label>
+                <Select
+                  value={editDetailsForm.source}
+                  onValueChange={(v) => setEditDetailsForm((p) => ({ ...p, source: v || "Other" }))}
+                >
+                  <SelectTrigger id="edit-source" className="h-10 bg-card">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="LinkedIn">LinkedIn</SelectItem>
+                    <SelectItem value="Indeed">Indeed</SelectItem>
+                    <SelectItem value="Company site">Company site</SelectItem>
+                    <SelectItem value="Referral">Referral</SelectItem>
+                    <SelectItem value="Recruiter">Recruiter</SelectItem>
+                    <SelectItem value="Glassdoor">Glassdoor</SelectItem>
+                    <SelectItem value="School board">School board</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Seniority */}
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-seniority" className="text-sm font-semibold">Seniority Level</Label>
+                <Input
+                  id="edit-seniority"
+                  value={editDetailsForm.seniorityLevel}
+                  onChange={(e) => setEditDetailsForm((p) => ({ ...p, seniorityLevel: e.target.value }))}
+                  placeholder="e.g. Junior, Senior"
+                />
+              </div>
+
+              {/* Salary */}
+              <div className="space-y-1.5">
+                <Label className="text-sm font-semibold">Salary Range</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    value={editDetailsForm.salaryMin}
+                    onChange={(e) => setEditDetailsForm((p) => ({ ...p, salaryMin: e.target.value }))}
+                    placeholder="Min"
+                    className="h-10 bg-card flex-1"
+                  />
+                  <span className="text-muted-foreground text-xs font-semibold px-0.5">to</span>
+                  <Input
+                    type="number"
+                    value={editDetailsForm.salaryMax}
+                    onChange={(e) => setEditDetailsForm((p) => ({ ...p, salaryMax: e.target.value }))}
+                    placeholder="Max"
+                    className="h-10 bg-card flex-1"
+                  />
+                  <Select
+                    value={editDetailsForm.currency}
+                    onValueChange={(v) => setEditDetailsForm((p) => ({ ...p, currency: v || "USD" }))}
+                  >
+                    <SelectTrigger className="h-10 bg-card w-24">
+                      <SelectValue placeholder="USD" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="USD">USD</SelectItem>
+                      <SelectItem value="CAD">CAD</SelectItem>
+                      <SelectItem value="EUR">EUR</SelectItem>
+                      <SelectItem value="GBP">GBP</SelectItem>
+                      <SelectItem value="AUD">AUD</SelectItem>
+                      <SelectItem value="INR">INR</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* Description */}
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-desc" className="text-sm font-semibold">Job Description</Label>
+              <Textarea
+                id="edit-desc"
+                value={editDetailsForm.jobDescription}
+                onChange={(e) => setEditDetailsForm((p) => ({ ...p, jobDescription: e.target.value }))}
+                placeholder="Paste the job description..."
+                rows={5}
+              />
+            </div>
+
+            <DialogFooter className="mt-6 flex items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsEditDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isUpdatingDetails}>
+                {isUpdatingDetails && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save Details
               </Button>
             </DialogFooter>
           </form>
