@@ -295,7 +295,7 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
       </header>
 
       {/* Editor Body */}
-      <div className="flex-grow flex flex-col md:flex-row min-h-0">
+      <div className="grow flex flex-col md:flex-row min-h-0">
         {/* Left Side: Job Description Reference Panel */}
         <aside className="w-full md:w-[35%] border-r border-border bg-muted/10 p-5 overflow-y-auto space-y-6 hidden md:block shrink-0">
           <div className="space-y-3">
@@ -322,7 +322,7 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
                     value={keywordInput}
                     onChange={(e) => setKeywordInput(e.target.value)}
                     placeholder="Add target skill/keyword..."
-                    className="flex-grow text-xs px-2.5 py-1.5 rounded-md border border-input bg-background outline-none focus:ring-1 focus:ring-primary"
+                    className="grow text-xs px-2.5 py-1.5 rounded-md border border-input bg-background outline-none focus:ring-1 focus:ring-primary"
                   />
                   <Button type="submit" size="sm" className="h-8">Add</Button>
                 </form>
@@ -467,7 +467,7 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
           </div>
 
           {/* Page Container */}
-          <div className="flex-grow overflow-y-auto p-4 md:p-8 flex justify-center">
+          <div className="grow overflow-y-auto p-4 md:p-8 flex justify-center">
             {/* Sheet wrapper representing a page */}
             <div className="w-full max-w-[850px] min-h-[1100px] bg-white border border-border/80 shadow-md p-12 md:p-16 rounded-sm relative">
               <div

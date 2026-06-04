@@ -399,7 +399,7 @@ export default function NewApplicationPage() {
       {step === 1 && (
         <Card className="border-border/60 shadow-sm overflow-hidden">
           <CardContent className="p-0">
-            <div className="bg-gradient-to-br from-primary/5 via-transparent to-primary/5 p-8 sm:p-10 text-center space-y-6">
+            <div className="bg-linear-to-br from-primary/5 via-transparent to-primary/5 p-8 sm:p-10 text-center space-y-6">
               <div className="mx-auto h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/10">
                 <Globe className="h-8 w-8 text-primary" />
               </div>

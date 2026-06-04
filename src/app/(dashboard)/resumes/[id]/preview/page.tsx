@@ -167,7 +167,7 @@ export default function ResumePreviewPage({ params }: RouteParams) {
         {/* Right Side: Document Preview */}
         <div className="flex-1 bg-muted/5 flex flex-col min-h-0 relative">
           {!fileId ? (
-            <div className="flex-grow flex flex-col items-center justify-center p-8 text-center bg-background">
+            <div className="grow flex flex-col items-center justify-center p-8 text-center bg-background">
               <FileText className="h-12 w-12 text-muted-foreground/30 mb-2" />
               <p className="text-sm font-medium">No document attached</p>
               <p className="text-xs text-muted-foreground max-w-xs mt-1">
@@ -176,7 +176,7 @@ export default function ResumePreviewPage({ params }: RouteParams) {
             </div>
           ) : isPdf ? (
             isMobile ? (
-              <div className="flex-grow flex flex-col items-center justify-center p-6 text-center bg-background space-y-4">
+              <div className="grow flex flex-col items-center justify-center p-6 text-center bg-background space-y-4">
                 <div className="mx-auto h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/10">
                   <FileText className="h-8 w-8 text-primary" />
                 </div>
@@ -219,7 +219,7 @@ export default function ResumePreviewPage({ params }: RouteParams) {
           ) : isDocx ? (
             <DocxViewer fileId={fileId} />
           ) : (
-            <div className="flex-grow flex flex-col items-center justify-center p-8 text-center bg-background">
+            <div className="grow flex flex-col items-center justify-center p-8 text-center bg-background">
               <FileText className="h-12 w-12 text-primary/40 mb-2" />
               <p className="text-sm font-medium">Preview Not Supported</p>
               <p className="text-xs text-muted-foreground max-w-xs mt-1">

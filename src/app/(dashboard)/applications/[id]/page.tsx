@@ -841,18 +841,18 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
       <div className="pb-6 border-b border-border/60">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-2 flex-1 min-w-0">
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight break-words text-foreground">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight wrap-break-word text-foreground">
               {app.jobTitle}
             </h1>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
               <span className="flex items-center gap-1.5 font-medium text-foreground">
                 <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-                <Link href={`/companies/${app.companyId.id}`} className="hover:underline hover:text-primary transition-colors break-words">
+                <Link href={`/companies/${app.companyId.id}`} className="hover:underline hover:text-primary transition-colors wrap-break-word">
                   {app.companyId.name}
                 </Link>
               </span>
               {app.location && (
-                <span className="flex items-center gap-1.5 break-words">
+                <span className="flex items-center gap-1.5 wrap-break-word">
                   <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
                   <span>{app.location}</span>
                 </span>
@@ -891,15 +891,15 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
         <div className="grid gap-4 mt-6 grid-cols-2 md:grid-cols-4 bg-muted/20 dark:bg-muted/5 p-4 rounded-xl border border-border/40">
           <div className="space-y-0.5 min-w-0">
             <span className="block text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Source</span>
-            <span className="text-sm font-semibold mt-0.5 block break-words">{app.source || "—"}</span>
+            <span className="text-sm font-semibold mt-0.5 block wrap-break-word">{app.source || "—"}</span>
           </div>
           <div className="space-y-0.5 min-w-0">
             <span className="block text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Seniority</span>
-            <span className="text-sm font-semibold mt-0.5 block break-words">{app.seniorityLevel || "—"}</span>
+            <span className="text-sm font-semibold mt-0.5 block wrap-break-word">{app.seniorityLevel || "—"}</span>
           </div>
           <div className="space-y-0.5 min-w-0">
             <span className="block text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Salary Range</span>
-            <span className="text-sm font-semibold mt-0.5 block break-words">
+            <span className="text-sm font-semibold mt-0.5 block wrap-break-word">
               {app.salaryMin !== null || app.salaryMax !== null
                 ? `${app.salaryMin ? `${app.currency} ${app.salaryMin.toLocaleString()}` : "—"} to ${
                     app.salaryMax ? `${app.currency} ${app.salaryMax.toLocaleString()}` : "—"
@@ -921,7 +921,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
         {/* Left Column (Timeline, Notes, Job Description) */}
         <div className="w-full lg:w-2/3 space-y-6 min-w-0">
           <Tabs defaultValue="timeline" className="w-full">
-            <TabsList variant="line" className="flex w-full justify-start border-b border-border/60 bg-transparent p-0 rounded-none h-12 gap-4 sm:gap-6 mb-6 overflow-x-auto overflow-y-hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden shrink-0">
+            <TabsList variant="line" className="flex w-full justify-start border-b border-border/60 bg-transparent p-0 rounded-none h-12 gap-4 sm:gap-6 mb-6 overflow-x-auto overflow-y-hidden [-ms-overflow-style:none] scrollbar-none [&::-webkit-scrollbar]:hidden shrink-0">
               <TabsTrigger
                 value="timeline"
                 className="flex-none rounded-none bg-transparent px-4 sm:px-6 text-sm font-semibold text-muted-foreground hover:text-foreground data-active:text-primary group-data-[variant=line]/tabs-list:data-active:after:bg-primary after:bottom-0 transition-all"
@@ -1120,14 +1120,14 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                     return (
                       <div key={event._id || event.id} className="relative group">
                         {/* Timeline dot */}
-                        <span className={cn("absolute -left-[31px] top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-background border-2 transition-colors", theme.dotBorder)}>
+                        <span className={cn("absolute left-[-31px] top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-background border-2 transition-colors", theme.dotBorder)}>
                           <span className={cn("h-1.5 w-1.5 rounded-full transition-colors", theme.dotBg)} />
                         </span>
 
                         <div className={cn("space-y-3 p-4 rounded-xl border bg-card text-card-foreground shadow-xs transition-all duration-200", theme.border || "border-border/40")}>
                           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                             <div className="space-y-1.5 flex-1 min-w-0">
-                              <h4 className="font-bold text-sm text-foreground break-words leading-tight">
+                              <h4 className="font-bold text-sm text-foreground wrap-break-word leading-tight">
                                 {event.title}
                               </h4>
                               <div className="flex flex-wrap gap-1.5">
@@ -1166,7 +1166,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                           </div>
 
                           {event.description && (
-                            <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words leading-relaxed border-t border-border/20 pt-2 mt-1">
+                            <p className="text-sm text-muted-foreground whitespace-pre-wrap wrap-break-word leading-relaxed border-t border-border/20 pt-2 mt-1">
                               {event.description}
                             </p>
                           )}
@@ -1245,7 +1245,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                             <span className={cn("inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase border shrink-0", theme.badge)}>
                               {theme.badgeText}
                             </span>
-                            {note.title && <h4 className="font-semibold text-sm break-words">{note.title}</h4>}
+                            {note.title && <h4 className="font-semibold text-sm wrap-break-word">{note.title}</h4>}
                             {note.pinned && <Pin className="h-3 w-3 fill-primary text-primary shrink-0" />}
                           </div>
                           <span className="text-[10px] text-muted-foreground block mt-1">
@@ -1272,7 +1272,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                         </div>
                       </CardHeader>
                       <CardContent className="pb-3 pt-0">
-                        <p className="text-sm whitespace-pre-wrap break-words text-foreground/80 leading-relaxed">{note.body}</p>
+                        <p className="text-sm whitespace-pre-wrap wrap-break-word text-foreground/80 leading-relaxed">{note.body}</p>
                       </CardContent>
                     </Card>
                   );
@@ -1283,7 +1283,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
             {/* Description Tab */}
             <TabsContent value="description" className="pt-4">
               <Card>
-                <CardContent className="p-4 whitespace-pre-wrap text-sm text-foreground/80 break-words leading-relaxed">
+                <CardContent className="p-4 whitespace-pre-wrap text-sm text-foreground/80 wrap-break-word leading-relaxed">
                   {app.jobDescription || (
                     <span className="text-muted-foreground italic">No job description provided.</span>
                   )}
@@ -1479,7 +1479,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                           </div>
                         </CardHeader>
                         {resumeSnapshot.baseResumeVersionId?.notes && (
-                          <CardContent className="pb-4 pt-0 border-t border-border/20 pt-4 text-xs text-muted-foreground">
+                          <CardContent className="pb-4 border-t border-border/20 pt-4 text-xs text-muted-foreground">
                             <span className="font-bold text-foreground">Base Version Notes:</span>{" "}
                             {resumeSnapshot.baseResumeVersionId.notes}
                           </CardContent>
