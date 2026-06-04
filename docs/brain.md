@@ -72,6 +72,16 @@ AWorkApp is a modern, premium SaaS platform built on **Next.js** (using App Rout
 - **DOCX Mobile Page Wrapping**: Appended stylesheet overrides inside `DocxViewer` to force `.docx-rendered section.docx` page outputs to stretch and wrap to `100%` viewport width on small viewports, completely avoiding horizontal overflow and scrolling.
 - **Compact Dialog & Wizard Inputs**: Overhauled the form layout in the "Add Resume Version" dialog and "New Application" step wizard. Substituted cluttered descriptive text labels with concise names and moved helper/instruction text into right-aligned metadata elements (`flex justify-between items-baseline mb-1`), producing a clean, premium, and self-documenting interface.
 
+### N. Architectural Refactoring & Security Hardening (Current Session)
+- **Centralized Service Layer**: Extracted core business logic out of API controller routes into modular service files in `src/lib/services/`.
+  - `src/lib/services/file.ts`: Manages file checksum hashing, MIME validation, storage persistence (S3/local), and duplicate prevention.
+  - `src/lib/services/resume.ts`: Manages assignment, snapshot binding, and cleaning up unused customized documents.
+- **Composite Upload-Assign Flow**: Implemented `POST /api/applications/[id]/resume/upload-assign` to ingest, store, deduplicate, and bind customized resumes atomically.
+- **Percent-Encoding database URI**: Resolved Mongoose authentication errors caused by special characters (like `@`) in connection string passwords by percent-encoding them.
+- **Pre-Commit Secret Hook**: Implemented a local security validator script (`scripts/check-secrets.js`) running on git hooks to block any commits containing plaintext database credentials.
+- **Tailwind v4 Styling Compliance**: Cleaned up multiple build warnings by replacing legacy styles (e.g. `break-words` with `wrap-break-word`, `flex-grow` with `grow`, `bg-gradient-to-br` with `bg-linear-to-br`) and removing conflicting padding instructions.
+- **ESLint Compliance**: Replaced ambient global `var` declarations in `/src/lib/db/mongoose.ts` with typed global typecasts, allowing us to drop ESLint disable comments completely.
+
 
 ### H. Full-Screen Document Previews
 - **Route-based Previews**: Added `/files/[id]/preview` and `/resumes/[id]/preview` full-screen routes to preview PDFs (using native browser iframe) and Word documents (rendering client-side via `docx-preview`).

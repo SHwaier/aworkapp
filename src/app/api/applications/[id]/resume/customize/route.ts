@@ -171,6 +171,12 @@ export async function POST(
       table: { row: { cantSplit: true } },
       footer: true,
       header: true,
+      margins: {
+        top: 720,
+        right: 720,
+        bottom: 720,
+        left: 720,
+      },
     });
 
     // Generate SHA-256 hash

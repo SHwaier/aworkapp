@@ -187,15 +187,16 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
       {/* Custom styles to render contentEditable nicely inside the editor area */}
       <style>{`
         .resume-editable-area {
-          font-family: 'Times New Roman', Times, serif;
-          line-height: 1.5;
-          font-size: 14px;
+          font-family: 'Times New Roman', Times, Baskerville, Georgia, serif;
+          line-height: 1.2;
+          font-size: 12px;
           color: #000;
           outline: none;
           min-height: 1056px; /* standard letter height ratio */
         }
         .resume-editable-area p {
-          margin-bottom: 0.75rem;
+          margin-top: 0;
+          margin-bottom: 0.15rem;
         }
         .resume-editable-area h1,
         .resume-editable-area h2,
@@ -203,36 +204,61 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
         .resume-editable-area h4 {
           font-family: Arial, Helvetica, sans-serif;
           font-weight: bold;
-          margin-top: 1.5rem;
-          margin-bottom: 0.5rem;
-          color: #111;
+          color: #000;
         }
-        .resume-editable-area h1 { font-size: 24px; text-align: center; border-bottom: 2px solid #333; padding-bottom: 5px; }
-        .resume-editable-area h2 { font-size: 18px; border-bottom: 1px solid #666; padding-bottom: 2px; }
-        .resume-editable-area h3 { font-size: 15px; }
+        .resume-editable-area h1 {
+          font-size: 20px;
+          text-align: center;
+          margin-top: 0;
+          margin-bottom: 0.2rem;
+        }
+        .resume-editable-area h2 {
+          font-size: 13.5px;
+          border-bottom: 1.5px solid #000;
+          padding-bottom: 2px;
+          margin-top: 0.5rem;
+          margin-bottom: 0.2rem;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+        .resume-editable-area h3 {
+          font-size: 12.5px;
+          margin-top: 0.3rem;
+          margin-bottom: 0.1rem;
+        }
         .resume-editable-area ul {
           list-style-type: disc;
-          margin-left: 1.5rem;
-          margin-bottom: 0.75rem;
+          margin-left: 1.2rem;
+          margin-top: 0.1rem;
+          margin-bottom: 0.2rem;
         }
         .resume-editable-area ol {
           list-style-type: decimal;
-          margin-left: 1.5rem;
-          margin-bottom: 0.75rem;
+          margin-left: 1.2rem;
+          margin-top: 0.1rem;
+          margin-bottom: 0.2rem;
         }
         .resume-editable-area li {
-          margin-bottom: 0.25rem;
+          margin-bottom: 0.05rem;
         }
         .resume-editable-area table {
           width: 100%;
           border-collapse: collapse;
-          margin-bottom: 1rem;
+          margin-top: 0.15rem;
+          margin-bottom: 0.15rem;
+          border: none !important;
         }
         .resume-editable-area th,
         .resume-editable-area td {
-          border: 1px solid #ccc;
-          padding: 8px;
+          border: none !important;
+          padding: 1px 0 !important;
           text-align: left;
+          vertical-align: top;
+        }
+        .resume-editable-area hr {
+          border: none;
+          border-top: 1.5px solid #000;
+          margin: 0.3rem 0;
         }
       `}</style>
 
@@ -472,7 +498,7 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
             <div className="w-full max-w-[850px] min-h-[1100px] bg-white border border-border/80 shadow-md p-12 md:p-16 rounded-sm relative">
               <div
                 ref={editorRef}
-                className="resume-editable-area prose prose-sm max-w-none text-black select-text"
+                className="resume-editable-area text-black select-text"
                 contentEditable
                 suppressContentEditableWarning
                 onInput={handleEditorInput}
