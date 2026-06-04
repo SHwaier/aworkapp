@@ -1,11 +1,7 @@
 import { NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
 import dbConnect from "@/lib/db/mongoose";
 import Application from "@/models/Application";
-import ResumeVersion from "@/models/ResumeVersion";
 import ResumeSnapshot from "@/models/ResumeSnapshot";
-import File from "@/models/File";
 import { requireAuth } from "@/lib/auth/session";
 import { mongoIdSchema } from "@/lib/validators/schemas";
 import {
@@ -13,13 +9,16 @@ import {
   errorResponse,
   handleApiError,
 } from "@/lib/api/response";
-import { createAuditLog } from "@/models/AuditLog";
 import {
   checkRateLimit,
   getClientIp,
   RATE_LIMITS,
   rateLimitHeaders,
 } from "@/lib/rate-limit";
+import {
+  assignResumeToApplication,
+  unassignResumeFromApplication,
+} from "@/lib/services/resume";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -105,69 +104,11 @@ export async function POST(
 
     await dbConnect();
 
-    // Verify application exists and belongs to user
-    const app = await Application.findOne({ _id: applicationId, userId: session.id });
-    if (!app) {
-      return errorResponse("Application not found", 404);
-    }
-
-    // Verify resume version exists and belongs to user
-    const resumeVersion = await ResumeVersion.findOne({ _id: resumeVersionId, userId: session.id });
-    if (!resumeVersion) {
-      return errorResponse("Resume version not found", 404);
-    }
-
-    // Check if snapshot already exists
-    let snapshot = await ResumeSnapshot.findOne({ applicationId, userId: session.id });
-
-    if (snapshot) {
-      // If there's an existing custom file, clean it up
-      if (snapshot.finalSubmittedFileId && snapshot.baseResumeVersionId.toString() !== resumeVersionId) {
-        const oldFile = await File.findOne({ _id: snapshot.finalSubmittedFileId, userId: session.id }).select("+storageKey");
-        if (oldFile) {
-          await File.deleteOne({ _id: oldFile._id });
-          try {
-            if (oldFile.storageProvider === "r2" || oldFile.storageProvider === "s3") {
-              const { deleteFromS3 } = await import("@/lib/storage/s3");
-              await deleteFromS3(oldFile.storageKey);
-            } else {
-              const storageDir = path.resolve(/*turbopackIgnore: true*/ process.cwd(), process.env.FILE_STORAGE_PATH || "./uploads");
-              const filePath = path.resolve(/*turbopackIgnore: true*/ process.cwd(), storageDir, oldFile.storageKey);
-              await fs.unlink(filePath);
-            }
-          } catch (err) {
-            console.error("Failed to delete old customized file from disk/S3:", err);
-          }
-        }
-      }
-
-      // Update base resume
-      snapshot.baseResumeVersionId = resumeVersion._id;
-      snapshot.finalSubmittedFileId = null;
-      snapshot.manuallyEdited = false;
-      await snapshot.save();
-    } else {
-      // Create new snapshot
-      snapshot = await ResumeSnapshot.create({
-        userId: session.id,
-        applicationId: app._id,
-        baseResumeVersionId: resumeVersion._id,
-        finalSubmittedFileId: null,
-        manuallyEdited: false,
-        tailoringNotes: "",
-        aiGeneratedChangeSummary: "",
-        keywordsAdded: [],
-        keywordsMissing: [],
-        matchScore: null,
-      });
-    }
-
-    await createAuditLog({
+    // Call service to assign resume to application
+    const snapshot = await assignResumeToApplication({
+      applicationId,
+      resumeVersionId,
       userId: session.id,
-      action: "resume_snapshot.assigned",
-      entityType: "resume_snapshot",
-      entityId: snapshot._id.toString(),
-      metadata: { applicationId, resumeVersionId },
       request,
     });
 
@@ -210,42 +151,11 @@ export async function DELETE(
 
     await dbConnect();
 
-    // Find and delete the snapshot
-    const snapshot = await ResumeSnapshot.findOne({ applicationId, userId: session.id });
-    if (!snapshot) {
+    // Call service to unassign resume from application
+    const success = await unassignResumeFromApplication(applicationId, session.id, request);
+    if (!success) {
       return errorResponse("No resume snapshot assigned to this application", 404);
     }
-
-    // Clean up custom file if it exists
-    if (snapshot.finalSubmittedFileId) {
-      const oldFile = await File.findOne({ _id: snapshot.finalSubmittedFileId, userId: session.id }).select("+storageKey");
-      if (oldFile) {
-        await File.deleteOne({ _id: oldFile._id });
-        try {
-          if (oldFile.storageProvider === "r2" || oldFile.storageProvider === "s3") {
-            const { deleteFromS3 } = await import("@/lib/storage/s3");
-            await deleteFromS3(oldFile.storageKey);
-          } else {
-            const storageDir = path.resolve(/*turbopackIgnore: true*/ process.cwd(), process.env.FILE_STORAGE_PATH || "./uploads");
-            const filePath = path.resolve(/*turbopackIgnore: true*/ process.cwd(), storageDir, oldFile.storageKey);
-            await fs.unlink(filePath);
-          }
-        } catch (err) {
-          console.error("Failed to delete customized file:", err);
-        }
-      }
-    }
-
-    await ResumeSnapshot.deleteOne({ _id: snapshot._id });
-
-    await createAuditLog({
-      userId: session.id,
-      action: "resume_snapshot.unassigned",
-      entityType: "resume_snapshot",
-      entityId: snapshot._id.toString(),
-      metadata: { applicationId },
-      request,
-    });
 
     return successResponse({ message: "Resume successfully unassigned from application" });
   } catch (error) {

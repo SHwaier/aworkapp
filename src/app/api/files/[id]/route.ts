@@ -13,6 +13,7 @@ import {
   RATE_LIMITS,
   rateLimitHeaders,
 } from "@/lib/rate-limit";
+import { deleteFile } from "@/lib/services/file";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -121,28 +122,10 @@ export async function DELETE(
 
     await dbConnect();
 
-    // Query with storageKey to delete physical file
-    const file = await File.findOne({ _id: id, userId: session.id }).select("+storageKey");
-    if (!file) {
+    // Call service to delete file from storage and database
+    const success = await deleteFile(id, session.id);
+    if (!success) {
       return errorResponse("Not found", 404);
-    }
-
-    // Remove DB entry
-    await File.deleteOne({ _id: id });
-
-    // Attempt physical deletion
-    try {
-      if (file.storageProvider === "r2" || file.storageProvider === "s3") {
-        const { deleteFromS3 } = await import("@/lib/storage/s3");
-        await deleteFromS3(file.storageKey);
-      } else {
-        const storageDir = path.resolve(/*turbopackIgnore: true*/ process.cwd(), process.env.FILE_STORAGE_PATH || "./uploads");
-        const filePath = path.resolve(/*turbopackIgnore: true*/ process.cwd(), storageDir, file.storageKey);
-        await fs.unlink(filePath);
-      }
-    } catch (err) {
-      // Log error but don't break the response if file was already missing
-      console.error("Failed to delete stored file:", err);
     }
 
     await createAuditLog({
@@ -150,7 +133,6 @@ export async function DELETE(
       action: "file.deleted",
       entityType: "file",
       entityId: id,
-      metadata: { originalFileName: file.originalFileName },
       request,
     });
 

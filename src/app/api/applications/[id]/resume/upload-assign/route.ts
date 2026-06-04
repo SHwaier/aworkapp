@@ -1,12 +1,8 @@
 import { NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
-import crypto from "crypto";
 import dbConnect from "@/lib/db/mongoose";
 import Application from "@/models/Application";
 import ResumeVersion from "@/models/ResumeVersion";
 import ResumeSnapshot from "@/models/ResumeSnapshot";
-import File from "@/models/File";
 import TimelineEvent from "@/models/TimelineEvent";
 import { requireAuth } from "@/lib/auth/session";
 import { mongoIdSchema } from "@/lib/validators/schemas";
@@ -15,19 +11,14 @@ import {
   errorResponse,
   handleApiError,
 } from "@/lib/api/response";
-import { createAuditLog } from "@/models/AuditLog";
 import {
   checkRateLimit,
   getClientIp,
   RATE_LIMITS,
   rateLimitHeaders,
 } from "@/lib/rate-limit";
-
-const ALLOWED_EXTENSIONS = [".pdf", ".docx"];
-const ALLOWED_MIME_TYPES = [
-  "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-];
+import { uploadFile } from "@/lib/services/file";
+import { assignResumeToApplication } from "@/lib/services/resume";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -35,11 +26,7 @@ interface RouteParams {
 
 /**
  * POST /api/applications/:id/resume/upload-assign
- * Orchestrates:
- * 1. File upload & hash-based deduplication
- * 2. Targeted ResumeVersion creation
- * 3. Application ResumeSnapshot association
- * 4. Timeline Event logging & Audit Log creation
+ * Refactored composite upload-assign endpoint using local service modules.
  */
 export async function POST(
   request: Request,
@@ -76,66 +63,16 @@ export async function POST(
       return errorResponse("No file uploaded", 400);
     }
 
-    // Get file name from form-data metadata or set default
     const originalFileName = (file as any).name || "resume.pdf";
 
-    // Validate Extension
-    const ext = path.extname(originalFileName).toLowerCase();
-    if (!ALLOWED_EXTENSIONS.includes(ext)) {
-      return errorResponse("File extension not allowed. Allowed types: PDF, DOCX.", 400);
-    }
-
-    // Validate MIME type
-    const mime = file.type || "application/octet-stream";
-    if (mime !== "application/octet-stream" && !ALLOWED_MIME_TYPES.includes(mime)) {
-      return errorResponse("File type not allowed.", 400);
-    }
-
-    // Validate File Size
-    const maxLimit = parseInt(process.env.MAX_FILE_SIZE || "10485760"); // 10MB default
-    if (file.size > maxLimit) {
-      return errorResponse(`File too large. Max allowed is ${maxLimit / (1024 * 1024)}MB`, 400);
-    }
-
-    // 3. Process File Content and Calculate Hash
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const hash = crypto.createHash("sha256").update(buffer).digest("hex");
-
-    // Check if duplicate file already exists
-    let fileDoc = await File.findOne({ userId: session.id, fileHash: hash });
-
-    if (!fileDoc) {
-      // Determine storage provider and upload key
-      const provider = (process.env.FILE_STORAGE_PROVIDER || "local").toLowerCase();
-      const uniqueKey = `${session.id}_${crypto.randomBytes(16).toString("hex")}_${path.basename(
-        originalFileName
-      )}`;
-
-      // Upload to Storage
-      if (provider === "s3" || provider === "r2") {
-        const { uploadToS3 } = await import("@/lib/storage/s3");
-        await uploadToS3(uniqueKey, buffer, mime);
-      } else {
-        const storageDir = path.resolve(/*turbopackIgnore: true*/ process.cwd(), process.env.FILE_STORAGE_PATH || "./uploads");
-        await fs.mkdir(storageDir, { recursive: true });
-        const fullPath = path.resolve(/*turbopackIgnore: true*/ process.cwd(), storageDir, uniqueKey);
-        await fs.writeFile(fullPath, buffer);
-      }
-
-      // Create new File entry in MongoDB
-      fileDoc = await File.create({
-        userId: session.id,
-        originalFileName,
-        displayName: originalFileName,
-        fileType: ext,
-        mimeType: mime,
-        fileSize: file.size,
-        storageProvider: provider === "r2" ? "r2" : provider === "s3" ? "s3" : "local",
-        storageKey: uniqueKey,
-        fileHash: hash,
-        category: "resume",
-      });
-    }
+    // 3. Upload file using the shared file service
+    const { file: fileDoc } = await uploadFile({
+      file,
+      originalFileName,
+      userId: session.id,
+      category: "resume",
+      request,
+    });
 
     // 4. Create Targeted ResumeVersion
     const companyName = (app.companyId as any)?.name || "Target Company";
@@ -156,48 +93,13 @@ export async function POST(
       isActive: true,
     });
 
-    // 5. Create or Update ResumeSnapshot
-    let snapshot = await ResumeSnapshot.findOne({ applicationId, userId: session.id });
-
-    if (snapshot) {
-      // Clean up previous custom file if there was one
-      if (snapshot.finalSubmittedFileId) {
-        const oldFile = await File.findOne({ _id: snapshot.finalSubmittedFileId, userId: session.id }).select("+storageKey");
-        if (oldFile) {
-          await File.deleteOne({ _id: oldFile._id });
-          try {
-            if (oldFile.storageProvider === "r2" || oldFile.storageProvider === "s3") {
-              const { deleteFromS3 } = await import("@/lib/storage/s3");
-              await deleteFromS3(oldFile.storageKey);
-            } else {
-              const storageDir = path.resolve(/*turbopackIgnore: true*/ process.cwd(), process.env.FILE_STORAGE_PATH || "./uploads");
-              const filePath = path.resolve(/*turbopackIgnore: true*/ process.cwd(), storageDir, oldFile.storageKey);
-              await fs.unlink(filePath);
-            }
-          } catch (err) {
-            console.error("Failed to delete older customized file during re-assign:", err);
-          }
-        }
-      }
-
-      snapshot.baseResumeVersionId = resumeVersion._id;
-      snapshot.finalSubmittedFileId = null;
-      snapshot.manuallyEdited = false;
-      await snapshot.save();
-    } else {
-      snapshot = await ResumeSnapshot.create({
-        userId: session.id,
-        applicationId: app._id,
-        baseResumeVersionId: resumeVersion._id,
-        finalSubmittedFileId: null,
-        manuallyEdited: false,
-        tailoringNotes: "",
-        aiGeneratedChangeSummary: "",
-        keywordsAdded: [],
-        keywordsMissing: [],
-        matchScore: null,
-      });
-    }
+    // 5. Link to Application using the shared resume service
+    await assignResumeToApplication({
+      applicationId,
+      resumeVersionId: resumeVersion._id.toString(),
+      userId: session.id,
+      request,
+    });
 
     // 6. Log System Timeline Event
     await TimelineEvent.create({
@@ -213,17 +115,8 @@ export async function POST(
       lifecycleStageAfterEvent: app.lifecycleStage,
     });
 
-    // 7. Audit Logging
-    await createAuditLog({
-      userId: session.id,
-      action: "resume_snapshot.created",
-      entityType: "resume_snapshot",
-      entityId: snapshot._id.toString(),
-      metadata: { applicationId, fileId: fileDoc._id.toString(), resumeVersionId: resumeVersion._id.toString() },
-      request,
-    });
-
-    const populatedSnapshot = await ResumeSnapshot.findById(snapshot._id)
+    // Fetch fully populated snapshot to return
+    const populatedSnapshot = await ResumeSnapshot.findOne({ applicationId, userId: session.id })
       .populate({
         path: "baseResumeVersionId",
         populate: { path: "fileId", select: "displayName fileType mimeType fileSize" },
