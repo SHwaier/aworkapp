@@ -1,102 +1,148 @@
 "use client";
 
-import { use, useEffect, useState, useRef } from "react";
+import { use, useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
+import type { DocxEditorRef } from "@eigenpal/docx-editor-react";
 import {
   ArrowLeft,
   Loader2,
   Save,
   RotateCcw,
-  Bold,
-  Italic,
-  Underline,
-  List,
-  ListOrdered,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
-  AlignJustify,
   Building2,
   FileText,
   Briefcase,
   Lightbulb,
-  CheckCircle2,
-  ChevronsUpDown,
 } from "lucide-react";
+
+// Dynamically import DocxEditor to prevent SSR issues (it requires browser DOM)
+const DocxEditor = dynamic(
+  () => import("@eigenpal/docx-editor-react").then((mod) => mod.DocxEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    ),
+  }
+);
 
 interface RouteParams {
   params: Promise<{ id: string }>;
+}
+
+interface ResumeData {
+  fileId: string;
+  manuallyEdited: boolean;
+  jobTitle: string;
+  companyName: string;
+  jobDescription: string;
 }
 
 export default function ResumeCustomizePage({ params }: RouteParams) {
   const router = useRouter();
   const { id: applicationId } = use(params);
 
+  const editorRef = useRef<DocxEditorRef>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [data, setData] = useState<any>(null);
-  const [editorHtml, setEditorHtml] = useState<string>("");
+  const [data, setData] = useState<ResumeData | null>(null);
+  const [docBuffer, setDocBuffer] = useState<ArrayBuffer | null>(null);
   const [customKeywords, setCustomKeywords] = useState<string[]>([]);
   const [keywordInput, setKeywordInput] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
+  const [editorKey, setEditorKey] = useState(0);
 
-  const editorRef = useRef<HTMLDivElement>(null);
-
+  // 1) Fetch metadata (fileId, jobTitle, etc.)
+  // 2) Fetch the actual DOCX binary from /api/files/:fileId
   useEffect(() => {
-    async function loadResumeContent() {
+    let active = true;
+
+    async function loadResume() {
       try {
-        const res = await fetch(`/api/applications/${applicationId}/resume/customize`);
-        const result = await res.json();
-        if (result.success) {
-          setData(result.data);
-          setEditorHtml(result.data.html || "<p>Start writing your resume...</p>");
-        } else {
-          toast.error(result.error || "Failed to load resume contents");
+        // Step 1: Get metadata + fileId
+        const metaRes = await fetch(
+          `/api/applications/${applicationId}/resume/customize`
+        );
+        const metaResult = await metaRes.json();
+        if (!metaResult.success) {
+          toast.error(metaResult.error || "Failed to load resume");
+          router.push(`/applications/${applicationId}`);
+          return;
+        }
+        if (!active) return;
+        setData(metaResult.data);
+
+        // Step 2: Fetch the raw DOCX file as ArrayBuffer
+        const fileRes = await fetch(`/api/files/${metaResult.data.fileId}`);
+        if (!fileRes.ok) {
+          toast.error("Failed to download resume file");
+          router.push(`/applications/${applicationId}`);
+          return;
+        }
+        const arrayBuffer = await fileRes.arrayBuffer();
+        if (!active) return;
+        setDocBuffer(arrayBuffer);
+      } catch {
+        if (active) {
+          toast.error("An error occurred loading resume");
           router.push(`/applications/${applicationId}`);
         }
-      } catch (err) {
-        toast.error("An error occurred loading resume");
-        router.push(`/applications/${applicationId}`);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     }
-    loadResumeContent();
+
+    loadResume();
+    return () => {
+      active = false;
+    };
   }, [applicationId, router]);
 
-  // Handle document format command triggers
-  const formatDoc = (command: string, value: string = "") => {
-    if (typeof window !== "undefined") {
-      document.execCommand(command, false, value);
-      if (editorRef.current) {
-        setEditorHtml(editorRef.current.innerHTML);
-        setHasChanges(true);
-      }
-    }
-  };
+  // Track changes via onChange (receives Document model, we just flag dirty)
+  const handleEditorChange = useCallback(() => {
+    setHasChanges(true);
+  }, []);
 
-  // Sync editor content editable change
-  const handleEditorInput = () => {
-    if (editorRef.current) {
-      setEditorHtml(editorRef.current.innerHTML);
-      setHasChanges(true);
-    }
-  };
-
+  // Save: use ref.save() to get the edited DOCX buffer, then upload as base64
   const handleSave = async (redirectAfter = false) => {
+    if (!editorRef.current) {
+      toast.error("Editor not ready");
+      return;
+    }
+
     setSaving(true);
     try {
-      const res = await fetch(`/api/applications/${applicationId}/resume/customize`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ html: editorHtml }),
-      });
+      // Get edited DOCX ArrayBuffer from the editor
+      const buffer = await editorRef.current.save();
+      if (!buffer) {
+        toast.error("Failed to export document");
+        setSaving(false);
+        return;
+      }
+
+      // Convert ArrayBuffer to base64
+      const uint8 = new Uint8Array(buffer);
+      let binary = "";
+      for (let i = 0; i < uint8.length; i++) {
+        binary += String.fromCharCode(uint8[i]);
+      }
+      const base64 = btoa(binary);
+
+      const res = await fetch(
+        `/api/applications/${applicationId}/resume/customize`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ base64 }),
+        }
+      );
       const result = await res.json();
       if (result.success) {
         toast.success("Resume saved successfully");
@@ -114,47 +160,91 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
     }
   };
 
+  // Also handle Ctrl+S from within the editor's own save trigger
+  const handleEditorSave = useCallback(
+    (buffer: ArrayBuffer) => {
+      // Convert and upload (fire-and-forget style, with toasts)
+      const uint8 = new Uint8Array(buffer);
+      let binary = "";
+      for (let i = 0; i < uint8.length; i++) {
+        binary += String.fromCharCode(uint8[i]);
+      }
+      const base64 = btoa(binary);
+
+      fetch(`/api/applications/${applicationId}/resume/customize`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ base64 }),
+      })
+        .then((res) => res.json())
+        .then((result) => {
+          if (result.success) {
+            toast.success("Resume saved successfully");
+            setHasChanges(false);
+          } else {
+            toast.error(result.error || "Failed to save changes");
+          }
+        })
+        .catch(() => {
+          toast.error("Failed to save changes due to network error");
+        });
+    },
+    [applicationId]
+  );
+
+  // Reset: re-assign base resume version, then re-fetch
   const handleReset = async () => {
-    if (!confirm("Are you sure you want to discard your edits and reset to the base resume version?")) {
+    if (
+      !confirm(
+        "Are you sure you want to discard your edits and reset to the base resume version?"
+      )
+    ) {
       return;
     }
     setLoading(true);
     try {
-      // Re-fetch base resume by unsetting customized file temporarily or refetching
-      const res = await fetch(`/api/applications/${applicationId}/resume/customize`);
-      const result = await res.json();
-      if (result.success) {
-        // Find existing snapshot
-        const snapshotRes = await fetch(`/api/applications/${applicationId}/resume`);
-        const snapshotData = await snapshotRes.json();
-        if (snapshotData.success && snapshotData.data.resumeSnapshot) {
-          const baseVersionId = snapshotData.data.resumeSnapshot.baseResumeVersionId?.id || snapshotData.data.resumeSnapshot.baseResumeVersionId;
-          
-          // Re-assign base resume which clears finalSubmittedFileId
-          const assignRes = await fetch(`/api/applications/${applicationId}/resume`, {
+      const snapshotRes = await fetch(
+        `/api/applications/${applicationId}/resume`
+      );
+      const snapshotData = await snapshotRes.json();
+      if (snapshotData.success && snapshotData.data.resumeSnapshot) {
+        const baseVersionId =
+          snapshotData.data.resumeSnapshot.baseResumeVersionId?.id ||
+          snapshotData.data.resumeSnapshot.baseResumeVersionId;
+
+        const assignRes = await fetch(
+          `/api/applications/${applicationId}/resume`,
+          {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ resumeVersionId: baseVersionId }),
-          });
-          const assignResult = await assignRes.json();
-          
-          if (assignResult.success) {
-            // Refetch customization html
-            const freshRes = await fetch(`/api/applications/${applicationId}/resume/customize`);
-            const freshResult = await freshRes.json();
-            if (freshResult.success) {
-              setData(freshResult.data);
-              setEditorHtml(freshResult.data.html);
-              if (editorRef.current) {
-                editorRef.current.innerHTML = freshResult.data.html;
-              }
+          }
+        );
+        const assignResult = await assignRes.json();
+
+        if (assignResult.success) {
+          // Re-fetch fresh metadata + file
+          const freshMeta = await fetch(
+            `/api/applications/${applicationId}/resume/customize`
+          );
+          const freshResult = await freshMeta.json();
+          if (freshResult.success) {
+            setData(freshResult.data);
+            const fileRes = await fetch(
+              `/api/files/${freshResult.data.fileId}`
+            );
+            if (fileRes.ok) {
+              const arrayBuffer = await fileRes.arrayBuffer();
+              setDocBuffer(arrayBuffer);
               setHasChanges(false);
+              // Force re-mount of DocxEditor by changing key
+              setEditorKey((k) => k + 1);
               toast.success("Reset to base resume version successfully");
             }
           }
         }
       }
-    } catch (err) {
+    } catch {
       toast.error("Failed to reset resume");
     } finally {
       setLoading(false);
@@ -184,90 +274,16 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
 
   return (
     <div className="flex flex-col h-[calc(100dvh-4rem)] md:h-[calc(100vh-6rem)] -m-4 sm:-m-6 bg-background overflow-hidden">
-      {/* Custom styles to render contentEditable nicely inside the editor area */}
-      <style>{`
-        .resume-editable-area {
-          font-family: 'Times New Roman', Times, Baskerville, Georgia, serif;
-          line-height: 1.2;
-          font-size: 12px;
-          color: #000;
-          outline: none;
-          min-height: 1056px; /* standard letter height ratio */
-        }
-        .resume-editable-area p {
-          margin-top: 0;
-          margin-bottom: 0.15rem;
-        }
-        .resume-editable-area h1,
-        .resume-editable-area h2,
-        .resume-editable-area h3,
-        .resume-editable-area h4 {
-          font-family: Arial, Helvetica, sans-serif;
-          font-weight: bold;
-          color: #000;
-        }
-        .resume-editable-area h1 {
-          font-size: 20px;
-          text-align: center;
-          margin-top: 0;
-          margin-bottom: 0.2rem;
-        }
-        .resume-editable-area h2 {
-          font-size: 13.5px;
-          border-bottom: 1.5px solid #000;
-          padding-bottom: 2px;
-          margin-top: 0.5rem;
-          margin-bottom: 0.2rem;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-        .resume-editable-area h3 {
-          font-size: 12.5px;
-          margin-top: 0.3rem;
-          margin-bottom: 0.1rem;
-        }
-        .resume-editable-area ul {
-          list-style-type: disc;
-          margin-left: 1.2rem;
-          margin-top: 0.1rem;
-          margin-bottom: 0.2rem;
-        }
-        .resume-editable-area ol {
-          list-style-type: decimal;
-          margin-left: 1.2rem;
-          margin-top: 0.1rem;
-          margin-bottom: 0.2rem;
-        }
-        .resume-editable-area li {
-          margin-bottom: 0.05rem;
-        }
-        .resume-editable-area table {
-          width: 100%;
-          border-collapse: collapse;
-          margin-top: 0.15rem;
-          margin-bottom: 0.15rem;
-          border: none !important;
-        }
-        .resume-editable-area th,
-        .resume-editable-area td {
-          border: none !important;
-          padding: 1px 0 !important;
-          text-align: left;
-          vertical-align: top;
-        }
-        .resume-editable-area hr {
-          border: none;
-          border-top: 1.5px solid #000;
-          margin: 0.3rem 0;
-        }
-      `}</style>
-
       {/* Editor Header */}
       <header className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-b border-border bg-card gap-4 shrink-0 shadow-xs">
         <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
           <Link
             href={`/applications/${applicationId}`}
-            className={buttonVariants({ variant: "ghost", size: "sm", className: "shrink-0" })}
+            className={buttonVariants({
+              variant: "ghost",
+              size: "sm",
+              className: "shrink-0",
+            })}
           >
             <ArrowLeft className="mr-1.5 h-4 w-4" />
             Back
@@ -279,14 +295,17 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
             </h1>
             <p className="text-[11px] text-muted-foreground truncate flex items-center gap-1">
               <Building2 className="h-3 w-3" />
-              {data.companyName} • {data.jobTitle}
+              {data?.companyName} • {data?.jobTitle}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
           {hasChanges && (
-            <Badge variant="outline" className="text-amber-600 border-amber-500/20 bg-amber-500/5 animate-pulse text-[10px] py-1">
+            <Badge
+              variant="outline"
+              className="text-amber-600 border-amber-500/20 bg-amber-500/5 animate-pulse text-[10px] py-1"
+            >
               Unsaved Changes
             </Badge>
           )}
@@ -305,7 +324,11 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
             onClick={() => handleSave(false)}
             disabled={saving}
           >
-            {saving ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1.5 h-3.5 w-3.5" />}
+            {saving ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Save className="mr-1.5 h-3.5 w-3.5" />
+            )}
             Save
           </Button>
           <Button
@@ -314,7 +337,11 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
             disabled={saving}
             className="bg-primary hover:bg-primary/90"
           >
-            {saving ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1.5 h-3.5 w-3.5" />}
+            {saving ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Save className="mr-1.5 h-3.5 w-3.5" />
+            )}
             Save & Close
           </Button>
         </div>
@@ -330,8 +357,14 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
               Job Details
             </h3>
             <div className="text-xs space-y-1 bg-background p-4 rounded-xl border border-border/60">
-              <p><span className="font-bold text-foreground">Role:</span> {data.jobTitle}</p>
-              <p><span className="font-bold text-foreground">Company:</span> {data.companyName}</p>
+              <p>
+                <span className="font-bold text-foreground">Role:</span>{" "}
+                {data?.jobTitle}
+              </p>
+              <p>
+                <span className="font-bold text-foreground">Company:</span>{" "}
+                {data?.companyName}
+              </p>
             </div>
           </div>
 
@@ -350,12 +383,17 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
                     placeholder="Add target skill/keyword..."
                     className="grow text-xs px-2.5 py-1.5 rounded-md border border-input bg-background outline-none focus:ring-1 focus:ring-primary"
                   />
-                  <Button type="submit" size="sm" className="h-8">Add</Button>
+                  <Button type="submit" size="sm" className="h-8">
+                    Add
+                  </Button>
                 </form>
 
                 <div className="flex flex-wrap gap-1.5">
                   {customKeywords.length === 0 && (
-                    <p className="text-[11px] text-muted-foreground italic">Add core keywords from the job description here to check them off as you inject them.</p>
+                    <p className="text-[11px] text-muted-foreground italic">
+                      Add core keywords from the job description here to check
+                      them off as you inject them.
+                    </p>
                   )}
                   {customKeywords.map((kw, i) => (
                     <Badge
@@ -365,7 +403,9 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
                       onClick={() => removeKeyword(kw)}
                     >
                       {kw}
-                      <span className="font-bold text-[9px] opacity-60">×</span>
+                      <span className="font-bold text-[9px] opacity-60">
+                        ×
+                      </span>
                     </Badge>
                   ))}
                 </div>
@@ -380,132 +420,37 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
             </h3>
             <Card className="border-border/60 bg-background max-h-[300px] overflow-y-auto">
               <CardContent className="p-4 text-xs whitespace-pre-wrap text-muted-foreground leading-relaxed">
-                {data.jobDescription || <span className="italic">No job description available for this application.</span>}
+                {data?.jobDescription || (
+                  <span className="italic">
+                    No job description available for this application.
+                  </span>
+                )}
               </CardContent>
             </Card>
           </div>
         </aside>
 
-        {/* Right Side: Document Editor */}
-        <main className="flex-1 flex flex-col min-h-0 bg-muted/30">
-          {/* Formatting Toolbar */}
-          <div className="flex flex-wrap items-center gap-1 p-2 bg-card border-b border-border shadow-2xs shrink-0 select-none overflow-x-auto">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => formatDoc("bold")}
-              title="Bold"
-            >
-              <Bold className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => formatDoc("italic")}
-              title="Italic"
-            >
-              <Italic className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => formatDoc("underline")}
-              title="Underline"
-            >
-              <Underline className="h-4 w-4" />
-            </Button>
-
-            <Separator orientation="vertical" className="h-5 mx-1" />
-
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => formatDoc("justifyLeft")}
-              title="Align Left"
-            >
-              <AlignLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => formatDoc("justifyCenter")}
-              title="Align Center"
-            >
-              <AlignCenter className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => formatDoc("justifyRight")}
-              title="Align Right"
-            >
-              <AlignRight className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => formatDoc("justifyFull")}
-              title="Justify"
-            >
-              <AlignJustify className="h-4 w-4" />
-            </Button>
-
-            <Separator orientation="vertical" className="h-5 mx-1" />
-
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => formatDoc("insertUnorderedList")}
-              title="Bullet List"
-            >
-              <List className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => formatDoc("insertOrderedList")}
-              title="Numbered List"
-            >
-              <ListOrdered className="h-4 w-4" />
-            </Button>
-
-            <Separator orientation="vertical" className="h-5 mx-1" />
-
-            <select
-              onChange={(e) => formatDoc("formatBlock", e.target.value)}
-              className="h-8 rounded border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary max-w-[120px]"
-              defaultValue="<p>"
-            >
-              <option value="<p>">Paragraph</option>
-              <option value="<h1>">Heading 1</option>
-              <option value="<h2>">Heading 2</option>
-              <option value="<h3>">Heading 3</option>
-            </select>
-          </div>
-
-          {/* Page Container */}
-          <div className="grow overflow-y-auto p-4 md:p-8 flex justify-center">
-            {/* Sheet wrapper representing a page */}
-            <div className="w-full max-w-[850px] min-h-[1100px] bg-white border border-border/80 shadow-md p-12 md:p-16 rounded-sm relative">
-              <div
+        {/* Right Side: DOCX Editor */}
+        <main className="flex-1 flex flex-col min-h-0 bg-white">
+          {docBuffer ? (
+            <div className="grow min-h-0 overflow-hidden">
+              <DocxEditor
+                key={editorKey}
                 ref={editorRef}
-                className="resume-editable-area text-black select-text"
-                contentEditable
-                suppressContentEditableWarning
-                onInput={handleEditorInput}
-                dangerouslySetInnerHTML={{ __html: editorHtml }}
+                documentBuffer={docBuffer}
+                mode="editing"
+                onChange={handleEditorChange}
+                onSave={handleEditorSave}
+                showToolbar={true}
+                showZoomControl={true}
+                initialZoom={1.0}
               />
             </div>
-          </div>
+          ) : (
+            <div className="flex h-full items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          )}
         </main>
       </div>
     </div>

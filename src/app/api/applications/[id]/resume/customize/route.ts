@@ -22,11 +22,6 @@ import {
   rateLimitHeaders,
 } from "@/lib/rate-limit";
 
-// @ts-ignore
-import mammoth from "mammoth";
-// @ts-ignore
-import HTMLtoDOCX from "html-to-docx";
-
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
@@ -85,30 +80,8 @@ export async function GET(
       return errorResponse("No document file associated with this resume version", 400);
     }
 
-    // Query storage key for selected file
-    const fileWithKey = await File.findOne({ _id: fileDoc._id, userId: session.id }).select("+storageKey");
-    if (!fileWithKey) {
-      return errorResponse("Resume document file not found", 404);
-    }
-
-    // Retrieve file buffer from storage
-    let fileBuffer: Buffer;
-    if (fileWithKey.storageProvider === "r2" || fileWithKey.storageProvider === "s3") {
-      const { downloadFromS3 } = await import("@/lib/storage/s3");
-      fileBuffer = await downloadFromS3(fileWithKey.storageKey);
-    } else {
-      const storageDir = path.resolve(/*turbopackIgnore: true*/ process.cwd(), process.env.FILE_STORAGE_PATH || "./uploads");
-      const filePath = path.resolve(/*turbopackIgnore: true*/ process.cwd(), storageDir, fileWithKey.storageKey);
-      fileBuffer = await fs.readFile(filePath);
-    }
-
-    // Convert DOCX to clean HTML via mammoth
-    const conversionResult = await mammoth.convertToHtml({ buffer: fileBuffer });
-    const html = conversionResult.value;
-
     return successResponse({
-      html,
-      messages: conversionResult.messages,
+      fileId: fileDoc._id.toString(),
       manuallyEdited: snapshot.manuallyEdited,
       jobTitle: app.jobTitle,
       companyName: (app.companyId as any)?.name || "Company",
@@ -121,7 +94,7 @@ export async function GET(
 
 /**
  * POST /api/applications/:id/resume/customize
- * Receives customized HTML, converts it to DOCX, saves it, and updates the ResumeSnapshot.
+ * Receives customized DOCX buffer (base64), saves it, and updates the ResumeSnapshot.
  */
 export async function POST(
   request: Request,
@@ -142,9 +115,9 @@ export async function POST(
       );
     }
 
-    const { html } = await request.json();
-    if (!html) {
-      return errorResponse("html content is required", 400);
+    const { base64 } = await request.json();
+    if (!base64) {
+      return errorResponse("base64 content is required", 400);
     }
 
     await dbConnect();
@@ -166,18 +139,8 @@ export async function POST(
     const originalFileName = `Custom_Resume_${safeCompanyName}.docx`;
     const displayName = `Custom Resume (${companyName})`;
 
-    // Convert HTML back to DOCX buffer
-    const docxBuffer = await HTMLtoDOCX(html, null, {
-      table: { row: { cantSplit: true } },
-      footer: true,
-      header: true,
-      margins: {
-        top: 720,
-        right: 720,
-        bottom: 720,
-        left: 720,
-      },
-    });
+    // Convert Base64 back to DOCX buffer
+    const docxBuffer = Buffer.from(base64, "base64");
 
     // Generate SHA-256 hash
     const hash = crypto.createHash("sha256").update(docxBuffer).digest("hex");
