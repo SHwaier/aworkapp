@@ -18,18 +18,17 @@ interface MongooseCache {
   promise: Promise<typeof mongoose> | null;
 }
 
-declare global {
-  // eslint-disable-next-line no-var
-  var mongooseCache: MongooseCache | undefined;
-}
+const globalWithMongoose = global as typeof globalThis & {
+  mongooseCache?: MongooseCache;
+};
 
-const cached: MongooseCache = global.mongooseCache ?? {
+const cached: MongooseCache = globalWithMongoose.mongooseCache ?? {
   conn: null,
   promise: null,
 };
 
-if (!global.mongooseCache) {
-  global.mongooseCache = cached;
+if (!globalWithMongoose.mongooseCache) {
+  globalWithMongoose.mongooseCache = cached;
 }
 
 async function dbConnect(): Promise<typeof mongoose> {
