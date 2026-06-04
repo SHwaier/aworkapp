@@ -19,6 +19,10 @@ import {
   FileText,
   Briefcase,
   Lightbulb,
+  Maximize2,
+  Minimize2,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 
 // Dynamically import DocxEditor to prevent SSR issues (it requires browser DOM)
@@ -59,6 +63,7 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
   const [keywordInput, setKeywordInput] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
   const [editorKey, setEditorKey] = useState(0);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // 1) Fetch metadata (fileId, jobTitle, etc.)
   // 2) Fetch the actual DOCX binary from /api/files/:fileId
@@ -331,6 +336,19 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setSidebarCollapsed((v) => !v)}
+            title={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+            className="hidden md:inline-flex"
+          >
+            {sidebarCollapsed ? (
+              <><PanelLeftOpen className="mr-1.5 h-3.5 w-3.5" />Show Panel</>
+            ) : (
+              <><PanelLeftClose className="mr-1.5 h-3.5 w-3.5" />Hide Panel</>
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleReset}
             disabled={saving}
           >
@@ -369,7 +387,7 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
       {/* Editor Body */}
       <div className="grow flex flex-col md:flex-row min-h-0">
         {/* Left Side: Job Description Reference Panel */}
-        <aside className="w-full md:w-[35%] border-r border-border bg-muted/10 p-5 overflow-y-auto space-y-6 hidden md:block shrink-0">
+        <aside className={`w-full md:w-[35%] border-r border-border bg-muted/10 p-5 overflow-y-auto space-y-6 shrink-0 transition-all duration-300 ${sidebarCollapsed ? "hidden" : "hidden md:block"}`}>
           <div className="space-y-3">
             <h3 className="text-sm font-bold flex items-center gap-2 text-foreground">
               <Briefcase className="h-4 w-4 text-primary" />
@@ -452,7 +470,7 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
         {/* Right Side: DOCX Editor */}
         <main className="flex-1 flex flex-col min-h-0 bg-white docx-editor-isolation">
           {docBuffer ? (
-            <div className="grow min-h-0 overflow-hidden" style={{ all: "initial", display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0 }}>
+            <div className="grow min-h-0 overflow-auto">
               <DocxEditor
                 key={editorKey}
                 ref={editorRef}
