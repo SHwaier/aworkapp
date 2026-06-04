@@ -64,6 +64,17 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
   const [hasChanges, setHasChanges] = useState(false);
   const [editorKey, setEditorKey] = useState(0);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
+
+  // Escape key exits maximized mode
+  useEffect(() => {
+    if (!isMaximized) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsMaximized(false);
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [isMaximized]);
 
   // 1) Fetch metadata (fileId, jobTitle, etc.)
   // 2) Fetch the actual DOCX binary from /api/files/:fileId
@@ -279,7 +290,11 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-4rem)] md:h-[calc(100vh-6rem)] -m-4 sm:-m-6 bg-background overflow-hidden">
+    <div className={`flex flex-col bg-background overflow-hidden transition-all duration-200 ${
+      isMaximized
+        ? "fixed inset-0 z-50 h-screen"
+        : "h-[calc(100dvh-4rem)] md:h-[calc(100vh-6rem)] -m-4 sm:-m-6"
+    }`}>
       {/* Isolate DocxEditor from Tailwind preflight resets */}
       <style>{`
         .docx-editor-isolation * {
@@ -335,17 +350,32 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
           )}
           <Button
             variant="outline"
-            size="sm"
-            onClick={() => setSidebarCollapsed((v) => !v)}
-            title={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
-            className="hidden md:inline-flex"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setIsMaximized((v) => !v)}
+            title={isMaximized ? "Exit fullscreen (Esc)" : "Fullscreen editor"}
           >
-            {sidebarCollapsed ? (
-              <><PanelLeftOpen className="mr-1.5 h-3.5 w-3.5" />Show Panel</>
+            {isMaximized ? (
+              <Minimize2 className="h-4 w-4" />
             ) : (
-              <><PanelLeftClose className="mr-1.5 h-3.5 w-3.5" />Hide Panel</>
+              <Maximize2 className="h-4 w-4" />
             )}
           </Button>
+          {!isMaximized && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSidebarCollapsed((v) => !v)}
+              title={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+              className="hidden md:inline-flex"
+            >
+              {sidebarCollapsed ? (
+                <><PanelLeftOpen className="mr-1.5 h-3.5 w-3.5" />Show Panel</>
+              ) : (
+                <><PanelLeftClose className="mr-1.5 h-3.5 w-3.5" />Hide Panel</>
+              )}
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -387,7 +417,7 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
       {/* Editor Body */}
       <div className="grow flex flex-col md:flex-row min-h-0">
         {/* Left Side: Job Description Reference Panel */}
-        <aside className={`w-full md:w-[35%] border-r border-border bg-muted/10 p-5 overflow-y-auto space-y-6 shrink-0 transition-all duration-300 ${sidebarCollapsed ? "hidden" : "hidden md:block"}`}>
+        <aside className={`w-full md:w-[35%] border-r border-border bg-muted/10 p-5 overflow-y-auto space-y-6 shrink-0 transition-all duration-300 ${isMaximized || sidebarCollapsed ? "hidden" : "hidden md:block"}`}>
           <div className="space-y-3">
             <h3 className="text-sm font-bold flex items-center gap-2 text-foreground">
               <Briefcase className="h-4 w-4 text-primary" />
