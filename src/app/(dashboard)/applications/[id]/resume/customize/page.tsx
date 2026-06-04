@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import type { DocxEditorRef } from "@eigenpal/docx-editor-react";
+import "@eigenpal/docx-editor-react/styles.css";
 import {
   ArrowLeft,
   Loader2,
@@ -274,6 +275,24 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
 
   return (
     <div className="flex flex-col h-[calc(100dvh-4rem)] md:h-[calc(100vh-6rem)] -m-4 sm:-m-6 bg-background overflow-hidden">
+      {/* Isolate DocxEditor from Tailwind preflight resets */}
+      <style>{`
+        .docx-editor-isolation * {
+          box-sizing: initial;
+        }
+        .docx-editor-isolation button,
+        .docx-editor-isolation input,
+        .docx-editor-isolation select,
+        .docx-editor-isolation textarea {
+          font-family: inherit;
+          font-size: inherit;
+          line-height: inherit;
+          color: inherit;
+        }
+        .docx-editor-isolation img {
+          max-width: none;
+        }
+      `}</style>
       {/* Editor Header */}
       <header className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-b border-border bg-card gap-4 shrink-0 shadow-xs">
         <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
@@ -431,9 +450,9 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
         </aside>
 
         {/* Right Side: DOCX Editor */}
-        <main className="flex-1 flex flex-col min-h-0 bg-white">
+        <main className="flex-1 flex flex-col min-h-0 bg-white docx-editor-isolation">
           {docBuffer ? (
-            <div className="grow min-h-0 overflow-hidden">
+            <div className="grow min-h-0 overflow-hidden" style={{ all: "initial", display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0 }}>
               <DocxEditor
                 key={editorKey}
                 ref={editorRef}

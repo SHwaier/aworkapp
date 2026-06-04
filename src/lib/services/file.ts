@@ -103,13 +103,28 @@ export async function uploadFile({
 }
 
 /**
- * Delete a file from disk/S3 and remove its File document
+ * Delete a file from disk/S3 and remove its File document.
+ * Also cleans up any references in ResumeVersion and ResumeSnapshot.
  */
 export async function deleteFile(fileId: string | mongoose.Types.ObjectId, userId: string): Promise<boolean> {
   const fileDoc = await File.findOne({ _id: fileId, userId }).select("+storageKey");
   if (!fileDoc) return false;
 
   await File.deleteOne({ _id: fileDoc._id });
+
+  // Cascade: null out any ResumeVersion that references this file
+  const ResumeVersion = (await import("@/models/ResumeVersion")).default;
+  await ResumeVersion.updateMany(
+    { userId, fileId: fileDoc._id },
+    { $set: { fileId: null } }
+  );
+
+  // Cascade: null out any ResumeSnapshot that references this file as finalSubmittedFileId
+  const ResumeSnapshot = (await import("@/models/ResumeSnapshot")).default;
+  await ResumeSnapshot.updateMany(
+    { userId, finalSubmittedFileId: fileDoc._id },
+    { $set: { finalSubmittedFileId: null, manuallyEdited: false } }
+  );
 
   try {
     if (fileDoc.storageProvider === "r2" || fileDoc.storageProvider === "s3") {

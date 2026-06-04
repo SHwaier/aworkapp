@@ -150,6 +150,29 @@ export async function DELETE(
       return errorResponse("Not found", 404);
     }
 
+    // Cascade: delete any ResumeSnapshots that reference this resume version
+    const ResumeSnapshot = (await import("@/models/ResumeSnapshot")).default;
+    const orphanedSnapshots = await ResumeSnapshot.find({
+      userId: session.id,
+      baseResumeVersionId: id,
+    });
+
+    // Clean up any custom files from orphaned snapshots before deleting them
+    for (const snap of orphanedSnapshots) {
+      if (snap.finalSubmittedFileId) {
+        try {
+          const { deleteFile: deleteFileService } = await import("@/lib/services/file");
+          await deleteFileService(snap.finalSubmittedFileId, session.id);
+        } catch {
+          // Best-effort cleanup
+        }
+      }
+    }
+    await ResumeSnapshot.deleteMany({
+      userId: session.id,
+      baseResumeVersionId: id,
+    });
+
     await createAuditLog({
       userId: session.id,
       action: "resume.deleted",

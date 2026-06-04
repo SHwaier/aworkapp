@@ -430,7 +430,11 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
       if (snapshotData.success) {
         setResumeSnapshot(snapshotData.data.resumeSnapshot);
         if (snapshotData.data.resumeSnapshot) {
-          setSelectedResumeId(snapshotData.data.resumeSnapshot.baseResumeVersionId?.id || snapshotData.data.resumeSnapshot.baseResumeVersionId || "");
+          const baseVersion = snapshotData.data.resumeSnapshot.baseResumeVersionId;
+          const resolvedId = typeof baseVersion === "object" && baseVersion
+            ? (baseVersion.id || baseVersion._id?.toString?.() || baseVersion._id || "")
+            : (baseVersion?.toString?.() || "");
+          setSelectedResumeId(String(resolvedId));
         }
       }
       
@@ -1398,11 +1402,14 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                               <SelectValue placeholder="Select a resume..." />
                             </SelectTrigger>
                             <SelectContent>
-                              {userResumes.map((r) => (
-                                <SelectItem key={r.id || r._id} value={r.id || r._id}>
-                                  {r.name} (V{r.versionNumber})
-                                </SelectItem>
-                              ))}
+                              {userResumes.map((r) => {
+                                const rid = String(r.id || r._id);
+                                return (
+                                  <SelectItem key={rid} value={rid}>
+                                    {r.name} (V{r.versionNumber})
+                                  </SelectItem>
+                                );
+                              })}
                             </SelectContent>
                           </Select>
                           <Button
