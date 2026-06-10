@@ -68,11 +68,58 @@ export function DocxViewer({ fileId }: DocxViewerProps) {
           padding: 2.5rem !important;
           margin: 0 auto 1.5rem auto !important;
           box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
-          border: 1px border-border/40 !important;
+          border: 1px solid #e2e8f0 !important;
           box-sizing: border-box !important;
           height: auto !important;
           min-height: auto !important;
+          color: #000000 !important;
+          font-family: Calibri, Arial, sans-serif !important;
+          line-height: 1.15 !important;
+          text-align: left !important;
         }
+
+        .docx-container section.docx * {
+          box-sizing: content-box;
+        }
+
+        /* Scope styling isolation to prevent global preflight resets from breaking docx spacing */
+        .docx-container section.docx p,
+        .docx-container section.docx h1,
+        .docx-container section.docx h2,
+        .docx-container section.docx h3,
+        .docx-container section.docx h4,
+        .docx-container section.docx h5,
+        .docx-container section.docx h6,
+        .docx-container section.docx ul,
+        .docx-container section.docx ol,
+        .docx-container section.docx li,
+        .docx-container section.docx table,
+        .docx-container section.docx tr,
+        .docx-container section.docx td,
+        .docx-container section.docx th,
+        .docx-container section.docx span,
+        .docx-container section.docx a,
+        .docx-container section.docx b,
+        .docx-container section.docx i,
+        .docx-container section.docx u,
+        .docx-container section.docx strong,
+        .docx-container section.docx em,
+        .docx-container section.docx sub,
+        .docx-container section.docx sup {
+          margin: 0;
+          padding: 0;
+          line-height: normal;
+          border-width: revert;
+          border-style: revert;
+          border-color: revert;
+          list-style: none; /* Disable browser native lists as docx-preview handles list prefixes directly */
+        }
+
+        .docx-container section.docx img {
+          max-width: none !important;
+          display: inline;
+        }
+
         @media (max-width: 640px) {
           .docx-container section.docx {
             padding: 1.5rem !important;
@@ -85,7 +132,7 @@ export function DocxViewer({ fileId }: DocxViewerProps) {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       )}
-      
+
       {error && (
         <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-muted-foreground bg-background">
           <AlertCircle className="h-10 w-10 text-destructive mb-2" />
@@ -93,10 +140,7 @@ export function DocxViewer({ fileId }: DocxViewerProps) {
         </div>
       )}
 
-      <div 
-        ref={containerRef} 
-        className="mx-auto max-w-[800px] w-full docx-container prose prose-sm dark:prose-invert" 
-      />
+      <div ref={containerRef} className="mx-auto max-w-[800px] w-full docx-container" />
     </div>
   );
 }

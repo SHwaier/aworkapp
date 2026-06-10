@@ -84,9 +84,7 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
     async function loadResume() {
       try {
         // Step 1: Get metadata + fileId
-        const metaRes = await fetch(
-          `/api/applications/${applicationId}/resume/customize`
-        );
+        const metaRes = await fetch(`/api/applications/${applicationId}/resume/customize`);
         const metaResult = await metaRes.json();
         if (!metaResult.success) {
           toast.error(metaResult.error || "Failed to load resume");
@@ -152,14 +150,11 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
       }
       const base64 = btoa(binary);
 
-      const res = await fetch(
-        `/api/applications/${applicationId}/resume/customize`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ base64 }),
-        }
-      );
+      const res = await fetch(`/api/applications/${applicationId}/resume/customize`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ base64 }),
+      });
       const result = await res.json();
       if (result.success) {
         toast.success("Resume saved successfully");
@@ -212,44 +207,33 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
   // Reset: re-assign base resume version, then re-fetch
   const handleReset = async () => {
     if (
-      !confirm(
-        "Are you sure you want to discard your edits and reset to the base resume version?"
-      )
+      !confirm("Are you sure you want to discard your edits and reset to the base resume version?")
     ) {
       return;
     }
     setLoading(true);
     try {
-      const snapshotRes = await fetch(
-        `/api/applications/${applicationId}/resume`
-      );
+      const snapshotRes = await fetch(`/api/applications/${applicationId}/resume`);
       const snapshotData = await snapshotRes.json();
       if (snapshotData.success && snapshotData.data.resumeSnapshot) {
         const baseVersionId =
           snapshotData.data.resumeSnapshot.baseResumeVersionId?.id ||
           snapshotData.data.resumeSnapshot.baseResumeVersionId;
 
-        const assignRes = await fetch(
-          `/api/applications/${applicationId}/resume`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ resumeVersionId: baseVersionId }),
-          }
-        );
+        const assignRes = await fetch(`/api/applications/${applicationId}/resume`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ resumeVersionId: baseVersionId }),
+        });
         const assignResult = await assignRes.json();
 
         if (assignResult.success) {
           // Re-fetch fresh metadata + file
-          const freshMeta = await fetch(
-            `/api/applications/${applicationId}/resume/customize`
-          );
+          const freshMeta = await fetch(`/api/applications/${applicationId}/resume/customize`);
           const freshResult = await freshMeta.json();
           if (freshResult.success) {
             setData(freshResult.data);
-            const fileRes = await fetch(
-              `/api/files/${freshResult.data.fileId}`
-            );
+            const fileRes = await fetch(`/api/files/${freshResult.data.fileId}`);
             if (fileRes.ok) {
               const arrayBuffer = await fileRes.arrayBuffer();
               setDocBuffer(arrayBuffer);
@@ -290,27 +274,66 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
   }
 
   return (
-    <div className={`flex flex-col bg-background overflow-hidden transition-all duration-200 ${
-      isMaximized
-        ? "fixed inset-0 z-50 h-screen"
-        : "h-[calc(100dvh-4rem)] md:h-[calc(100vh-6rem)] -m-4 sm:-m-6"
-    }`}>
+    <div
+      className={`flex flex-col bg-background overflow-hidden transition-all duration-200 ${
+        isMaximized
+          ? "fixed inset-0 z-50 h-screen"
+          : "h-[calc(100dvh-4rem)] md:h-[calc(100vh-6rem)] -m-4 sm:-m-6"
+      }`}
+    >
       {/* Isolate DocxEditor from Tailwind preflight resets */}
       <style>{`
-        .docx-editor-isolation * {
-          box-sizing: initial;
+        /* 1. Reset page container inheritance to inherit document-safe values */
+        .docx-editor-isolation .docx-editor-page {
+          color: #000000;
+          font-family: Calibri, Arial, sans-serif;
+          font-size: 11pt;
+          line-height: 1.15;
+          text-align: left;
         }
-        .docx-editor-isolation button,
-        .docx-editor-isolation input,
-        .docx-editor-isolation select,
-        .docx-editor-isolation textarea {
-          font-family: inherit;
-          font-size: inherit;
-          line-height: inherit;
-          color: inherit;
+
+        /* 2. Reset box-sizing to browser defaults for document content only, leaving toolbar widgets intact */
+        .docx-editor-isolation .docx-editor-page * {
+          box-sizing: content-box;
         }
-        .docx-editor-isolation img {
-          max-width: none;
+
+        /* 3. Revert Tailwind preflight overrides on tag selectors within the document pages */
+        .docx-editor-isolation .docx-editor-page p,
+        .docx-editor-isolation .docx-editor-page h1,
+        .docx-editor-isolation .docx-editor-page h2,
+        .docx-editor-isolation .docx-editor-page h3,
+        .docx-editor-isolation .docx-editor-page h4,
+        .docx-editor-isolation .docx-editor-page h5,
+        .docx-editor-isolation .docx-editor-page h6,
+        .docx-editor-isolation .docx-editor-page ul,
+        .docx-editor-isolation .docx-editor-page ol,
+        .docx-editor-isolation .docx-editor-page li,
+        .docx-editor-isolation .docx-editor-page table,
+        .docx-editor-isolation .docx-editor-page tr,
+        .docx-editor-isolation .docx-editor-page td,
+        .docx-editor-isolation .docx-editor-page th,
+        .docx-editor-isolation .docx-editor-page span,
+        .docx-editor-isolation .docx-editor-page a,
+        .docx-editor-isolation .docx-editor-page b,
+        .docx-editor-isolation .docx-editor-page i,
+        .docx-editor-isolation .docx-editor-page u,
+        .docx-editor-isolation .docx-editor-page strong,
+        .docx-editor-isolation .docx-editor-page em,
+        .docx-editor-isolation .docx-editor-page sub,
+        .docx-editor-isolation .docx-editor-page sup {
+          margin: 0;
+          padding: 0;
+          line-height: normal;
+          border-width: revert;
+          border-style: revert;
+          border-color: revert;
+          list-style: none; /* DOCX renders list bullet characters inline; disable native list-style to prevent duplicate markers */
+        }
+
+        /* 4. Fix image constraints inside the document canvas */
+        .docx-editor-isolation .docx-editor-page img {
+          max-width: none !important;
+          display: inline;
         }
       `}</style>
       {/* Editor Header */}
@@ -355,11 +378,7 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
             onClick={() => setIsMaximized((v) => !v)}
             title={isMaximized ? "Exit fullscreen (Esc)" : "Fullscreen editor"}
           >
-            {isMaximized ? (
-              <Minimize2 className="h-4 w-4" />
-            ) : (
-              <Maximize2 className="h-4 w-4" />
-            )}
+            {isMaximized ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
           </Button>
           {!isMaximized && (
             <Button
@@ -370,27 +389,23 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
               className="hidden md:inline-flex"
             >
               {sidebarCollapsed ? (
-                <><PanelLeftOpen className="mr-1.5 h-3.5 w-3.5" />Show Panel</>
+                <>
+                  <PanelLeftOpen className="mr-1.5 h-3.5 w-3.5" />
+                  Show Panel
+                </>
               ) : (
-                <><PanelLeftClose className="mr-1.5 h-3.5 w-3.5" />Hide Panel</>
+                <>
+                  <PanelLeftClose className="mr-1.5 h-3.5 w-3.5" />
+                  Hide Panel
+                </>
               )}
             </Button>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleReset}
-            disabled={saving}
-          >
+          <Button variant="outline" size="sm" onClick={handleReset} disabled={saving}>
             <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
             Reset to Base
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleSave(false)}
-            disabled={saving}
-          >
+          <Button variant="outline" size="sm" onClick={() => handleSave(false)} disabled={saving}>
             {saving ? (
               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
             ) : (
@@ -417,7 +432,9 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
       {/* Editor Body */}
       <div className="grow flex flex-col md:flex-row min-h-0">
         {/* Left Side: Job Description Reference Panel */}
-        <aside className={`w-full md:w-[35%] border-r border-border bg-muted/10 p-5 overflow-y-auto space-y-6 shrink-0 transition-all duration-300 ${isMaximized || sidebarCollapsed ? "hidden" : "hidden md:block"}`}>
+        <aside
+          className={`w-full md:w-[35%] border-r border-border bg-muted/10 p-5 overflow-y-auto space-y-6 shrink-0 transition-all duration-300 ${isMaximized || sidebarCollapsed ? "hidden" : "hidden md:block"}`}
+        >
           <div className="space-y-3">
             <h3 className="text-sm font-bold flex items-center gap-2 text-foreground">
               <Briefcase className="h-4 w-4 text-primary" />
@@ -425,12 +442,10 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
             </h3>
             <div className="text-xs space-y-1 bg-background p-4 rounded-xl border border-border/60">
               <p>
-                <span className="font-bold text-foreground">Role:</span>{" "}
-                {data?.jobTitle}
+                <span className="font-bold text-foreground">Role:</span> {data?.jobTitle}
               </p>
               <p>
-                <span className="font-bold text-foreground">Company:</span>{" "}
-                {data?.companyName}
+                <span className="font-bold text-foreground">Company:</span> {data?.companyName}
               </p>
             </div>
           </div>
@@ -458,8 +473,8 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
                 <div className="flex flex-wrap gap-1.5">
                   {customKeywords.length === 0 && (
                     <p className="text-[11px] text-muted-foreground italic">
-                      Add core keywords from the job description here to check
-                      them off as you inject them.
+                      Add core keywords from the job description here to check them off as you
+                      inject them.
                     </p>
                   )}
                   {customKeywords.map((kw, i) => (
@@ -470,9 +485,7 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
                       onClick={() => removeKeyword(kw)}
                     >
                       {kw}
-                      <span className="font-bold text-[9px] opacity-60">
-                        ×
-                      </span>
+                      <span className="font-bold text-[9px] opacity-60">×</span>
                     </Badge>
                   ))}
                 </div>
@@ -488,9 +501,7 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
             <Card className="border-border/60 bg-background max-h-[300px] overflow-y-auto">
               <CardContent className="p-4 text-xs whitespace-pre-wrap text-muted-foreground leading-relaxed">
                 {data?.jobDescription || (
-                  <span className="italic">
-                    No job description available for this application.
-                  </span>
+                  <span className="italic">No job description available for this application.</span>
                 )}
               </CardContent>
             </Card>

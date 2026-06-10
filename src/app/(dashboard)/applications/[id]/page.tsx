@@ -36,6 +36,8 @@ import {
   Building2,
   Calendar as CalendarIcon,
   Clock,
+  Download,
+  ChevronDown,
   ExternalLink,
   FileText,
   History,
@@ -60,6 +62,12 @@ import {
   TIMELINE_EVENT_TYPES,
 } from "@/lib/validators/schemas";
 import { DocxViewer } from "@/components/ui/docx-viewer";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 
 interface ApplicationDetails {
   id: string;
@@ -112,55 +120,58 @@ interface Note {
   createdAt: string;
 }
 
-const NOTE_TYPE_THEMES: Record<string, {
-  bg: string;
-  border: string;
-  badge: string;
-  badgeText: string;
-}> = {
+const NOTE_TYPE_THEMES: Record<
+  string,
+  {
+    bg: string;
+    border: string;
+    badge: string;
+    badgeText: string;
+  }
+> = {
   "red-flag": {
     bg: "bg-red-500/5 dark:bg-red-950/20",
     border: "border-l-red-500 border-border dark:border-border/40 hover:border-l-red-600",
     badge: "bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300",
     badgeText: "Red Flag",
   },
-  "rejection": {
+  rejection: {
     bg: "bg-red-500/5 dark:bg-red-950/20",
     border: "border-l-red-500 border-border dark:border-border/40 hover:border-l-red-600",
     badge: "bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300",
     badgeText: "Rejection",
   },
-  "interview": {
+  interview: {
     bg: "bg-blue-500/5 dark:bg-blue-950/20",
     border: "border-l-blue-500 border-border dark:border-border/40 hover:border-l-blue-600",
     badge: "bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300",
     badgeText: "Interview",
   },
-  "prep": {
+  prep: {
     bg: "bg-amber-500/5 dark:bg-amber-950/20",
     border: "border-l-amber-500 border-border dark:border-border/40 hover:border-l-amber-600",
     badge: "bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300",
     badgeText: "Prep",
   },
-  "recruiter": {
+  recruiter: {
     bg: "bg-purple-500/5 dark:bg-purple-950/20",
     border: "border-l-purple-500 border-border dark:border-border/40 hover:border-l-purple-600",
     badge: "bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300",
     badgeText: "Recruiter",
   },
-  "salary": {
+  salary: {
     bg: "bg-emerald-500/5 dark:bg-emerald-950/20",
     border: "border-l-emerald-500 border-border dark:border-border/40 hover:border-l-emerald-600",
     badge: "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300",
     badgeText: "Salary",
   },
-  "private": {
+  private: {
     bg: "bg-slate-500/5 dark:bg-slate-950/20",
     border: "border-l-slate-500 border-border dark:border-border/40 hover:border-l-slate-600",
     badge: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300",
     badgeText: "Private",
   },
-  "general": {
+  general: {
     bg: "bg-card",
     border: "border-l-border border-border hover:border-l-border/80",
     badge: "bg-secondary text-secondary-foreground",
@@ -168,13 +179,16 @@ const NOTE_TYPE_THEMES: Record<string, {
   },
 };
 
-const TIMELINE_EVENT_THEMES: Record<string, {
-  dotBorder: string;
-  dotBg: string;
-  badge: string;
-  bg?: string;
-  border?: string;
-}> = {
+const TIMELINE_EVENT_THEMES: Record<
+  string,
+  {
+    dotBorder: string;
+    dotBg: string;
+    badge: string;
+    bg?: string;
+    border?: string;
+  }
+> = {
   rejection: {
     dotBorder: "border-red-500",
     dotBg: "bg-red-500",
@@ -185,7 +199,8 @@ const TIMELINE_EVENT_THEMES: Record<string, {
   offer: {
     dotBorder: "border-emerald-500",
     dotBg: "bg-emerald-500",
-    badge: "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-500/20",
+    badge:
+      "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-500/20",
     bg: "bg-emerald-500/5 dark:bg-emerald-950/20",
     border: "border-emerald-500/20 dark:border-emerald-950/40",
   },
@@ -199,28 +214,32 @@ const TIMELINE_EVENT_THEMES: Record<string, {
   screening: {
     dotBorder: "border-purple-500",
     dotBg: "bg-purple-500",
-    badge: "bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-500/20",
+    badge:
+      "bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-500/20",
     bg: "bg-purple-500/5 dark:bg-purple-950/20",
     border: "border-purple-500/20 dark:border-purple-950/40",
   },
   follow_up: {
     dotBorder: "border-amber-500",
     dotBg: "bg-amber-500",
-    badge: "bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-500/20",
+    badge:
+      "bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-500/20",
     bg: "bg-amber-500/5 dark:bg-amber-950/20",
     border: "border-amber-500/20 dark:border-amber-950/40",
   },
   reminder: {
     dotBorder: "border-amber-500",
     dotBg: "bg-amber-500",
-    badge: "bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-500/20",
+    badge:
+      "bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-500/20",
     bg: "bg-amber-500/5 dark:bg-amber-950/20",
     border: "border-amber-500/20 dark:border-amber-950/40",
   },
   application_submitted: {
     dotBorder: "border-indigo-500",
     dotBg: "bg-indigo-500",
-    badge: "bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-500/20",
+    badge:
+      "bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-500/20",
     bg: "bg-indigo-500/5 dark:bg-indigo-950/20",
     border: "border-indigo-500/20 dark:border-indigo-950/40",
   },
@@ -249,7 +268,6 @@ const TIMELINE_EVENT_THEMES: Record<string, {
 };
 
 import { LocationAutocomplete } from "@/components/ui/location-autocomplete";
-
 
 export default function ApplicationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -285,7 +303,9 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
       const res = await fetch("/api/companies?limit=100");
       const data = await res.json();
       if (data.success) setCompanies(data.data.companies);
-    } catch { /* silent */ }
+    } catch {
+      /* silent */
+    }
   }, []);
 
   useEffect(() => {
@@ -303,9 +323,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
   }, []);
 
   const editFilteredSuggestions = editCompanySearchText.trim()
-    ? companies.filter((c) =>
-        c.name.toLowerCase().includes(editCompanySearchText.toLowerCase())
-      )
+    ? companies.filter((c) => c.name.toLowerCase().includes(editCompanySearchText.toLowerCase()))
     : companies;
 
   const [app, setApp] = useState<ApplicationDetails | null>(null);
@@ -431,13 +449,14 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
         setResumeSnapshot(snapshotData.data.resumeSnapshot);
         if (snapshotData.data.resumeSnapshot) {
           const baseVersion = snapshotData.data.resumeSnapshot.baseResumeVersionId;
-          const resolvedId = typeof baseVersion === "object" && baseVersion
-            ? (baseVersion.id || baseVersion._id?.toString?.() || baseVersion._id || "")
-            : (baseVersion?.toString?.() || "");
+          const resolvedId =
+            typeof baseVersion === "object" && baseVersion
+              ? baseVersion.id || baseVersion._id?.toString?.() || baseVersion._id || ""
+              : baseVersion?.toString?.() || "";
           setSelectedResumeId(String(resolvedId));
         }
       }
-      
+
       const resumesRes = await fetch(`/api/resumes?active=true`);
       const resumesData = await resumesRes.json();
       if (resumesData.success) {
@@ -509,7 +528,11 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
   }
 
   async function handleUnassignResume() {
-    if (!confirm("Are you sure you want to unassign this resume from the application? Any customized changes will be permanently deleted.")) {
+    if (
+      !confirm(
+        "Are you sure you want to unassign this resume from the application? Any customized changes will be permanently deleted."
+      )
+    ) {
       return;
     }
     try {
@@ -733,15 +756,24 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
     setIsUpdatingTimeline(true);
 
     try {
-      const res = await fetch(`/api/timeline/${editingTimelineEvent._id || editingTimelineEvent.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...editTimelineForm,
-          statusAfterEvent: editTimelineForm.statusAfterEvent === "none" ? null : editTimelineForm.statusAfterEvent,
-          lifecycleStageAfterEvent: editTimelineForm.lifecycleStageAfterEvent === "none" ? null : editTimelineForm.lifecycleStageAfterEvent,
-        }),
-      });
+      const res = await fetch(
+        `/api/timeline/${editingTimelineEvent._id || editingTimelineEvent.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...editTimelineForm,
+            statusAfterEvent:
+              editTimelineForm.statusAfterEvent === "none"
+                ? null
+                : editTimelineForm.statusAfterEvent,
+            lifecycleStageAfterEvent:
+              editTimelineForm.lifecycleStageAfterEvent === "none"
+                ? null
+                : editTimelineForm.lifecycleStageAfterEvent,
+          }),
+        }
+      );
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
@@ -811,17 +843,16 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
         <Link
           href="/applications"
-          className={buttonVariants({ variant: "ghost", className: "pl-0 text-muted-foreground hover:text-foreground self-start" })}
+          className={buttonVariants({
+            variant: "ghost",
+            className: "pl-0 text-muted-foreground hover:text-foreground self-start",
+          })}
         >
           <Undo2 className="mr-2 h-4 w-4" />
           Back to applications
         </Link>
         <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={openEditDialog}
-          >
+          <Button variant="outline" size="sm" onClick={openEditDialog}>
             <Pencil className="mr-2 h-4 w-4" />
             Edit Details
           </Button>
@@ -851,7 +882,10 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
               <span className="flex items-center gap-1.5 font-medium text-foreground">
                 <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-                <Link href={`/companies/${app.companyId.id}`} className="hover:underline hover:text-primary transition-colors wrap-break-word">
+                <Link
+                  href={`/companies/${app.companyId.id}`}
+                  className="hover:underline hover:text-primary transition-colors wrap-break-word"
+                >
                   {app.companyId.name}
                 </Link>
               </span>
@@ -876,15 +910,25 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
 
           <div className="flex flex-wrap items-center gap-4 shrink-0">
             <div className="text-left lg:text-right">
-              <span className="block text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Current Status</span>
-              <Badge variant={getStatusVariant(app.currentStatus)} className="text-xs font-semibold mt-1 px-2.5 py-0.5 uppercase tracking-wide">
+              <span className="block text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
+                Current Status
+              </span>
+              <Badge
+                variant={getStatusVariant(app.currentStatus)}
+                className="text-xs font-semibold mt-1 px-2.5 py-0.5 uppercase tracking-wide"
+              >
                 {app.currentStatus}
               </Badge>
             </div>
             <Separator orientation="vertical" className="h-8 mx-1 hidden lg:block" />
             <div className="text-left lg:text-right">
-              <span className="block text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Lifecycle Stage</span>
-              <Badge variant="outline" className="text-xs font-semibold mt-1 px-2.5 py-0.5 uppercase tracking-wide bg-muted/10">
+              <span className="block text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
+                Lifecycle Stage
+              </span>
+              <Badge
+                variant="outline"
+                className="text-xs font-semibold mt-1 px-2.5 py-0.5 uppercase tracking-wide bg-muted/10"
+              >
                 {app.lifecycleStage}
               </Badge>
             </div>
@@ -894,15 +938,25 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
         {/* Info Grid */}
         <div className="grid gap-4 mt-6 grid-cols-2 md:grid-cols-4 bg-muted/20 dark:bg-muted/5 p-4 rounded-xl border border-border/40">
           <div className="space-y-0.5 min-w-0">
-            <span className="block text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Source</span>
-            <span className="text-sm font-semibold mt-0.5 block wrap-break-word">{app.source || "—"}</span>
+            <span className="block text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
+              Source
+            </span>
+            <span className="text-sm font-semibold mt-0.5 block wrap-break-word">
+              {app.source || "—"}
+            </span>
           </div>
           <div className="space-y-0.5 min-w-0">
-            <span className="block text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Seniority</span>
-            <span className="text-sm font-semibold mt-0.5 block wrap-break-word">{app.seniorityLevel || "—"}</span>
+            <span className="block text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
+              Seniority
+            </span>
+            <span className="text-sm font-semibold mt-0.5 block wrap-break-word">
+              {app.seniorityLevel || "—"}
+            </span>
           </div>
           <div className="space-y-0.5 min-w-0">
-            <span className="block text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Salary Range</span>
+            <span className="block text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
+              Salary Range
+            </span>
             <span className="text-sm font-semibold mt-0.5 block wrap-break-word">
               {app.salaryMin !== null || app.salaryMax !== null
                 ? `${app.salaryMin ? `${app.currency} ${app.salaryMin.toLocaleString()}` : "—"} to ${
@@ -912,7 +966,9 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
             </span>
           </div>
           <div className="space-y-0.5 min-w-0">
-            <span className="block text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">Applied Date</span>
+            <span className="block text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
+              Applied Date
+            </span>
             <span className="text-sm font-semibold mt-0.5 block whitespace-nowrap">
               {app.appliedAt ? new Date(app.appliedAt).toLocaleDateString() : "—"}
             </span>
@@ -925,7 +981,10 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
         {/* Left Column (Timeline, Notes, Job Description) */}
         <div className="w-full lg:w-2/3 space-y-6 min-w-0">
           <Tabs defaultValue="timeline" className="w-full">
-            <TabsList variant="line" className="flex w-full justify-start border-b border-border/60 bg-transparent p-0 rounded-none h-12 gap-4 sm:gap-6 mb-6 overflow-x-auto overflow-y-hidden [-ms-overflow-style:none] scrollbar-none [&::-webkit-scrollbar]:hidden shrink-0">
+            <TabsList
+              variant="line"
+              className="flex w-full justify-start border-b border-border/60 bg-transparent p-0 rounded-none h-12 gap-4 sm:gap-6 mb-6 overflow-x-auto overflow-y-hidden [-ms-overflow-style:none] scrollbar-none [&::-webkit-scrollbar]:hidden shrink-0"
+            >
               <TabsTrigger
                 value="timeline"
                 className="flex-none rounded-none bg-transparent px-4 sm:px-6 text-sm font-semibold text-muted-foreground hover:text-foreground data-active:text-primary group-data-[variant=line]/tabs-list:data-active:after:bg-primary after:bottom-0 transition-all"
@@ -994,7 +1053,9 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                           >
                             <SelectTrigger id="event-type">
                               <SelectValue>
-                                {timelineForm.type ? timelineForm.type.replace("_", " ").toUpperCase() : ""}
+                                {timelineForm.type
+                                  ? timelineForm.type.replace("_", " ").toUpperCase()
+                                  : ""}
                               </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
@@ -1028,10 +1089,17 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                                 <span>Pick a date</span>
                               )}
                             </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0 bg-popover border border-border rounded-md shadow-md" align="start">
+                            <PopoverContent
+                              className="w-auto p-0 bg-popover border border-border rounded-md shadow-md"
+                              align="start"
+                            >
                               <Calendar
                                 mode="single"
-                                selected={timelineForm.eventDate ? new Date(timelineForm.eventDate + "T00:00:00") : undefined}
+                                selected={
+                                  timelineForm.eventDate
+                                    ? new Date(timelineForm.eventDate + "T00:00:00")
+                                    : undefined
+                                }
                                 onSelect={(date) => {
                                   setTimelineForm((p) => ({
                                     ...p,
@@ -1056,13 +1124,17 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                           >
                             <SelectTrigger id="status-after">
                               <SelectValue>
-                                {timelineForm.statusAfterEvent === "none" ? "Keep current" : timelineForm.statusAfterEvent || "Keep current"}
+                                {timelineForm.statusAfterEvent === "none"
+                                  ? "Keep current"
+                                  : timelineForm.statusAfterEvent || "Keep current"}
                               </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="none">Keep current</SelectItem>
                               {APPLICATION_STATUSES.map((s) => (
-                                <SelectItem key={s} value={s}>{s}</SelectItem>
+                                <SelectItem key={s} value={s}>
+                                  {s}
+                                </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
@@ -1077,13 +1149,17 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                           >
                             <SelectTrigger id="lifecycle-after">
                               <SelectValue>
-                                {timelineForm.lifecycleStageAfterEvent === "none" ? "Keep current" : timelineForm.lifecycleStageAfterEvent || "Keep current"}
+                                {timelineForm.lifecycleStageAfterEvent === "none"
+                                  ? "Keep current"
+                                  : timelineForm.lifecycleStageAfterEvent || "Keep current"}
                               </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="none">Keep current</SelectItem>
                               {LIFECYCLE_STAGES.map((s) => (
-                                <SelectItem key={s} value={s}>{s}</SelectItem>
+                                <SelectItem key={s} value={s}>
+                                  {s}
+                                </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
@@ -1120,26 +1196,50 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
               ) : (
                 <div className="relative border-l border-border pl-6 ml-3 space-y-6">
                   {timeline.map((event) => {
-                    const theme = TIMELINE_EVENT_THEMES[event.type] || TIMELINE_EVENT_THEMES["custom"];
+                    const theme =
+                      TIMELINE_EVENT_THEMES[event.type] || TIMELINE_EVENT_THEMES["custom"];
                     return (
                       <div key={event._id || event.id} className="relative group">
                         {/* Timeline dot */}
-                        <span className={cn("absolute left-[-31px] top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-background border-2 transition-colors", theme.dotBorder)}>
-                          <span className={cn("h-1.5 w-1.5 rounded-full transition-colors", theme.dotBg)} />
+                        <span
+                          className={cn(
+                            "absolute left-[-31px] top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-background border-2 transition-colors",
+                            theme.dotBorder
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "h-1.5 w-1.5 rounded-full transition-colors",
+                              theme.dotBg
+                            )}
+                          />
                         </span>
 
-                        <div className={cn("space-y-3 p-4 rounded-xl border bg-card text-card-foreground shadow-xs transition-all duration-200", theme.border || "border-border/40")}>
+                        <div
+                          className={cn(
+                            "space-y-3 p-4 rounded-xl border bg-card text-card-foreground shadow-xs transition-all duration-200",
+                            theme.border || "border-border/40"
+                          )}
+                        >
                           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                             <div className="space-y-1.5 flex-1 min-w-0">
                               <h4 className="font-bold text-sm text-foreground wrap-break-word leading-tight">
                                 {event.title}
                               </h4>
                               <div className="flex flex-wrap gap-1.5">
-                                <Badge className={cn("text-[10px] py-0.5 px-1.5 h-auto uppercase border font-semibold", theme.badge)}>
+                                <Badge
+                                  className={cn(
+                                    "text-[10px] py-0.5 px-1.5 h-auto uppercase border font-semibold",
+                                    theme.badge
+                                  )}
+                                >
                                   {event.type.replace("_", " ")}
                                 </Badge>
                                 {event.statusAfterEvent && (
-                                  <Badge variant="outline" className="text-[10px] py-0.5 px-1.5 h-auto">
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] py-0.5 px-1.5 h-auto"
+                                  >
                                     Status: {event.statusAfterEvent}
                                   </Badge>
                                 )}
@@ -1148,7 +1248,11 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
 
                             <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
                               <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                {new Date(event.eventDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                                {new Date(event.eventDate).toLocaleDateString(undefined, {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                })}
                               </span>
                               <div className="flex items-center gap-1">
                                 <button
@@ -1192,7 +1296,9 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                 <CardContent className="space-y-3 pb-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label htmlFor="note-type" className="text-xs">Category</Label>
+                      <Label htmlFor="note-type" className="text-xs">
+                        Category
+                      </Label>
                       <Select
                         value={noteForm.type}
                         onValueChange={(v) => setNoteForm((p) => ({ ...p, type: v || "" }))}
@@ -1210,7 +1316,9 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="note-title" className="text-xs">Title (Optional)</Label>
+                      <Label htmlFor="note-title" className="text-xs">
+                        Title (Optional)
+                      </Label>
                       <Input
                         id="note-title"
                         placeholder="e.g. Interview preparation"
@@ -1242,15 +1350,34 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                 {notes.map((note) => {
                   const theme = NOTE_TYPE_THEMES[note.type] || NOTE_TYPE_THEMES["general"];
                   return (
-                    <Card key={note._id || note.id} className={cn("border-l-4 transition-all duration-200", theme.border, theme.bg, note.pinned && "ring-1 ring-primary/20")}>
+                    <Card
+                      key={note._id || note.id}
+                      className={cn(
+                        "border-l-4 transition-all duration-200",
+                        theme.border,
+                        theme.bg,
+                        note.pinned && "ring-1 ring-primary/20"
+                      )}
+                    >
                       <CardHeader className="flex flex-row items-start justify-between py-3">
                         <div className="min-w-0 flex-1 mr-2">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className={cn("inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase border shrink-0", theme.badge)}>
+                            <span
+                              className={cn(
+                                "inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase border shrink-0",
+                                theme.badge
+                              )}
+                            >
                               {theme.badgeText}
                             </span>
-                            {note.title && <h4 className="font-semibold text-sm wrap-break-word">{note.title}</h4>}
-                            {note.pinned && <Pin className="h-3 w-3 fill-primary text-primary shrink-0" />}
+                            {note.title && (
+                              <h4 className="font-semibold text-sm wrap-break-word">
+                                {note.title}
+                              </h4>
+                            )}
+                            {note.pinned && (
+                              <Pin className="h-3 w-3 fill-primary text-primary shrink-0" />
+                            )}
                           </div>
                           <span className="text-[10px] text-muted-foreground block mt-1">
                             {new Date(note.createdAt).toLocaleString()}
@@ -1263,7 +1390,12 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                             className="h-7 w-7 text-muted-foreground hover:text-foreground"
                             onClick={() => handlePinNote(note._id || note.id, note.pinned)}
                           >
-                            <Pin className={cn("h-3.5 w-3.5", note.pinned && "fill-primary text-primary")} />
+                            <Pin
+                              className={cn(
+                                "h-3.5 w-3.5",
+                                note.pinned && "fill-primary text-primary"
+                              )}
+                            />
                           </Button>
                           <Button
                             variant="ghost"
@@ -1276,7 +1408,9 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                         </div>
                       </CardHeader>
                       <CardContent className="pb-3 pt-0">
-                        <p className="text-sm whitespace-pre-wrap wrap-break-word text-foreground/80 leading-relaxed">{note.body}</p>
+                        <p className="text-sm whitespace-pre-wrap wrap-break-word text-foreground/80 leading-relaxed">
+                          {note.body}
+                        </p>
                       </CardContent>
                     </Card>
                   );
@@ -1289,7 +1423,9 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
               <Card>
                 <CardContent className="p-4 whitespace-pre-wrap text-sm text-foreground/80 wrap-break-word leading-relaxed">
                   {app.jobDescription || (
-                    <span className="text-muted-foreground italic">No job description provided.</span>
+                    <span className="text-muted-foreground italic">
+                      No job description provided.
+                    </span>
                   )}
                 </CardContent>
               </Card>
@@ -1311,11 +1447,11 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
               ) : !resumeSnapshot ? (
-                <Card 
+                <Card
                   className={cn(
                     "border-2 border-dashed transition-all duration-300",
-                    isDragging 
-                      ? "border-primary bg-primary/5 shadow-sm" 
+                    isDragging
+                      ? "border-primary bg-primary/5 shadow-sm"
                       : "border-border/80 hover:border-muted-foreground/30"
                   )}
                   onDragOver={(e) => {
@@ -1332,22 +1468,28 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                 >
                   <CardContent className="flex flex-col items-center justify-center py-10 px-6 text-center space-y-6">
                     <div className="flex flex-col items-center space-y-2">
-                      <div className={cn(
-                        "p-4 rounded-full transition-all duration-300",
-                        isDragging ? "bg-primary/10 scale-110" : "bg-muted"
-                      )}>
+                      <div
+                        className={cn(
+                          "p-4 rounded-full transition-all duration-300",
+                          isDragging ? "bg-primary/10 scale-110" : "bg-muted"
+                        )}
+                      >
                         {isAssigningResume ? (
                           <Loader2 className="h-10 w-10 text-primary animate-spin" />
                         ) : (
-                          <UploadCloud className={cn(
-                            "h-10 w-10 transition-colors",
-                            isDragging ? "text-primary" : "text-muted-foreground/60"
-                          )} />
+                          <UploadCloud
+                            className={cn(
+                              "h-10 w-10 transition-colors",
+                              isDragging ? "text-primary" : "text-muted-foreground/60"
+                            )}
+                          />
                         )}
                       </div>
                       <div className="space-y-1 pt-2">
                         <p className="text-sm font-semibold">
-                          {isAssigningResume ? "Uploading and processing resume..." : "Drag & drop your tailored resume here"}
+                          {isAssigningResume
+                            ? "Uploading and processing resume..."
+                            : "Drag & drop your tailored resume here"}
                         </p>
                         <p className="text-xs text-muted-foreground max-w-sm">
                           Supports PDF and DOCX files up to 10MB
@@ -1356,15 +1498,15 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                     </div>
 
                     <div className="flex items-center justify-center">
-                      <input 
-                        type="file" 
-                        ref={fileInputRef} 
+                      <input
+                        type="file"
+                        ref={fileInputRef}
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) handleUploadAndAssignResume(file);
-                        }} 
-                        accept=".pdf,.docx" 
-                        className="hidden" 
+                        }}
+                        accept=".pdf,.docx"
+                        className="hidden"
                       />
                       <Button
                         variant="secondary"
@@ -1385,7 +1527,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                         Or select from library
                       </span>
                     </div>
-                    
+
                     <div className="flex flex-col sm:flex-row gap-3 w-full max-w-md items-center justify-center pt-1">
                       {userResumes.length === 0 ? (
                         <div className="text-xs text-muted-foreground italic">
@@ -1417,7 +1559,9 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                             disabled={!selectedResumeId || isAssigningResume}
                             onClick={() => handleAssignResume(selectedResumeId)}
                           >
-                            {isAssigningResume && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                            {isAssigningResume && (
+                              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                            )}
                             Assign Resume
                           </Button>
                         </>
@@ -1427,13 +1571,19 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                 </Card>
               ) : (
                 (() => {
-                  const finalFileId = typeof resumeSnapshot.finalSubmittedFileId === "object" && resumeSnapshot.finalSubmittedFileId
-                    ? (resumeSnapshot.finalSubmittedFileId._id || resumeSnapshot.finalSubmittedFileId.id)
-                    : resumeSnapshot.finalSubmittedFileId;
+                  const finalFileId =
+                    typeof resumeSnapshot.finalSubmittedFileId === "object" &&
+                    resumeSnapshot.finalSubmittedFileId
+                      ? resumeSnapshot.finalSubmittedFileId._id ||
+                        resumeSnapshot.finalSubmittedFileId.id
+                      : resumeSnapshot.finalSubmittedFileId;
 
-                  const baseFileId = typeof resumeSnapshot.baseResumeVersionId?.fileId === "object" && resumeSnapshot.baseResumeVersionId?.fileId
-                    ? (resumeSnapshot.baseResumeVersionId.fileId._id || resumeSnapshot.baseResumeVersionId.fileId.id)
-                    : resumeSnapshot.baseResumeVersionId?.fileId;
+                  const baseFileId =
+                    typeof resumeSnapshot.baseResumeVersionId?.fileId === "object" &&
+                    resumeSnapshot.baseResumeVersionId?.fileId
+                      ? resumeSnapshot.baseResumeVersionId.fileId._id ||
+                        resumeSnapshot.baseResumeVersionId.fileId.id
+                      : resumeSnapshot.baseResumeVersionId?.fileId;
 
                   return (
                     <div className="space-y-6">
@@ -1446,8 +1596,9 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                               {resumeSnapshot.baseResumeVersionId?.name || "Assigned Resume"}
                             </CardTitle>
                             <p className="text-xs text-muted-foreground">
-                              Base Version: {resumeSnapshot.baseResumeVersionId?.versionNumber || 1} • 
-                              Targeting: {resumeSnapshot.baseResumeVersionId?.targetRole || "Any Role"}
+                              Base Version: {resumeSnapshot.baseResumeVersionId?.versionNumber || 1}{" "}
+                              • Targeting:{" "}
+                              {resumeSnapshot.baseResumeVersionId?.targetRole || "Any Role"}
                             </p>
                           </div>
                           <div className="flex flex-wrap gap-2">
@@ -1462,26 +1613,53 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                             )}
                             <Link
                               href={`/applications/${applicationId}/resume/customize`}
-                              className={buttonVariants({ size: "sm", className: "h-7 text-xs bg-primary hover:bg-primary/90" })}
+                              className={buttonVariants({
+                                size: "sm",
+                                className: "h-7 text-xs bg-primary hover:bg-primary/90",
+                              })}
                             >
                               Customize Resume
                             </Link>
-                            {finalFileId ? (
-                              <a
-                                href={`/api/files/${finalFileId}`}
-                                download
-                                className={buttonVariants({ variant: "outline", size: "sm", className: "h-7 text-xs" })}
-                              >
-                                Download Custom DOCX
-                              </a>
-                            ) : baseFileId ? (
-                              <a
-                                href={`/api/files/${baseFileId}`}
-                                download
-                                className={buttonVariants({ variant: "outline", size: "sm", className: "h-7 text-xs" })}
-                              >
-                                Download Base DOCX
-                              </a>
+                            {finalFileId || baseFileId ? (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger
+                                  render={
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-7 text-xs flex items-center gap-1 cursor-pointer"
+                                    />
+                                  }
+                                >
+                                  <Download className="h-3.5 w-3.5" />
+                                  Download Resume
+                                  <ChevronDown className="h-3 w-3 opacity-60" />
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                  align="end"
+                                  className="w-40 bg-popover border border-border shadow-md rounded-md p-1"
+                                >
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      const link = document.createElement("a");
+                                      link.href = `/api/files/${finalFileId || baseFileId}`;
+                                      link.download = "";
+                                      link.click();
+                                    }}
+                                    className="cursor-pointer px-2 py-1.5 text-xs rounded-sm hover:bg-accent hover:text-accent-foreground outline-none"
+                                  >
+                                    Download .docx
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      window.open(`/print/${finalFileId || baseFileId}`, "_blank");
+                                    }}
+                                    className="cursor-pointer px-2 py-1.5 text-xs rounded-sm hover:bg-accent hover:text-accent-foreground outline-none"
+                                  >
+                                    Download PDF
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             ) : null}
                           </div>
                         </CardHeader>
@@ -1496,9 +1674,13 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                       {/* Document Preview Panel */}
                       <div className="border border-border/60 rounded-xl overflow-hidden bg-background h-[600px] flex flex-col">
                         <div className="bg-muted/10 px-4 py-3 border-b border-border/60 flex items-center justify-between shrink-0">
-                          <span className="text-xs font-bold text-foreground">Live Document Preview</span>
+                          <span className="text-xs font-bold text-foreground">
+                            Live Document Preview
+                          </span>
                           <span className="text-[10px] text-muted-foreground">
-                            {resumeSnapshot.manuallyEdited ? "Showing customized DOCX version" : "Showing original base version"}
+                            {resumeSnapshot.manuallyEdited
+                              ? "Showing customized DOCX version"
+                              : "Showing original base version"}
                           </span>
                         </div>
                         <div className="flex-1 bg-muted/5 min-h-0 relative">
@@ -1532,7 +1714,9 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
             <CardContent className="space-y-4">
               <form onSubmit={handleUpdateStatus} className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="sidebar-status" className="text-xs">Current Status</Label>
+                  <Label htmlFor="sidebar-status" className="text-xs">
+                    Current Status
+                  </Label>
                   <Select
                     value={editStatus.currentStatus}
                     onValueChange={(v) => setEditStatus((p) => ({ ...p, currentStatus: v || "" }))}
@@ -1542,14 +1726,18 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                     </SelectTrigger>
                     <SelectContent>
                       {APPLICATION_STATUSES.map((s) => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                        <SelectItem key={s} value={s}>
+                          {s}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="sidebar-lifecycle" className="text-xs">Lifecycle Stage</Label>
+                  <Label htmlFor="sidebar-lifecycle" className="text-xs">
+                    Lifecycle Stage
+                  </Label>
                   <Select
                     value={editStatus.lifecycleStage}
                     onValueChange={(v) => setEditStatus((p) => ({ ...p, lifecycleStage: v || "" }))}
@@ -1559,27 +1747,31 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                     </SelectTrigger>
                     <SelectContent>
                       {LIFECYCLE_STAGES.map((s) => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                        <SelectItem key={s} value={s}>
+                          {s}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="sidebar-next-action" className="text-xs">Next Action</Label>
+                  <Label htmlFor="sidebar-next-action" className="text-xs">
+                    Next Action
+                  </Label>
                   <Input
                     id="sidebar-next-action"
                     placeholder="e.g. Follow up on technical result"
                     value={editStatus.nextAction}
-                    onChange={(e) =>
-                      setEditStatus((p) => ({ ...p, nextAction: e.target.value }))
-                    }
+                    onChange={(e) => setEditStatus((p) => ({ ...p, nextAction: e.target.value }))}
                     className="h-9 text-sm"
                   />
                 </div>
 
                 <div className="space-y-1.5 flex flex-col">
-                  <Label htmlFor="sidebar-due-date" className="text-xs">Next Action Due Date</Label>
+                  <Label htmlFor="sidebar-due-date" className="text-xs">
+                    Next Action Due Date
+                  </Label>
                   <Popover>
                     <PopoverTrigger
                       render={
@@ -1600,10 +1792,17 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                         <span>Pick a date</span>
                       )}
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 bg-popover border border-border rounded-md shadow-md" align="start">
+                    <PopoverContent
+                      className="w-auto p-0 bg-popover border border-border rounded-md shadow-md"
+                      align="start"
+                    >
                       <Calendar
                         mode="single"
-                        selected={editStatus.nextActionDueAt ? new Date(editStatus.nextActionDueAt + "T00:00:00") : undefined}
+                        selected={
+                          editStatus.nextActionDueAt
+                            ? new Date(editStatus.nextActionDueAt + "T00:00:00")
+                            : undefined
+                        }
                         onSelect={(date) => {
                           setEditStatus((p) => ({
                             ...p,
@@ -1710,9 +1909,12 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
               Confirm Deletion
             </DialogTitle>
             <DialogDescription className="pt-2">
-              {deleteConfirm.type === "note" && "Are you sure you want to delete this note? This action cannot be undone."}
-              {deleteConfirm.type === "timeline" && "Are you sure you want to delete this timeline event? This action cannot be undone."}
-              {deleteConfirm.type === "application" && "Are you sure you want to delete this application? All related notes, files, and timeline history will be permanently deleted."}
+              {deleteConfirm.type === "note" &&
+                "Are you sure you want to delete this note? This action cannot be undone."}
+              {deleteConfirm.type === "timeline" &&
+                "Are you sure you want to delete this timeline event? This action cannot be undone."}
+              {deleteConfirm.type === "application" &&
+                "Are you sure you want to delete this application? All related notes, files, and timeline history will be permanently deleted."}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-4 flex items-center justify-end gap-2">
@@ -1757,9 +1959,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                 id="edit-event-title"
                 placeholder="e.g. Call with recruiter, Technical round"
                 value={editTimelineForm.title}
-                onChange={(e) =>
-                  setEditTimelineForm((p) => ({ ...p, title: e.target.value }))
-                }
+                onChange={(e) => setEditTimelineForm((p) => ({ ...p, title: e.target.value }))}
                 required
               />
             </div>
@@ -1773,7 +1973,9 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                 >
                   <SelectTrigger id="edit-event-type">
                     <SelectValue>
-                      {editTimelineForm.type ? editTimelineForm.type.replace("_", " ").toUpperCase() : ""}
+                      {editTimelineForm.type
+                        ? editTimelineForm.type.replace("_", " ").toUpperCase()
+                        : ""}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -1807,10 +2009,17 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                       <span>Pick a date</span>
                     )}
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-popover border border-border rounded-md shadow-md" align="start">
+                  <PopoverContent
+                    className="w-auto p-0 bg-popover border border-border rounded-md shadow-md"
+                    align="start"
+                  >
                     <Calendar
                       mode="single"
-                      selected={editTimelineForm.eventDate ? new Date(editTimelineForm.eventDate + "T00:00:00") : undefined}
+                      selected={
+                        editTimelineForm.eventDate
+                          ? new Date(editTimelineForm.eventDate + "T00:00:00")
+                          : undefined
+                      }
                       onSelect={(date) => {
                         setEditTimelineForm((p) => ({
                           ...p,
@@ -1835,13 +2044,17 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                 >
                   <SelectTrigger id="edit-status-after">
                     <SelectValue>
-                      {editTimelineForm.statusAfterEvent === "none" ? "Keep current" : editTimelineForm.statusAfterEvent || "Keep current"}
+                      {editTimelineForm.statusAfterEvent === "none"
+                        ? "Keep current"
+                        : editTimelineForm.statusAfterEvent || "Keep current"}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Keep current</SelectItem>
                     {APPLICATION_STATUSES.map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -1856,13 +2069,17 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                 >
                   <SelectTrigger id="edit-lifecycle-after">
                     <SelectValue>
-                      {editTimelineForm.lifecycleStageAfterEvent === "none" ? "Keep current" : editTimelineForm.lifecycleStageAfterEvent || "Keep current"}
+                      {editTimelineForm.lifecycleStageAfterEvent === "none"
+                        ? "Keep current"
+                        : editTimelineForm.lifecycleStageAfterEvent || "Keep current"}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Keep current</SelectItem>
                     {LIFECYCLE_STAGES.map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -1883,11 +2100,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
             </div>
 
             <DialogFooter className="mt-4 flex items-center justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setEditingTimelineEvent(null)}
-              >
+              <Button type="button" variant="outline" onClick={() => setEditingTimelineEvent(null)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={isUpdatingTimeline}>
@@ -1978,7 +2191,9 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Job URL */}
               <div className="space-y-1.5">
-                <Label htmlFor="edit-joburl" className="text-sm font-semibold">Job URL</Label>
+                <Label htmlFor="edit-joburl" className="text-sm font-semibold">
+                  Job URL
+                </Label>
                 <Input
                   id="edit-joburl"
                   type="url"
@@ -1990,7 +2205,9 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
 
               {/* Location */}
               <div className="space-y-1.5">
-                <Label htmlFor="edit-location" className="text-sm font-semibold">Location</Label>
+                <Label htmlFor="edit-location" className="text-sm font-semibold">
+                  Location
+                </Label>
                 <LocationAutocomplete
                   id="edit-location"
                   value={editDetailsForm.location}
@@ -2003,7 +2220,9 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {/* Work Mode */}
               <div className="space-y-1.5">
-                <Label htmlFor="edit-workmode" className="text-sm font-semibold">Work Mode</Label>
+                <Label htmlFor="edit-workmode" className="text-sm font-semibold">
+                  Work Mode
+                </Label>
                 <Select
                   value={editDetailsForm.workMode}
                   onValueChange={(v) => setEditDetailsForm((p) => ({ ...p, workMode: v || "" }))}
@@ -2021,10 +2240,14 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
 
               {/* Employment Type */}
               <div className="space-y-1.5">
-                <Label htmlFor="edit-emptype" className="text-sm font-semibold">Employment Type</Label>
+                <Label htmlFor="edit-emptype" className="text-sm font-semibold">
+                  Employment Type
+                </Label>
                 <Select
                   value={editDetailsForm.employmentType}
-                  onValueChange={(v) => setEditDetailsForm((p) => ({ ...p, employmentType: v || "" }))}
+                  onValueChange={(v) =>
+                    setEditDetailsForm((p) => ({ ...p, employmentType: v || "" }))
+                  }
                 >
                   <SelectTrigger id="edit-emptype" className="h-10 bg-card">
                     <SelectValue placeholder="Select" />
@@ -2041,7 +2264,9 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
 
               {/* Source */}
               <div className="space-y-1.5">
-                <Label htmlFor="edit-source" className="text-sm font-semibold">Source</Label>
+                <Label htmlFor="edit-source" className="text-sm font-semibold">
+                  Source
+                </Label>
                 <Select
                   value={editDetailsForm.source}
                   onValueChange={(v) => setEditDetailsForm((p) => ({ ...p, source: v || "Other" }))}
@@ -2066,11 +2291,15 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Seniority */}
               <div className="space-y-1.5">
-                <Label htmlFor="edit-seniority" className="text-sm font-semibold">Seniority Level</Label>
+                <Label htmlFor="edit-seniority" className="text-sm font-semibold">
+                  Seniority Level
+                </Label>
                 <Input
                   id="edit-seniority"
                   value={editDetailsForm.seniorityLevel}
-                  onChange={(e) => setEditDetailsForm((p) => ({ ...p, seniorityLevel: e.target.value }))}
+                  onChange={(e) =>
+                    setEditDetailsForm((p) => ({ ...p, seniorityLevel: e.target.value }))
+                  }
                   placeholder="e.g. Junior, Senior"
                 />
               </div>
@@ -2082,7 +2311,9 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                   <Input
                     type="number"
                     value={editDetailsForm.salaryMin}
-                    onChange={(e) => setEditDetailsForm((p) => ({ ...p, salaryMin: e.target.value }))}
+                    onChange={(e) =>
+                      setEditDetailsForm((p) => ({ ...p, salaryMin: e.target.value }))
+                    }
                     placeholder="Min"
                     className="h-10 bg-card flex-1"
                   />
@@ -2090,13 +2321,17 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                   <Input
                     type="number"
                     value={editDetailsForm.salaryMax}
-                    onChange={(e) => setEditDetailsForm((p) => ({ ...p, salaryMax: e.target.value }))}
+                    onChange={(e) =>
+                      setEditDetailsForm((p) => ({ ...p, salaryMax: e.target.value }))
+                    }
                     placeholder="Max"
                     className="h-10 bg-card flex-1"
                   />
                   <Select
                     value={editDetailsForm.currency}
-                    onValueChange={(v) => setEditDetailsForm((p) => ({ ...p, currency: v || "USD" }))}
+                    onValueChange={(v) =>
+                      setEditDetailsForm((p) => ({ ...p, currency: v || "USD" }))
+                    }
                   >
                     <SelectTrigger className="h-10 bg-card w-24">
                       <SelectValue placeholder="USD" />
@@ -2116,22 +2351,22 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
 
             {/* Description */}
             <div className="space-y-1.5">
-              <Label htmlFor="edit-desc" className="text-sm font-semibold">Job Description</Label>
+              <Label htmlFor="edit-desc" className="text-sm font-semibold">
+                Job Description
+              </Label>
               <Textarea
                 id="edit-desc"
                 value={editDetailsForm.jobDescription}
-                onChange={(e) => setEditDetailsForm((p) => ({ ...p, jobDescription: e.target.value }))}
+                onChange={(e) =>
+                  setEditDetailsForm((p) => ({ ...p, jobDescription: e.target.value }))
+                }
                 placeholder="Paste the job description..."
                 rows={5}
               />
             </div>
 
             <DialogFooter className="mt-6 flex items-center justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsEditDialogOpen(false)}
-              >
+              <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={isUpdatingDetails}>

@@ -6,16 +6,8 @@ import { sanitizeText, sanitizeUrl } from "@/lib/security/sanitize";
 // ============================================
 
 export const loginSchema = z.object({
-  email: z
-    .string()
-    .email("Please enter a valid email address")
-    .max(255)
-    .toLowerCase()
-    .trim(),
-  password: z
-    .string()
-    .min(1, "Password is required")
-    .max(128, "Password is too long"),
+  email: z.string().email("Please enter a valid email address").max(255).toLowerCase().trim(),
+  password: z.string().min(1, "Password is required").max(128, "Password is too long"),
 });
 
 export const registerSchema = z
@@ -25,12 +17,7 @@ export const registerSchema = z
       .min(2, "Name must be at least 2 characters")
       .max(100, "Name is too long")
       .trim(),
-    email: z
-      .string()
-      .email("Please enter a valid email address")
-      .max(255)
-      .toLowerCase()
-      .trim(),
+    email: z.string().email("Please enter a valid email address").max(255).toLowerCase().trim(),
     password: z
       .string()
       .min(8, "Password must be at least 8 characters")
@@ -53,13 +40,57 @@ export type RegisterInput = z.infer<typeof registerSchema>;
 // ============================================
 
 export const createCompanySchema = z.object({
-  name: z.string().min(1, "Company name is required").max(200).trim().transform(val => sanitizeText(val, 200)),
-  website: z.preprocess((val) => val || undefined, z.string().url().max(2000).optional().transform((val) => (val ? sanitizeUrl(val) || "" : ""))),
-  careersUrl: z.preprocess((val) => val || undefined, z.string().url().max(2000).optional().transform((val) => (val ? sanitizeUrl(val) || "" : ""))),
-  linkedinUrl: z.preprocess((val) => val || undefined, z.string().url().max(2000).optional().transform((val) => (val ? sanitizeUrl(val) || "" : ""))),
-  industry: z.string().max(100).optional().default("").transform(val => sanitizeText(val, 100)),
-  location: z.string().max(200).optional().default("").transform(val => sanitizeText(val, 200)),
-  notes: z.string().max(5000).optional().default("").transform(val => sanitizeText(val, 5000)),
+  name: z
+    .string()
+    .min(1, "Company name is required")
+    .max(200)
+    .trim()
+    .transform((val) => sanitizeText(val, 200)),
+  website: z.preprocess(
+    (val) => val || undefined,
+    z
+      .string()
+      .url()
+      .max(2000)
+      .optional()
+      .transform((val) => (val ? sanitizeUrl(val) || "" : ""))
+  ),
+  careersUrl: z.preprocess(
+    (val) => val || undefined,
+    z
+      .string()
+      .url()
+      .max(2000)
+      .optional()
+      .transform((val) => (val ? sanitizeUrl(val) || "" : ""))
+  ),
+  linkedinUrl: z.preprocess(
+    (val) => val || undefined,
+    z
+      .string()
+      .url()
+      .max(2000)
+      .optional()
+      .transform((val) => (val ? sanitizeUrl(val) || "" : ""))
+  ),
+  industry: z
+    .string()
+    .max(100)
+    .optional()
+    .default("")
+    .transform((val) => sanitizeText(val, 100)),
+  location: z
+    .string()
+    .max(200)
+    .optional()
+    .default("")
+    .transform((val) => sanitizeText(val, 200)),
+  notes: z
+    .string()
+    .max(5000)
+    .optional()
+    .default("")
+    .transform((val) => sanitizeText(val, 5000)),
   rating: z.number().min(0).max(5).optional().default(0),
   tags: z.array(z.string().max(50)).max(20).optional().default([]),
   doNotApplyAgain: z.boolean().optional().default(false),
@@ -134,27 +165,84 @@ export const JOB_SOURCES = [
   "Other",
 ] as const;
 
+const preprocessDate = (val: unknown) => {
+  if (val === "" || val === null || val === undefined || val === "null" || val === "undefined") {
+    return undefined;
+  }
+  const date = new Date(val as string | number | Date);
+  return isNaN(date.getTime()) ? undefined : date;
+};
+
+const preprocessSalary = (val: unknown) => {
+  if (val === "" || val === null || val === undefined || val === "null" || val === "undefined") {
+    return 0;
+  }
+  const num = Number(val);
+  return isNaN(num) ? 0 : num;
+};
+
 export const createApplicationSchema = z.object({
   companyId: z.string().min(1, "Company is required"),
-  jobTitle: z.string().min(1, "Job title is required").max(300).trim().transform(val => sanitizeText(val, 300)),
-  jobDescription: z.string().max(50000).optional().default("").transform(val => sanitizeText(val, 50000)),
-  jobUrl: z.preprocess((val) => val || undefined, z.string().url().max(2000).optional().transform((val) => (val ? sanitizeUrl(val) || "" : ""))),
-  applicationUrl: z.preprocess((val) => val || undefined, z.string().url().max(2000).optional().transform((val) => (val ? sanitizeUrl(val) || "" : ""))),
+  jobTitle: z
+    .string()
+    .min(1, "Job title is required")
+    .max(300)
+    .trim()
+    .transform((val) => sanitizeText(val, 300)),
+  jobDescription: z
+    .string()
+    .max(50000)
+    .optional()
+    .default("")
+    .transform((val) => sanitizeText(val, 50000)),
+  jobUrl: z.preprocess(
+    (val) => val || undefined,
+    z
+      .string()
+      .url()
+      .max(2000)
+      .optional()
+      .transform((val) => (val ? sanitizeUrl(val) || "" : ""))
+  ),
+  applicationUrl: z.preprocess(
+    (val) => val || undefined,
+    z
+      .string()
+      .url()
+      .max(2000)
+      .optional()
+      .transform((val) => (val ? sanitizeUrl(val) || "" : ""))
+  ),
   source: z.enum(JOB_SOURCES).optional().default("Other"),
-  location: z.string().max(200).optional().default("").transform(val => sanitizeText(val, 200)),
+  location: z
+    .string()
+    .max(200)
+    .optional()
+    .default("")
+    .transform((val) => sanitizeText(val, 200)),
   workMode: z.enum(WORK_MODES).optional(),
   employmentType: z.enum(EMPLOYMENT_TYPES).optional(),
-  seniorityLevel: z.string().max(100).optional().default("").transform(val => sanitizeText(val, 100)),
-  salaryMin: z.preprocess((val) => (val === "" || val === null ? undefined : Number(val)), z.number().min(0).optional()),
-  salaryMax: z.preprocess((val) => (val === "" || val === null ? undefined : Number(val)), z.number().min(0).optional()),
+  seniorityLevel: z
+    .string()
+    .max(100)
+    .optional()
+    .default("")
+    .transform((val) => sanitizeText(val, 100)),
+  salaryMin: z.preprocess(preprocessSalary, z.number().min(0).optional()).default(0),
+  salaryMax: z.preprocess(preprocessSalary, z.number().min(0).optional()).default(0),
   currency: z.string().max(3).optional().default("USD"),
-  datePosted: z.string().optional(),
-  applicationDeadline: z.string().optional(),
-  appliedAt: z.string().optional(),
+  datePosted: z.preprocess(preprocessDate, z.date().optional()),
+  applicationDeadline: z.preprocess(preprocessDate, z.date().optional()),
+  appliedAt: z.preprocess(preprocessDate, z.date().optional()),
   currentStatus: z.enum(APPLICATION_STATUSES).optional().default("Saved"),
   lifecycleStage: z.enum(LIFECYCLE_STAGES).optional().default("Saved"),
-  nextAction: z.string().max(500).optional().default("").transform(val => sanitizeText(val, 500)),
-  nextActionDueAt: z.string().optional(),
+  nextAction: z
+    .string()
+    .max(500)
+    .optional()
+    .default("")
+    .transform((val) => sanitizeText(val, 500)),
+  nextActionDueAt: z.preprocess(preprocessDate, z.date().optional()),
   priority: z.number().min(0).max(5).optional().default(0),
   tags: z.array(z.string().max(50)).max(20).optional().default([]),
 });
@@ -185,8 +273,18 @@ export const TIMELINE_EVENT_TYPES = [
 export const createTimelineEventSchema = z.object({
   applicationId: z.string().min(1),
   type: z.enum(TIMELINE_EVENT_TYPES),
-  title: z.string().min(1, "Title is required").max(300).trim().transform(val => sanitizeText(val, 300)),
-  description: z.string().max(5000).optional().default("").transform(val => sanitizeText(val, 5000)),
+  title: z
+    .string()
+    .min(1, "Title is required")
+    .max(300)
+    .trim()
+    .transform((val) => sanitizeText(val, 300)),
+  description: z
+    .string()
+    .max(5000)
+    .optional()
+    .default("")
+    .transform((val) => sanitizeText(val, 5000)),
   statusAfterEvent: z.enum(APPLICATION_STATUSES).optional(),
   lifecycleStageAfterEvent: z.enum(LIFECYCLE_STAGES).optional(),
   eventDate: z.string().min(1, "Event date is required"),
@@ -196,17 +294,13 @@ export const createTimelineEventSchema = z.object({
     .default("manual"),
 });
 
-export type CreateTimelineEventInput = z.infer<
-  typeof createTimelineEventSchema
->;
+export type CreateTimelineEventInput = z.infer<typeof createTimelineEventSchema>;
 
 export const updateTimelineEventSchema = createTimelineEventSchema.partial().omit({
   applicationId: true,
 });
 
-export type UpdateTimelineEventInput = z.infer<
-  typeof updateTimelineEventSchema
->;
+export type UpdateTimelineEventInput = z.infer<typeof updateTimelineEventSchema>;
 
 // ============================================
 // Note Schemas
@@ -226,8 +320,17 @@ export const NOTE_TYPES = [
 export const createNoteSchema = z.object({
   applicationId: z.string().min(1),
   type: z.enum(NOTE_TYPES).optional().default("general"),
-  title: z.string().max(300).optional().default("").transform(val => sanitizeText(val, 300)),
-  body: z.string().min(1, "Note body is required").max(10000).transform(val => sanitizeText(val, 10000)),
+  title: z
+    .string()
+    .max(300)
+    .optional()
+    .default("")
+    .transform((val) => sanitizeText(val, 300)),
+  body: z
+    .string()
+    .min(1, "Note body is required")
+    .max(10000)
+    .transform((val) => sanitizeText(val, 10000)),
   pinned: z.boolean().optional().default(false),
 });
 
@@ -243,38 +346,46 @@ export type UpdateNoteInput = z.infer<typeof updateNoteSchema>;
 // ============================================
 
 export const createResumeVersionSchema = z.object({
-  name: z.string().min(1, "Name is required").max(200).trim().transform(val => sanitizeText(val, 200)),
+  name: z
+    .string()
+    .min(1, "Name is required")
+    .max(200)
+    .trim()
+    .transform((val) => sanitizeText(val, 200)),
   versionNumber: z.number().min(1).optional(),
-  targetRole: z.string().max(200).optional().default("").transform(val => sanitizeText(val, 200)),
-  targetIndustry: z.string().max(200).optional().default("").transform(val => sanitizeText(val, 200)),
+  targetRole: z
+    .string()
+    .max(200)
+    .optional()
+    .default("")
+    .transform((val) => sanitizeText(val, 200)),
+  targetIndustry: z
+    .string()
+    .max(200)
+    .optional()
+    .default("")
+    .transform((val) => sanitizeText(val, 200)),
   skillsEmphasized: z.array(z.string().max(100)).max(30).optional().default([]),
-  experienceEmphasized: z
-    .array(z.string().max(200))
-    .max(20)
-    .optional()
-    .default([]),
-  projectEmphasized: z
-    .array(z.string().max(200))
-    .max(20)
-    .optional()
-    .default([]),
+  experienceEmphasized: z.array(z.string().max(200)).max(20).optional().default([]),
+  projectEmphasized: z.array(z.string().max(200)).max(20).optional().default([]),
   fileId: z
     .string()
     .regex(/^[0-9a-fA-F]{24}$/, "Invalid ID format")
     .optional()
     .nullable(),
-  notes: z.string().max(5000).optional().default("").transform(val => sanitizeText(val, 5000)),
+  notes: z
+    .string()
+    .max(5000)
+    .optional()
+    .default("")
+    .transform((val) => sanitizeText(val, 5000)),
   isActive: z.boolean().optional().default(true),
 });
 
 export const updateResumeVersionSchema = createResumeVersionSchema.partial();
 
-export type CreateResumeVersionInput = z.infer<
-  typeof createResumeVersionSchema
->;
-export type UpdateResumeVersionInput = z.infer<
-  typeof updateResumeVersionSchema
->;
+export type CreateResumeVersionInput = z.infer<typeof createResumeVersionSchema>;
+export type UpdateResumeVersionInput = z.infer<typeof updateResumeVersionSchema>;
 
 // ============================================
 // File Upload Schemas
@@ -326,6 +437,4 @@ export type PaginationInput = z.infer<typeof paginationSchema>;
 // Common ID validation
 // ============================================
 
-export const mongoIdSchema = z
-  .string()
-  .regex(/^[0-9a-fA-F]{24}$/, "Invalid ID format");
+export const mongoIdSchema = z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid ID format");

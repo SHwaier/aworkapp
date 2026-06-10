@@ -72,6 +72,73 @@ export function verifyRefreshToken(token: string): TokenPayload | null {
   }
 }
 
+// Base64Url decode helper
+function base64UrlDecode(str: string): string {
+  let base64 = str.replace(/-/g, "+").replace(/_/g, "/");
+  while (base64.length % 4) {
+    base64 += "=";
+  }
+  return atob(base64);
+}
+
+/**
+ * Verify an access token asynchronously using Web Crypto API (supported in Edge and Node)
+ */
+export async function verifyAccessTokenEdge(token: string): Promise<TokenPayload | null> {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+
+    const [headerB64, payloadB64, signatureB64] = parts;
+
+    // Decode header and verify alg
+    const header = JSON.parse(base64UrlDecode(headerB64));
+    if (header.alg !== "HS256") return null;
+
+    // Import HMAC key using Web Crypto API
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(JWT_SECRET);
+    const key = await crypto.subtle.importKey(
+      "raw",
+      keyData,
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["verify"]
+    );
+
+    // Decode signature from base64url to Uint8Array
+    const signatureStr = base64UrlDecode(signatureB64);
+    const signatureBytes = new Uint8Array(signatureStr.length);
+    for (let i = 0; i < signatureStr.length; i++) {
+      signatureBytes[i] = signatureStr.charCodeAt(i);
+    }
+
+    const data = encoder.encode(`${headerB64}.${payloadB64}`);
+
+    // Verify signature
+    const isValid = await crypto.subtle.verify(
+      "HMAC",
+      key,
+      signatureBytes,
+      data
+    );
+
+    if (!isValid) return null;
+
+    // Decode payload
+    const payload = JSON.parse(base64UrlDecode(payloadB64)) as TokenPayload;
+
+    // Validate expiration
+    if (payload.exp && Date.now() >= payload.exp * 1000) {
+      return null;
+    }
+
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Set auth cookies with security flags.
  * Access token: short-lived, HTTP-only, Secure, SameSite=Lax
@@ -138,16 +205,16 @@ export async function getSession(): Promise<SessionUser | null> {
  * Get session from a NextRequest (for proxy.ts / middleware)
  * Does NOT use the async cookies() API — reads from request directly.
  */
-export function getSessionFromRequest(
+export async function getSessionFromRequest(
   request: NextRequest
-): SessionUser | null {
+): Promise<SessionUser | null> {
   const token = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
 
   if (!token) {
     return null;
   }
 
-  const payload = verifyAccessToken(token);
+  const payload = await verifyAccessTokenEdge(token);
   if (!payload) {
     return null;
   }

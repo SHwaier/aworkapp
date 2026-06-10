@@ -45,9 +45,9 @@ const PROTECTED_API_PREFIXES = [
   "/api/import-job",
 ];
 
-export function proxy(request: NextRequest): NextResponse {
+export async function proxy(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
-  const session = getSessionFromRequest(request);
+  const session = await getSessionFromRequest(request);
   const isAuthenticated = !!session;
 
   // Add security headers to all responses

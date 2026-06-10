@@ -7,12 +7,7 @@ import { requireAuth } from "@/lib/auth/session";
 import { mongoIdSchema } from "@/lib/validators/schemas";
 import { successResponse, errorResponse, handleApiError } from "@/lib/api/response";
 import { createAuditLog } from "@/models/AuditLog";
-import {
-  checkRateLimit,
-  getClientIp,
-  RATE_LIMITS,
-  rateLimitHeaders,
-} from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
 import { deleteFile } from "@/lib/services/file";
 
 interface RouteParams {
@@ -55,20 +50,31 @@ export async function GET(
       return successResponse({ file });
     }
 
-    let buffer: any;
+    let buffer: Buffer;
 
     try {
       if (file.storageProvider === "r2" || file.storageProvider === "s3") {
         const { downloadFromS3 } = await import("@/lib/storage/s3");
         buffer = await downloadFromS3(file.storageKey);
       } else {
-        const storageDir = path.resolve(/*turbopackIgnore: true*/ process.cwd(), process.env.FILE_STORAGE_PATH || "./uploads");
-        const filePath = path.resolve(/*turbopackIgnore: true*/ process.cwd(), storageDir, file.storageKey);
+        const storageDir = path.resolve(
+          /*turbopackIgnore: true*/ process.cwd(),
+          process.env.FILE_STORAGE_PATH || "./uploads"
+        );
+        const filePath = path.resolve(
+          /*turbopackIgnore: true*/ process.cwd(),
+          storageDir,
+          file.storageKey
+        );
         buffer = await fs.readFile(filePath);
       }
 
+      let downloadName = file.displayName;
+      if (file.fileType && !downloadName.toLowerCase().endsWith(file.fileType.toLowerCase())) {
+        downloadName = `${downloadName}${file.fileType}`;
+      }
       // Clean header parameters to prevent header injection or encoding issues
-      const safeName = encodeURIComponent(file.displayName).replace(/['()]/g, escape);
+      const safeName = encodeURIComponent(downloadName).replace(/['()]/g, escape);
 
       // Log download audit event
       await createAuditLog({
@@ -79,7 +85,7 @@ export async function GET(
         request,
       });
 
-      return new Response(buffer, {
+      return new Response(new Uint8Array(buffer), {
         headers: {
           "Content-Type": file.mimeType || "application/octet-stream",
           "Content-Disposition": `attachment; filename*=UTF-8''${safeName}`,
@@ -101,10 +107,7 @@ export async function GET(
  * DELETE /api/files/:id
  * Deletes file entry from DB and deletes local file from storage path.
  */
-export async function DELETE(
-  request: Request,
-  { params }: RouteParams
-): Promise<NextResponse> {
+export async function DELETE(request: Request, { params }: RouteParams): Promise<NextResponse> {
   try {
     const session = await requireAuth();
     const { id } = await params;
