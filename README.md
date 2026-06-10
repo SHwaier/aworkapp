@@ -20,6 +20,38 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Google OAuth Setup
+
+This application supports production-grade Google Authentication. To enable "Sign in with Google" on the login and registration pages, configure the following credentials in your `.env.local` file:
+
+1. **Create a Google Cloud Project**:
+   - Visit the [Google Cloud Console](https://console.cloud.google.com).
+   - Create a new project (e.g., `aworkapp`).
+
+2. **Configure OAuth Consent Screen**:
+   - Navigate to **API & Services > OAuth consent screen**.
+   - Set user type to **External** (or Internal if testing inside an organization).
+   - Complete the required app name and developer contact email details.
+   - Add the `openid`, `../auth/userinfo.email`, and `../auth/userinfo.profile` scopes.
+
+3. **Generate Credentials**:
+   - Go to **API & Services > Credentials**.
+   - Click **+ CREATE CREDENTIALS** and select **OAuth client ID**.
+   - Choose **Web application** as the application type.
+   - Under **Authorized JavaScript origins**, add:
+     - `http://localhost:3000` (for local development)
+   - Under **Authorized redirect URIs**, add:
+     - `http://localhost:3000/api/auth/google/callback` (for local development)
+     - `https://yourdomain.com/api/auth/google/callback` (for your production domain)
+   - Save to obtain your **Client ID** and **Client Secret**.
+
+4. **Update Environment Variables**:
+   Add the copied credentials to your `.env.local` file:
+   ```env
+   GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+   GOOGLE_CLIENT_SECRET=your-google-client-secret
+   ```
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

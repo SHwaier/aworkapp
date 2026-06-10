@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/components/providers/auth-provider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import {
@@ -17,7 +17,6 @@ import {
   Sparkles,
   Layers,
   CheckCircle2,
-  Calendar,
   ChevronRight,
 } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
@@ -70,7 +69,13 @@ export default function DashboardPage() {
       }
 
       let activeCount = 0;
-      const inactiveStatuses = ["Rejected", "Ghosted", "Withdrawn", "Closed / posting removed", "Offer declined"];
+      const inactiveStatuses = [
+        "Rejected",
+        "Ghosted",
+        "Withdrawn",
+        "Closed / posting removed",
+        "Offer declined",
+      ];
 
       Object.entries(statusBreakdown).forEach(([status, count]) => {
         if (!inactiveStatuses.includes(status)) {
@@ -94,6 +99,7 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchStats();
   }, [fetchStats]);
 
@@ -105,7 +111,7 @@ export default function DashboardPage() {
   };
 
   // Calculations for stats
-  const interviewCount = 
+  const interviewCount =
     (stats?.statusBreakdown["Interview scheduled"] || 0) +
     (stats?.statusBreakdown["Interview completed"] || 0) +
     (stats?.statusBreakdown["Screening scheduled"] || 0) +
@@ -116,10 +122,6 @@ export default function DashboardPage() {
   const interviewRate = stats?.totalApplications
     ? Math.round((interviewCount / stats.totalApplications) * 100)
     : 0;
-
-  const offerCount = 
-    (stats?.statusBreakdown["Offer received"] || 0) +
-    (stats?.statusBreakdown["Offer accepted"] || 0);
 
   if (isLoading) {
     return (
@@ -159,7 +161,11 @@ export default function DashboardPage() {
               {greeting()}, {user?.name?.split(" ")[0]}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Your application command center. You have <span className="font-semibold text-foreground">{stats?.activeApplications} active processes</span> out of {stats?.totalApplications} total roles.
+              Your application command center. You have{" "}
+              <span className="font-semibold text-foreground">
+                {stats?.activeApplications} active processes
+              </span>{" "}
+              out of {stats?.totalApplications} total roles.
             </p>
           </div>
           <Link
@@ -208,7 +214,9 @@ export default function DashboardPage() {
             <div className="text-3xl font-black text-blue-500">
               {stats?.activeApplications || 0}
             </div>
-            <p className="text-[11px] text-muted-foreground mt-1">Excludes closed/rejected listings</p>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Excludes closed/rejected listings
+            </p>
           </CardContent>
         </Card>
 
@@ -223,9 +231,7 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-black">
-              {stats?.totalCompanies || 0}
-            </div>
+            <div className="text-3xl font-black">{stats?.totalCompanies || 0}</div>
             <p className="text-[11px] text-muted-foreground mt-1">Profiles and contact spaces</p>
           </CardContent>
         </Card>
@@ -288,7 +294,11 @@ export default function DashboardPage() {
             <Link
               href="/applications"
               id="view-all-applications"
-              className={buttonVariants({ variant: "ghost", size: "sm", className: "text-xs gap-1" })}
+              className={buttonVariants({
+                variant: "ghost",
+                size: "sm",
+                className: "text-xs gap-1",
+              })}
             >
               View all
               <ArrowRight className="h-3 w-3" />
@@ -326,7 +336,10 @@ export default function DashboardPage() {
                         {app.companyId?.name || "Unassigned Company"}
                       </p>
                     </div>
-                    <Badge variant={getStatusVariant(app.currentStatus)} className="text-[10px] px-2 py-0.5 font-bold shrink-0">
+                    <Badge
+                      variant={getStatusVariant(app.currentStatus)}
+                      className="text-[10px] px-2 py-0.5 font-bold shrink-0"
+                    >
                       {app.currentStatus}
                     </Badge>
                   </Link>
@@ -346,7 +359,7 @@ export default function DashboardPage() {
             <CardContent className="grid grid-cols-1 gap-2.5">
               <Link
                 href="/applications/new"
-                className="flex items-center justify-between p-3 border border-border/60 rounded-xl hover:border-primary/20 hover:bg-primary/[0.02] transition-all group"
+                className="flex items-center justify-between p-3 border border-border/60 rounded-xl hover:border-primary/20 hover:bg-primary/2 transition-all group"
               >
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-primary/5 text-primary">
@@ -362,7 +375,7 @@ export default function DashboardPage() {
 
               <Link
                 href="/companies?new=true"
-                className="flex items-center justify-between p-3 border border-border/60 rounded-xl hover:border-amber-500/20 hover:bg-amber-500/[0.02] transition-all group"
+                className="flex items-center justify-between p-3 border border-border/60 rounded-xl hover:border-amber-500/20 hover:bg-amber-500/2 transition-all group"
               >
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-amber-500/5 text-amber-500">
@@ -378,7 +391,7 @@ export default function DashboardPage() {
 
               <Link
                 href="/resumes"
-                className="flex items-center justify-between p-3 border border-border/60 rounded-xl hover:border-emerald-500/20 hover:bg-emerald-500/[0.02] transition-all group"
+                className="flex items-center justify-between p-3 border border-border/60 rounded-xl hover:border-emerald-500/20 hover:bg-emerald-500/2 transition-all group"
               >
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-emerald-500/5 text-emerald-500">
@@ -404,16 +417,20 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               {stats && (stats.statusBreakdown["Follow-up needed"] || 0) > 0 ? (
-                <div className="rounded-xl border border-warning/20 bg-warning/[0.03] p-3.5">
+                <div className="rounded-xl border border-warning/20 bg-warning/3 p-3.5">
                   <div className="flex items-start gap-3">
                     <AlertCircle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
                     <div>
                       <p className="text-xs font-bold text-foreground">Follow-up Required</p>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
                         You have {stats.statusBreakdown["Follow-up needed"]} application
-                        {(stats.statusBreakdown["Follow-up needed"] || 0) > 1 ? "s" : ""} marked as needing attention.
+                        {(stats.statusBreakdown["Follow-up needed"] || 0) > 1 ? "s" : ""} marked as
+                        needing attention.
                       </p>
-                      <Link href="/applications" className="inline-flex items-center gap-1 text-[10px] text-primary font-bold mt-2 hover:underline">
+                      <Link
+                        href="/applications"
+                        className="inline-flex items-center gap-1 text-[10px] text-primary font-bold mt-2 hover:underline"
+                      >
                         Review roles <ArrowRight className="h-2.5 w-2.5" />
                       </Link>
                     </div>
@@ -424,7 +441,9 @@ export default function DashboardPage() {
                   <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
                   <div>
                     <p className="text-xs font-bold text-foreground">Pipeline Up-to-date</p>
-                    <p className="text-[10px] text-muted-foreground">No pending flags or urgent alerts.</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      No pending flags or urgent alerts.
+                    </p>
                   </div>
                 </div>
               )}

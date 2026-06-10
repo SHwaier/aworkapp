@@ -1,14 +1,10 @@
-export default function AuthLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center bg-background px-4 overflow-hidden">
       {/* Decorative background gradients */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_var(--primary)/8%,_transparent_40%)] pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,var(--primary)/8%,transparent_40%)] pointer-events-none" />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/3 rounded-full blur-[100px] pointer-events-none" />
-      
+
       <div className="relative w-full max-w-md z-10 my-8">
         {/* Logo / Brand */}
         <div className="mb-8 text-center space-y-3">
@@ -29,7 +25,7 @@ export default function AuthLayout({
                 <path d="m9 13 3-3 3 3" />
               </svg>
             </div>
-            <span className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+            <span className="text-2xl font-extrabold tracking-tight bg-linear-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
               AWorkApp
             </span>
           </div>

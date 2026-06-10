@@ -37,6 +37,7 @@ const UserSchema = new Schema<IUser>(
     timestamps: true,
     // Security: strip __v and transform _id for JSON responses
     toJSON: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       transform(_doc, ret: any) {
         ret.id = ret._id.toString();
         delete ret._id;
@@ -48,10 +49,6 @@ const UserSchema = new Schema<IUser>(
   }
 );
 
-// Security: ensure email uniqueness index exists
-UserSchema.index({ email: 1 }, { unique: true });
-
-const User: Model<IUser> =
-  mongoose.models.User || mongoose.model<IUser>("User", UserSchema);
+const User: Model<IUser> = mongoose.models.User || mongoose.model<IUser>("User", UserSchema);
 
 export default User;

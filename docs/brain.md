@@ -5,10 +5,11 @@ This document serves as the pairing context and history log for the AI agent con
 ---
 
 ## SECURITY GUARDRAILS (CRITICAL)
+
 - **Zero-Secrets Policy**: Never hardcode or write sensitive secrets, connection strings (e.g., MongoDB URI, API keys, password strings) directly into files or commits.
 - **Environment Management**: Always reference environment variables dynamically via `process.env.*`.
 - **Pre-Commit Gate**: A local validation script (`scripts/check-secrets.js`) runs automatically on every commit to scan and block staged changes containing secrets.
-- **Clarification Rules**: If there is any confusion regarding a configuration value, or if you need to set up a new environment variable, *always* ask the user for explicit permission first.
+- **Clarification Rules**: If there is any confusion regarding a configuration value, or if you need to set up a new environment variable, _always_ ask the user for explicit permission first.
 
 ---
 
@@ -17,6 +18,7 @@ This document serves as the pairing context and history log for the AI agent con
 AWorkApp is a modern, premium SaaS platform built on **Next.js** (using App Router and Turbopack compiler) and **MongoDB (Mongoose)** for tracking job applications, resumes, files, and target companies.
 
 ### Key Tech Stack
+
 - **Framework**: Next.js 16 (Turbopack, App Router)
 - **Database**: MongoDB Atlas via Mongoose
 - **Styling**: Tailwind CSS & Vanilla CSS
@@ -31,25 +33,31 @@ AWorkApp is a modern, premium SaaS platform built on **Next.js** (using App Rout
 ## 2. Completed Implementation & Fixes
 
 ### A. API Pagination Schema Normalization
+
 - **Issue**: Pagination Zod schema threw `400 Bad Request` validation errors on endpoints (like `/api/companies?limit=1`) if page or limit query parameters were absent.
 - **Fix**: Added a preprocessing helper `preprocessEmpty` inside `paginationSchema` to convert null or empty-string values to `undefined` before validation, allowing Zod to apply its safe default values correctly.
 
 ### B. Autocomplete Company Flow
+
 - **UX Upgrade**: Replaced the dropdown selection system.
 - **Behavior**: Users now type the company name in a single input field. Suggestions are fetched dynamically from existing companies. If the company exists, it is selected. If the name typed is new, the frontend automatically posts to `/api/companies` in the background first, gets the new company's ID, and links it to the new application seamlessly.
 
 ### C. Kanban Board View & Drag-and-Drop
+
 - **New Feature**: Added a highly interactive **Board View** beside the traditional List View in `src/app/(dashboard)/applications/page.tsx`.
 - **Drag-and-Drop**: Built using native HTML5 Drag and Drop API with robust state and type checking.
 
 ### D. Redesigned Premium Dashboard & Aggregated Analytics
+
 - **Performance Fix**: Shifted status calculations to `/api/analytics` endpoint and clean-imported status variant mapping. Overhauled state calculation so that the page now queries only the 5 most recent applications instead of downloading 100 applications to calculate metrics client-side.
 - **Aesthetics**: Glassmorphic greeting banner with modern colored overlays, SVG Circular progress indicator displaying the Interview Success Rate, and Quick Commands grid.
 
 ### E. Redesigned Companies Panel
+
 - Redesigned `/companies` list with rating stars and distinct badges indicating DND (Do Not Apply) companies.
 
 ### F. Security Hardening & Rate Limiting (AOS-Hardening)
+
 - **Rate Limit Headers Config**: Modified `rateLimitHeaders` to correctly pass the configured preset limits instead of showing `remaining` as `limit`.
 - **Regex Injection (ReDoS) Protection**: Added `escapeRegex` to all MongoDB search-matching regexes in API handlers (applications, companies, resumes, files).
 - **File Upload Type & Extension Allowlist**: Added strict extension and MIME-type checks to the server-side files POST upload route.
@@ -59,12 +67,14 @@ AWorkApp is a modern, premium SaaS platform built on **Next.js** (using App Rout
 - **Error Handling Hardening**: Refactored API routes and `requireAuth` to throw custom `AppError` instances with explicit HTTP status codes instead of generic `Error` instances.
 
 ### G. Frontend Optimizations & Bug Fixes
+
 - **Status Badge Consolidation**: Deduplicated local status color mappings across dashboard and details views.
 - **Search Input Debouncing**: Added `useDebounce` to applications, companies, and files views to optimize backend fetch queries.
 - **Monthly Bar Chart Heights**: Fixed visual rendering bug where bar heights were calculated as pixel values instead of percentage values.
 - **File Upload Deduplication**: Fixed property access to `data.data.duplicate` in the files upload UI.
 
 ### M. Mobile Responsiveness Enhancements
+
 - **Top Navigation Bar**: Introduced a structured header layout for mobile viewports to hold the hamburger menu and app name, completely resolving button/header overlaps.
 - **Wizard Grid Stacking**: Refactored rigid two-column layouts in the New Application Wizard (Step 3) to responsive stacked rows (`grid-cols-1 sm:grid-cols-2`), ensuring inputs are fully readable and clickable on mobile screens.
 - **Application List Card Overflows**: Cleaned up the nested flexbox truncation hierarchy in the list view card and capped the `companyId.name`, `location`, and `nextAction` tags to prevent long continuous words from stretching layout panels and producing horizontal scrollbars on mobile.
@@ -73,44 +83,51 @@ AWorkApp is a modern, premium SaaS platform built on **Next.js** (using App Rout
 - **Compact Dialog & Wizard Inputs**: Overhauled the form layout in the "Add Resume Version" dialog and "New Application" step wizard. Substituted cluttered descriptive text labels with concise names and moved helper/instruction text into right-aligned metadata elements (`flex justify-between items-baseline mb-1`), producing a clean, premium, and self-documenting interface.
 
 ### N. Architectural Refactoring & Security Hardening (Current Session)
+
 - **Centralized Service Layer**: Extracted core business logic out of API controller routes into modular service files in `src/lib/services/`.
   - `src/lib/services/file.ts`: Manages file checksum hashing, MIME validation, storage persistence (S3/local), and duplicate prevention.
   - `src/lib/services/resume.ts`: Manages assignment, snapshot binding, and cleaning up unused customized documents.
 - **Composite Upload-Assign Flow**: Implemented `POST /api/applications/[id]/resume/upload-assign` to ingest, store, deduplicate, and bind customized resumes atomically.
 - **Percent-Encoding database URI**: Resolved Mongoose authentication errors caused by special characters (like `@`) in connection string passwords by percent-encoding them.
 - **Pre-Commit Secret Hook**: Implemented a local security validator script (`scripts/check-secrets.js`) running on git hooks to block any commits containing plaintext database credentials.
-- **Tailwind v4 Styling Compliance**: Cleaned up multiple build warnings by replacing legacy styles (e.g. `break-words` with `wrap-break-word`, `flex-grow` with `grow`, `bg-gradient-to-br` with `bg-linear-to-br`) and removing conflicting padding instructions.
+- **Tailwind v4 Styling Compliance**: Cleaned up multiple build warnings by replacing legacy styles (e.g. `break-words` with `wrap-break-word`, `flex-grow` with `grow`, `flex-shrink` with `shrink`, `bg-gradient-to-br` with `bg-linear-to-br`, `bg-gradient-to-r` with `bg-linear-to-r`), formatting radial gradients properly, and updating arbitrary opacity fraction modifiers (`/[0.02]`, `/[0.03]`) to standardized Tailwind v4 percentage indicators (`/2`, `/3`). Removed conflicting padding instructions.
 - **ESLint Compliance**: Replaced ambient global `var` declarations in `/src/lib/db/mongoose.ts` with typed global typecasts, allowing us to drop ESLint disable comments completely.
-
+- **Mongoose Index Warning Fix**: Removed redundant `UserSchema.index({ email: 1 })` configuration in `src/models/User.ts` since the field is already declared as `unique: true` inline, resolving duplicate schema index warning.
+- **Mongoose MissingSchemaError Resolution**: Imported core models (`User`, `Company`, `Application`, `File`, and `ResumeVersion`) directly inside `src/lib/db/mongoose.ts` to ensure Mongoose pre-registers all relations, preventing lazy-loading schema compilation failures.
+- **Google OAuth Integration**: Built production-grade Google Sign-In support via `/api/auth/google` and `/api/auth/google/callback`. Redirects the user directly to the Google Consent screen and exchanges the authorization code for token profiles to log in or register users based on their verified emails. Added premium "Sign in with Google" buttons to login and registration cards.
 
 ### H. Full-Screen Document Previews
+
 - **Route-based Previews**: Added `/files/[id]/preview` and `/resumes/[id]/preview` full-screen routes to preview PDFs (using native browser iframe) and Word documents (rendering client-side via `docx-preview`).
 - **Metadata Fetching**: Refactored `/api/files/[id]?metadata=true` to let the viewer load details first without downloading large binary streams upfront.
 - **Schema Correction**: Added `fileId` schema mapping to `createResumeVersionSchema` in `src/lib/validators/schemas.ts` to prevent mongoose relation stripping.
 
 ### I. Progressive Web App (PWA) Support
+
 - **Manifest Config**: Created `src/app/manifest.ts` defining names, colors, stand-alone display mode, and maskable icons.
 - **Service Worker**: Added `public/sw.js` and wrapped layout children inside `PwaProvider` to register worker threads.
 - **Custom Icons**: Generated and saved minimalist `icon-192x192.png` and `icon-512x512.png` using a clean abstract letter A combined with a briefcase shape.
 
 ### J. Duplicate Application Protection
+
 - **Warning Warning Alert**: Added `/api/applications/check-duplicate` checking for existing matches when completing wizard workflows.
 - **UI Dialog Modals**: Integrated a dialog popup warning of duplicate applications allowing users to skip, cancel, or redirect to the existing application.
 
 ### K. Build Warning Cleanups & Telemetry Opt-out
+
 - **Turbopack NFT Warnings**: Fixed dynamic path tracing alerts by prefixing `process.cwd()` with `/*turbopackIgnore: true*/` inside files route path resolutions.
 - **Telemetry Disabling**: Disabled telemetry locally and set `NEXT_TELEMETRY_DISABLED=1` in environment configuration.
 
 ### L. Rebranding to AWorkApp
+
 - Renamed the project from `ApplicationOS` to `AWorkApp` across PRD docs, CSS theme classes, shell layouts, metadata headers, and Nominatim API User-Agents.
-
-
 
 ---
 
 ## 3. Database Schema Overview
 
 ### Company Model (`src/models/Company.ts`)
+
 - `userId` (ObjectId, Ref: User)
 - `name` (String, Required)
 - `website`, `careersUrl`, `linkedinUrl` (Strings)
@@ -119,6 +136,7 @@ AWorkApp is a modern, premium SaaS platform built on **Next.js** (using App Rout
 - `doNotApplyAgain` (Boolean, default: false)
 
 ### Application Model (`src/models/Application.ts`)
+
 - `userId` (ObjectId, Ref: User)
 - `companyId` (ObjectId, Ref: Company, Required)
 - `jobTitle` (String, Required)
@@ -135,11 +153,13 @@ AWorkApp is a modern, premium SaaS platform built on **Next.js** (using App Rout
 ## 4. Work State & Handoff Notes
 
 ### Dev Environment Status
+
 - All code compilation, static page production, and TypeScript checks pass Next.js cleanly with **0 compilation errors and 0 warnings**.
 - Next.js anonymous telemetry has been completely opted out and deactivated.
 - PWA manifests, custom service workers, and visual app icons are integrated and configured.
 
 ### Suggested Next Steps
+
 1. **Analytics Customization**: Build detailed analytics graphs and report summaries in `src/app/(dashboard)/analytics/page.tsx`.
 2. **Resume Matching**: Add AI-based or tag-based resume matching tools on the individual application detail page.
 3. **Files Space Enhancement**: Build folder organizers or category tagging for uploaded transcripts, cover letters, and references.
