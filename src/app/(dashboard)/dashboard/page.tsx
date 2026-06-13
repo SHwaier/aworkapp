@@ -125,7 +125,7 @@ export default function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-8 max-w-7xl mx-auto">
+      <div className="space-y-8">
         <div className="space-y-2">
           <div className="h-8 w-64 animate-pulse rounded-md bg-muted" />
           <div className="h-4 w-96 animate-pulse rounded-md bg-muted/60" />
@@ -147,7 +147,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto px-1">
+    <div className="space-y-8 px-1">
       {/* Sleek Gradient Greeting Banner */}
       <div className="relative overflow-hidden rounded-2xl border border-primary/10 bg-linear-to-r from-primary/5 via-transparent to-primary/5 p-6 sm:p-8">
         <div className="absolute right-0 top-0 h-40 w-40 bg-primary/5 blur-3xl rounded-full" />

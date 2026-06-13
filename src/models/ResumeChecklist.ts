@@ -67,6 +67,7 @@ export interface IResumeChecklist extends Document {
   keywords: IChecklistKeyword[];
   overallScore: number;
   lastAnalyzedAt: Date | null;
+  lastAnalyzedHash?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -193,6 +194,7 @@ const ResumeChecklistSchema = new Schema<IResumeChecklist>(
     keywords: [ChecklistKeywordSchema],
     overallScore: { type: Number, default: 0, min: 0, max: 100 },
     lastAnalyzedAt: { type: Date, default: null },
+    lastAnalyzedHash: { type: String, default: "" },
   },
   {
     timestamps: true,

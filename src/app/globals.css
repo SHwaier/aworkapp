@@ -160,6 +160,6 @@
 }
 
 /* Hide duplicate sonner Toaster injected by third-party libraries at the bottom right */
-[data-sonner-toaster="true"][data-yposition="bottom"][data-xposition="right"] {
+[data-sonner-toaster="true"][data-y-position="bottom"] {
   display: none !important;
 }

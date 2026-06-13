@@ -122,6 +122,8 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
     setHasChanges(true);
   }, []);
 
+  const isSavingRef = useRef(false);
+
   // Save: use ref.save() to get the edited DOCX buffer, then upload as base64
   const handleSave = async (redirectAfter = false) => {
     if (!editorRef.current) {
@@ -130,12 +132,14 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
     }
 
     setSaving(true);
+    isSavingRef.current = true;
     try {
       // Get edited DOCX ArrayBuffer from the editor
       const buffer = await editorRef.current.save();
       if (!buffer) {
         toast.error("Failed to export document");
         setSaving(false);
+        isSavingRef.current = false;
         return;
       }
 
@@ -154,24 +158,34 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
       });
       const result = await res.json();
       if (result.success) {
-        toast.success("Resume saved successfully");
+        toast.success("Resume saved successfully", { id: "resume-save" });
         setHasChanges(false);
         if (redirectAfter) {
           router.push(`/applications/${applicationId}`);
         }
       } else {
-        toast.error(result.error || "Failed to save changes");
+        toast.error(result.error || "Failed to save changes", { id: "resume-save-err" });
       }
     } catch {
-      toast.error("Failed to save changes due to network error");
+      toast.error("Failed to save changes due to network error", { id: "resume-save-err" });
     } finally {
       setSaving(false);
+      // Give a tiny delay before unblocking editor's internal onSave to prevent race conditions
+      setTimeout(() => {
+        isSavingRef.current = false;
+      }, 500);
     }
   };
 
   // Also handle Ctrl+S from within the editor's own save trigger
   const handleEditorSave = useCallback(
     (buffer: ArrayBuffer) => {
+      // If a manual save from the header button is already processing, ignore this event
+      if (isSavingRef.current) return;
+
+      isSavingRef.current = true;
+      setSaving(true);
+
       // Convert and upload (fire-and-forget style, with toasts)
       const uint8 = new Uint8Array(buffer);
       let binary = "";
@@ -188,14 +202,20 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
         .then((res) => res.json())
         .then((result) => {
           if (result.success) {
-            toast.success("Resume saved successfully");
+            toast.success("Resume saved successfully", { id: "resume-save" });
             setHasChanges(false);
           } else {
-            toast.error(result.error || "Failed to save changes");
+            toast.error(result.error || "Failed to save changes", { id: "resume-save-err" });
           }
         })
         .catch(() => {
-          toast.error("Failed to save changes due to network error");
+          toast.error("Failed to save changes due to network error", { id: "resume-save-err" });
+        })
+        .finally(() => {
+          setSaving(false);
+          setTimeout(() => {
+            isSavingRef.current = false;
+          }, 500);
         });
     },
     [applicationId]
@@ -295,12 +315,44 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
       className={`flex flex-col bg-background overflow-hidden transition-all duration-200 ${
         isMaximized
           ? "fixed inset-0 z-50 h-screen"
-          : "h-[calc(100dvh-4rem)] md:h-[calc(100vh-6rem)] -m-4 sm:-m-6"
+          : "flex-1 min-h-0"
       }`}
     >
-      {/* Isolate DocxEditor from Tailwind preflight resets */}
+      {/* Isolate DocxEditor from Tailwind preflight resets and Dark Mode */}
       <style>{`
-        /* 1. Reset page container inheritance to inherit document-safe values */
+        /* 1. Force the eigenpal editor and any of its portals to use complete light-mode CSS variables */
+        .docx-editor-isolation,
+        .docx-editor-isolation *,
+        .ep-root,
+        div[data-radix-portal] .ep-root,
+        div[data-radix-portal] .ep-root * {
+          --background: 0 0% 100% !important;
+          --foreground: 222.2 84% 4.9% !important;
+          --card: 0 0% 100% !important;
+          --card-foreground: 222.2 84% 4.9% !important;
+          --popover: 0 0% 100% !important;
+          --popover-foreground: 222.2 84% 4.9% !important;
+          --primary: 221.2 83.2% 53.3% !important;
+          --primary-foreground: 210 40% 98% !important;
+          --secondary: 210 40% 96.1% !important;
+          --secondary-foreground: 222.2 47.4% 11.2% !important;
+          --muted: 210 40% 96.1% !important;
+          --muted-foreground: 215.4 16.3% 46.9% !important;
+          --accent: 210 40% 96.1% !important;
+          --accent-foreground: 222.2 47.4% 11.2% !important;
+          --destructive: 0 84.2% 60.2% !important;
+          --destructive-foreground: 210 40% 98% !important;
+          --border: 214.3 31.8% 91.4% !important;
+          --input: 214.3 31.8% 91.4% !important;
+          --ring: 221.2 83.2% 53.3% !important;
+        }
+
+        /* Force all elements to use dark text by default - this catches buttons/inputs that inherit the body's white color */
+        .docx-editor-isolation,
+        .ep-root {
+          color: #1e293b !important;
+        }
+
         .docx-editor-isolation .docx-editor-page {
           color: #000000;
           font-family: Calibri, Arial, sans-serif;
@@ -463,9 +515,20 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
         </aside>
 
         {/* Right Side: DOCX Editor */}
-        <main className="flex-1 flex flex-col min-h-0 bg-white docx-editor-isolation">
+        <main className="flex-1 flex flex-col min-h-0 bg-white docx-editor-isolation relative overflow-hidden">
           {docBuffer ? (
-            <div className="grow min-h-0 overflow-auto">
+            <div className="absolute inset-0 w-full h-full">
+              <style>{`
+                .docx-editor-isolation .eigenpal-editor-container {
+                  width: 100% !important;
+                  height: 100% !important;
+                  border: none !important;
+                  background: #f9fafb !important;
+                }
+                .docx-editor-isolation .eigenpal-page-wrapper {
+                  padding: 2rem 0 !important;
+                }
+              `}</style>
               <DocxEditor
                 key={editorKey}
                 ref={editorRef}

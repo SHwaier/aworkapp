@@ -8,7 +8,7 @@ export class SectionAnalyzer implements ChecklistAnalyzer {
     const tLower = resumeText.toLowerCase();
 
     // Education
-    const hasEducation = /education|university|college|bachelor|master|degree|diploma/i.test(resumeText);
+    const hasEducation = /\b(education|university|college|bachelor|master|degree|diploma)\b/i.test(resumeText);
     items.push({
       category: "education",
       title: "Education section included",
@@ -18,7 +18,7 @@ export class SectionAnalyzer implements ChecklistAnalyzer {
     });
 
     if (hasEducation) {
-      const hasGradDate = /20[0-9]{2}|expected|graduating|present/i.test(resumeText);
+      const hasGradDate = /\b(20[0-9]{2}|expected|graduating|present)\b/i.test(resumeText);
       items.push({
         category: "education",
         title: "Graduation or expected graduation date included",
@@ -29,7 +29,7 @@ export class SectionAnalyzer implements ChecklistAnalyzer {
     }
 
     // Skills
-    const hasSkills = /skills|technical skills|core competencies/i.test(resumeText);
+    const hasSkills = /\b(skills|technical skills|core competencies)\b/i.test(resumeText);
     items.push({
       category: "skills",
       title: "Skills section included",
@@ -39,7 +39,7 @@ export class SectionAnalyzer implements ChecklistAnalyzer {
     });
 
     // Projects
-    const hasProjects = /projects|personal projects|technical projects/i.test(resumeText);
+    const hasProjects = /\b(projects|personal projects|technical projects)\b/i.test(resumeText);
     items.push({
       category: "projects",
       title: "Projects section included",
@@ -63,7 +63,7 @@ export class SectionAnalyzer implements ChecklistAnalyzer {
     }
 
     // Experience
-    const hasExperience = /experience|work experience|professional experience|employment/i.test(resumeText);
+    const hasExperience = /\b(experience|work experience|professional experience|employment)\b/i.test(resumeText);
     items.push({
       category: "experience",
       title: "Experience section included",

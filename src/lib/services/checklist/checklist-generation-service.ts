@@ -6,6 +6,7 @@ import { HeaderAnalyzer } from "./analyzers/header-analyzer";
 import { SectionAnalyzer } from "./analyzers/section-analyzer";
 import { BulletQualityAnalyzer } from "./analyzers/bullet-quality-analyzer";
 import { FinalReviewAnalyzer } from "./analyzers/final-review-analyzer";
+import { AIAnalyzer } from "./analyzers/ai-analyzer";
 
 export class ChecklistGenerationService {
   private analyzers: ChecklistAnalyzer[];
@@ -18,19 +19,29 @@ export class ChecklistGenerationService {
       new SectionAnalyzer(),
       new BulletQualityAnalyzer(),
       new FinalReviewAnalyzer(),
+      new AIAnalyzer(),
     ];
   }
 
-  public analyze(input: AnalysisInput): AnalysisResult {
+  public async analyze(input: AnalysisInput, mode: "static" | "ai" | "all" = "all"): Promise<AnalysisResult> {
     const { jobDescription, resumeText } = input;
     
-    // Extract keywords
-    const keywords = extractKeywords(jobDescription, resumeText);
+    // Extract keywords (only need to extract them if we are doing static or all)
+    const keywords = mode === "ai" ? [] : extractKeywords(jobDescription, resumeText);
     
-    // Run all analyzers
-    const items = this.analyzers.flatMap((analyzer) => analyzer.analyze(input, keywords));
+    // Run selected analyzers concurrently
+    const activeAnalyzers = this.analyzers.filter(a => {
+       const isAi = a.constructor.name === "AIAnalyzer";
+       if (mode === "static") return !isAi;
+       if (mode === "ai") return isAi;
+       return true;
+    });
 
-    return { items, keywords };
+    const itemsPromises = activeAnalyzers.map((analyzer) => analyzer.analyze(input, keywords));
+    const itemsArrays = await Promise.all(itemsPromises);
+    const items = itemsArrays.flat();
+
+    return { items, keywords: mode === "ai" ? [] : keywords };
   }
 
   /** Compute overall score from checklist items */

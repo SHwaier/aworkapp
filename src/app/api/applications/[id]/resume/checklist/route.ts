@@ -7,17 +7,8 @@ import File from "@/models/File";
 import { createAuditLog } from "@/models/AuditLog";
 import { requireAuth } from "@/lib/auth/session";
 import { mongoIdSchema } from "@/lib/validators/schemas";
-import {
-  successResponse,
-  errorResponse,
-  handleApiError,
-} from "@/lib/api/response";
-import {
-  checkRateLimit,
-  getClientIp,
-  RATE_LIMITS,
-  rateLimitHeaders,
-} from "@/lib/rate-limit";
+import { successResponse, errorResponse, handleApiError } from "@/lib/api/response";
+import { checkRateLimit, getClientIp, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
 import { analyzeResume, computeScore } from "@/lib/services/checklist";
 
 interface RouteParams {
@@ -28,10 +19,7 @@ interface RouteParams {
  * GET /api/applications/:id/resume/checklist
  * Returns the existing checklist for this application.
  */
-export async function GET(
-  request: Request,
-  { params }: RouteParams
-): Promise<NextResponse> {
+export async function GET(request: Request, { params }: RouteParams): Promise<NextResponse> {
   try {
     const session = await requireAuth();
     const { id: applicationId } = await params;
@@ -69,26 +57,23 @@ export async function GET(
  * Body: { resumeText?: string }
  * If resumeText is not provided, the server reads the DOCX file and extracts text.
  */
-export async function POST(
-  request: Request,
-  { params }: RouteParams
-): Promise<NextResponse> {
+export async function POST(request: Request, { params }: RouteParams): Promise<NextResponse> {
   try {
     const session = await requireAuth();
     const { id: applicationId } = await params;
     mongoIdSchema.parse(applicationId);
 
     const ip = getClientIp(request);
-    const rateLimit = checkRateLimit(`checklist-post:${session.id || ip}`, RATE_LIMITS.strict);
+    const rateLimit = checkRateLimit(`checklist-post:${session.id || ip}`, RATE_LIMITS.api);
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { success: false, error: "Too many requests." },
-        { status: 429, headers: rateLimitHeaders(rateLimit, RATE_LIMITS.strict) }
+        { status: 429, headers: rateLimitHeaders(rateLimit, RATE_LIMITS.api) }
       );
     }
 
     const body = await request.json().catch(() => ({}));
-    let { resumeText } = body as { resumeText?: string };
+    let { resumeText, mode = "all" } = body as { resumeText?: string, mode?: "static" | "ai" | "all" };
 
     await dbConnect();
 
@@ -154,7 +139,10 @@ export async function POST(
               const documentXml = zip.file("word/document.xml");
               if (documentXml) {
                 const text = await documentXml.async("text");
-                const xmlText = text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+                const xmlText = text
+                  .replace(/<[^>]+>/g, " ")
+                  .replace(/\s+/g, " ")
+                  .trim();
                 if (xmlText.length > 50) {
                   resumeText = xmlText;
                 }
@@ -176,26 +164,42 @@ export async function POST(
       resumeText = resumeText.slice(0, 50000);
     }
 
-    // Run analysis
-    const companyName = ((app.companyId as unknown as Record<string, unknown>)?.name as string) || "Company";
-    const result = analyzeResume({
-      jobDescription: app.jobDescription || "",
-      resumeText,
-      jobTitle: app.jobTitle,
-      companyName,
-    });
+    const companyName =
+      ((app.companyId as unknown as Record<string, unknown>)?.name as string) || "Company";
 
-    // Upsert checklist
-    const score = computeScore(result.items.map((i) => ({ status: i.status || "not_started" })));
+    // Hash calculation to prevent redundant analysis
+    const crypto = await import("crypto");
+    const hashPayload = `${resumeText}|${app.jobDescription || ""}`;
+    const currentHash = crypto.createHash("sha256").update(hashPayload).digest("hex");
 
     let checklist = await ResumeChecklist.findOne({
       applicationId,
       userId: session.id,
     });
 
+    if (checklist && checklist.lastAnalyzedHash === currentHash) {
+      // Early return to prevent abuse / unnecessary AI calls
+      return successResponse({ checklist });
+    }
+
+    // Run analysis
+    const result = await analyzeResume({
+      jobDescription: app.jobDescription || "",
+      resumeText,
+      jobTitle: app.jobTitle,
+      companyName,
+    }, mode);
+
+    // Upsert checklist
+    const score = computeScore(result.items.map((i) => ({ status: i.status || "not_started" })));
+
     if (checklist) {
       // Preserve user-set statuses and IDs for items that still exist
-      const userStatuses = new Map<string, string>();
+      const userStatuses = new Map<
+        string,
+        "not_started" | "in_progress" | "complete" | "needs_review" | "ignored" | "not_applicable"
+      >();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const userIds = new Map<string, any>();
       for (const item of checklist.items) {
         if (["complete", "ignored", "not_applicable"].includes(item.status)) {
@@ -204,12 +208,24 @@ export async function POST(
         userIds.set(item.title, item._id);
       }
 
+      // Retain items from the other mode that we aren't regenerating right now
+      const retainedItems = checklist.items.filter((item) => {
+        const isAiItem = item.title.startsWith("🤖 AI:");
+        if (mode === "static" && isAiItem) return true;
+        if (mode === "ai" && !isAiItem) return true;
+        return false;
+      }).map(i => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return typeof (i as any).toObject === 'function' ? (i as any).toObject() : i;
+      });
+
       // Merge: keep user overrides and stable IDs
-      const mergedItems = result.items.map((item) => {
+      const newlyGeneratedItems = result.items.map((item) => {
         const prevId = userIds.get(item.title || "");
         const userStatus = userStatuses.get(item.title || "");
         const newItem = { ...item };
         if (prevId) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (newItem as any)._id = prevId;
         }
         if (userStatus) {
@@ -218,11 +234,20 @@ export async function POST(
         return newItem;
       });
 
+      const mergedItems = [...retainedItems, ...newlyGeneratedItems];
+
       checklist.items = mergedItems as IChecklistItemType[];
-      checklist.keywords = result.keywords as IChecklistKeywordType[];
-      checklist.overallScore = computeScore(mergedItems.map((i) => ({ status: i.status || "not_started" })));
+      if (mode !== "ai") {
+        checklist.keywords = result.keywords as IChecklistKeywordType[];
+      }
+      checklist.overallScore = computeScore(
+        mergedItems.map((i) => ({ status: i.status || "not_started" }))
+      );
       checklist.lastAnalyzedAt = new Date();
       checklist.resumeVersionId = snapshot.baseResumeVersionId;
+      if (mode === "all" || mode === "ai") {
+        checklist.lastAnalyzedHash = currentHash;
+      }
       await checklist.save();
     } else {
       checklist = await ResumeChecklist.create({
@@ -233,6 +258,7 @@ export async function POST(
         keywords: result.keywords,
         overallScore: score,
         lastAnalyzedAt: new Date(),
+        lastAnalyzedHash: (mode === "all" || mode === "ai") ? currentHash : "",
       });
     }
 

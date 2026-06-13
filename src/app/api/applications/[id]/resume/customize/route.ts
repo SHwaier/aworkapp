@@ -135,6 +135,7 @@ export async function POST(
       return errorResponse("No resume assigned to this application", 400);
     }
 
+    let justCloned = false;
     if (snapshot.isLocked) {
       // Create a new snapshot for editing
       const newSnapshot = new ResumeSnapshot({
@@ -153,6 +154,7 @@ export async function POST(
       });
       await newSnapshot.save();
       snapshot = newSnapshot;
+      justCloned = true;
     }
 
     const companyName = (app.companyId as any)?.name || "Company";
@@ -168,59 +170,58 @@ export async function POST(
 
     // Storage provider setup
     const provider = (process.env.FILE_STORAGE_PROVIDER || "local").toLowerCase();
-    const uniqueKey = `${session.id}_custom_${crypto.randomBytes(16).toString("hex")}_${originalFileName}`;
 
+    const shouldOverwrite = snapshot.finalSubmittedFileId && snapshot.manuallyEdited && !justCloned;
+    let fileDoc;
+    let targetStorageKey;
+
+    if (shouldOverwrite) {
+      // Overwrite the existing customized file
+      fileDoc = await File.findOne({ _id: snapshot.finalSubmittedFileId, userId: session.id }).select("+storageKey");
+      if (fileDoc) {
+        fileDoc.fileSize = docxBuffer.length;
+        fileDoc.fileHash = hash;
+        await fileDoc.save();
+        targetStorageKey = fileDoc.storageKey;
+      }
+    }
+
+    // If we didn't overwrite (first customization, cloned, or old file missing)
+    if (!fileDoc) {
+      targetStorageKey = `${session.id}_custom_${crypto.randomBytes(16).toString("hex")}_${originalFileName}`;
+
+      fileDoc = await File.create({
+        userId: session.id,
+        originalFileName,
+        displayName,
+        fileType: ".docx",
+        mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        fileSize: docxBuffer.length,
+        storageProvider: provider === "r2" ? "r2" : provider === "s3" ? "s3" : "local",
+        storageKey: targetStorageKey,
+        fileHash: hash,
+        category: "resume",
+      });
+
+      // Update snapshot to point to the new customized file
+      snapshot.finalSubmittedFileId = fileDoc._id;
+      snapshot.manuallyEdited = true;
+      await snapshot.save();
+    }
+
+    if (!targetStorageKey) {
+      throw new Error("Failed to determine target storage key for the customized resume.");
+    }
+
+    // Write file to storage using the determined storage key
     if (provider === "s3" || provider === "r2") {
       const { uploadToS3 } = await import("@/lib/storage/s3");
-      await uploadToS3(uniqueKey, docxBuffer, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+      await uploadToS3(targetStorageKey, docxBuffer, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
     } else {
       const storageDir = path.resolve(/*turbopackIgnore: true*/ process.cwd(), process.env.FILE_STORAGE_PATH || "./uploads");
       await fs.mkdir(storageDir, { recursive: true });
-      const fullPath = path.resolve(/*turbopackIgnore: true*/ process.cwd(), storageDir, uniqueKey);
+      const fullPath = path.resolve(/*turbopackIgnore: true*/ process.cwd(), storageDir, targetStorageKey);
       await fs.writeFile(fullPath, docxBuffer);
-    }
-
-    // Check if there was a previous customized file that should be deleted
-    // Only delete if we didn't just clone from a locked snapshot
-    const oldCustomFileId = snapshot.isNew ? null : snapshot.finalSubmittedFileId;
-
-    // Create DB entry for the new file
-    const fileDoc = await File.create({
-      userId: session.id,
-      originalFileName,
-      displayName,
-      fileType: ".docx",
-      mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      fileSize: docxBuffer.length,
-      storageProvider: provider === "r2" ? "r2" : provider === "s3" ? "s3" : "local",
-      storageKey: uniqueKey,
-      fileHash: hash,
-      category: "resume",
-    });
-
-    // Update snapshot
-    snapshot.finalSubmittedFileId = fileDoc._id;
-    snapshot.manuallyEdited = true;
-    await snapshot.save();
-
-    // Physically delete old customized file if it exists and wasn't locked
-    if (oldCustomFileId && !snapshot.isNew) {
-      const oldFile = await File.findOne({ _id: oldCustomFileId, userId: session.id }).select("+storageKey");
-      if (oldFile) {
-        await File.deleteOne({ _id: oldFile._id });
-        try {
-          if (oldFile.storageProvider === "r2" || oldFile.storageProvider === "s3") {
-            const { deleteFromS3 } = await import("@/lib/storage/s3");
-            await deleteFromS3(oldFile.storageKey);
-          } else {
-            const storageDir = path.resolve(/*turbopackIgnore: true*/ process.cwd(), process.env.FILE_STORAGE_PATH || "./uploads");
-            const filePath = path.resolve(/*turbopackIgnore: true*/ process.cwd(), storageDir, oldFile.storageKey);
-            await fs.unlink(filePath);
-          }
-        } catch (err) {
-          console.error("Failed to delete older customized file:", err);
-        }
-      }
     }
 
     await createAuditLog({
