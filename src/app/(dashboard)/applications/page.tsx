@@ -211,7 +211,7 @@ export default function ApplicationsPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto px-1">
+    <div className="space-y-6 px-1">
       {/* Dynamic Dashboard/Aesthetics Header */}
       <div className="relative overflow-hidden rounded-2xl border border-primary/10 bg-linear-to-r from-primary/5 via-transparent to-primary/5 p-6 sm:p-8">
         <div className="absolute right-0 top-0 h-40 w-40 bg-primary/5 blur-3xl rounded-full" />
@@ -382,7 +382,7 @@ export default function ApplicationsPage() {
                           )}
                         </div>
                         {app.nextAction && (
-                          <div className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md bg-warning/5 border border-warning/10 text-warning-foreground font-medium max-w-full">
+                          <div className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md bg-warning/5 border border-warning/10 text-warning font-medium max-w-full">
                             <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse shrink-0" />
                             <span className="truncate">Next action: {app.nextAction}</span>
                           </div>
@@ -475,53 +475,65 @@ export default function ApplicationsPage() {
                     columnApps.map((app) => (
                       <div
                         key={app.id || app._id}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, app.id || app._id || "")}
-                        onDragEnd={handleDragEnd}
-                        className={`group relative border border-border/80 bg-card rounded-lg p-3.5 cursor-grab active:cursor-grabbing transition-all hover:border-primary/20 hover:shadow-xs hover:-translate-y-[1px] ${
+                        className={`group relative border border-border/80 bg-card text-card-foreground rounded-lg flex flex-col overflow-hidden transition-all hover:border-primary/20 hover:shadow-xs hover:-translate-y-[1px] ${
                           draggedId === (app.id || app._id) ? "opacity-30 border-dashed" : "opacity-100"
                         }`}
                       >
-                        {/* Go to Detail Icon */}
+                        {/* Dedicated Drag Handle */}
+                        <div
+                          draggable
+                          onDragStart={(e) => {
+                            const cardElement = e.currentTarget.parentElement;
+                            if (cardElement) {
+                              e.dataTransfer.setDragImage(cardElement, e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+                            }
+                            handleDragStart(e, app.id || app._id || "");
+                          }}
+                          onDragEnd={handleDragEnd}
+                          className="h-6 w-full bg-muted/40 border-b border-border/40 flex items-center justify-center cursor-grab active:cursor-grabbing hover:bg-muted/60 transition-colors"
+                          title="Drag to move application"
+                        >
+                          <div className="w-8 h-1 rounded-full bg-foreground/20" />
+                        </div>
+
+                        {/* Clickable Card Body */}
                         <Link
                           href={`/applications/${app.id || app._id}`}
-                          className="absolute right-3 top-3 h-5 w-5 rounded-md bg-muted/20 text-muted-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-primary/5 hover:text-primary transition-all duration-150"
+                          className="p-3.5 block flex-1"
                         >
-                          <ChevronRight className="h-3.5 w-3.5" />
-                        </Link>
-
-                        <div className="space-y-1">
-                          <h4 className="font-bold text-sm text-foreground leading-snug truncate pr-4 group-hover:text-primary transition-colors">
-                            {app.jobTitle}
-                          </h4>
-                          {app.companyId && (
-                            <p className="text-xs font-semibold text-foreground/75 truncate flex items-center gap-1">
-                              <Building2 className="h-3 w-3 shrink-0 text-muted-foreground" />
-                              {app.companyId.name}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Badges/Details Grid */}
-                        <div className="mt-3 flex flex-wrap gap-1 items-center">
-                          {app.location && (
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-border/40 text-muted-foreground max-w-[120px] truncate">
-                              {app.location}
-                            </Badge>
-                          )}
-                          {app.workMode && (
-                            <Badge variant="secondary" className="capitalize text-[10px] px-1.5 py-0 h-4 bg-muted/65 text-foreground/70">
-                              {app.workMode}
-                            </Badge>
-                          )}
-                        </div>
-
-                        {app.nextAction && (
-                          <div className="mt-2.5 pt-2 border-t border-border/30 text-[10px] text-warning-foreground font-medium flex items-center gap-1">
-                            <span className="h-1 w-1 rounded-full bg-warning animate-pulse" />
-                            <span className="truncate">Next: {app.nextAction}</span>
+                          <div className="space-y-1">
+                            <h4 className="font-bold text-sm text-card-foreground leading-snug truncate group-hover:text-primary transition-colors">
+                              {app.jobTitle}
+                            </h4>
+                            {app.companyId && (
+                              <p className="text-xs font-semibold text-card-foreground/75 truncate flex items-center gap-1">
+                                <Building2 className="h-3 w-3 shrink-0 text-muted-foreground" />
+                                {app.companyId.name}
+                              </p>
+                            )}
                           </div>
-                        )}
+
+                          {/* Badges/Details Grid */}
+                          <div className="mt-3 flex flex-wrap gap-1 items-center">
+                            {app.location && (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-border/40 text-muted-foreground max-w-[120px] truncate">
+                                {app.location}
+                              </Badge>
+                            )}
+                            {app.workMode && (
+                              <Badge variant="secondary" className="capitalize text-[10px] px-1.5 py-0 h-4 bg-muted/65 text-foreground/70">
+                                {app.workMode}
+                              </Badge>
+                            )}
+                          </div>
+
+                          {app.nextAction && (
+                            <div className="mt-2.5 pt-2 border-t border-border/30 text-[10px] text-warning font-medium flex items-center gap-1">
+                              <span className="h-1 w-1 rounded-full bg-warning animate-pulse shrink-0" />
+                              <span className="truncate">Next: {app.nextAction}</span>
+                            </div>
+                          )}
+                        </Link>
                       </div>
                     ))
                   )}

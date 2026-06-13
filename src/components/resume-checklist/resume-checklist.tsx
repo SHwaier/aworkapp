@@ -92,11 +92,11 @@ const CATEGORY_CONFIG: Record<string, { label: string; icon: React.ElementType }
   final_review: { label: "Final", icon: CheckCircle2 },
 };
 
-const SEVERITY_CONFIG: Record<string, { color: string; icon: React.ElementType }> = {
-  critical: { color: "text-red-500", icon: CircleAlert },
-  warning: { color: "text-amber-500", icon: AlertTriangle },
-  suggestion: { color: "text-blue-500", icon: Lightbulb },
-  info: { color: "text-muted-foreground", icon: Info },
+const SEVERITY_CONFIG: Record<string, { color: string; bg: string; icon: React.ElementType }> = {
+  critical: { color: "text-red-600 dark:text-red-400", bg: "bg-red-50 dark:bg-red-500/10", icon: CircleAlert },
+  warning: { color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-500/10", icon: AlertTriangle },
+  suggestion: { color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-500/10", icon: Lightbulb },
+  info: { color: "text-muted-foreground", bg: "bg-muted/40", icon: Info },
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -121,6 +121,7 @@ export function ResumeChecklist({
   const [checklist, setChecklist] = useState<ChecklistData | null>(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
+  const [aiAnalyzing, setAiAnalyzing] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [showKeywords, setShowKeywords] = useState(false);
@@ -145,35 +146,57 @@ export function ResumeChecklist({
     loadChecklist();
   }, [loadChecklist]);
 
-  // Run analysis
   const runAnalysis = useCallback(async () => {
     setAnalyzing(true);
+    setAiAnalyzing(true);
     try {
       const textToAnalyze = getResumeText ? await getResumeText() : resumeText;
       
       if (lastAnalyzedTextRef.current === textToAnalyze) {
         toast.info("No changes detected in the resume since the last analysis.");
         setAnalyzing(false);
+        setAiAnalyzing(false);
         return;
       }
 
-      const res = await fetch(`/api/applications/${applicationId}/resume/checklist`, {
+      // Phase 1: Static analysis (Fast)
+      const resStatic = await fetch(`/api/applications/${applicationId}/resume/checklist`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resumeText: textToAnalyze }),
+        body: JSON.stringify({ resumeText: textToAnalyze, mode: "static" }),
       });
-      const data = await res.json();
-      if (data.success && data.data?.checklist) {
-        setChecklist(data.data.checklist);
-        lastAnalyzedTextRef.current = textToAnalyze;
-        toast.success("Resume analyzed successfully");
+      const dataStatic = await resStatic.json();
+      
+      if (dataStatic.success && dataStatic.data?.checklist) {
+        setChecklist(dataStatic.data.checklist);
+        setAnalyzing(false); // Stop main loading indicator, show UI
       } else {
-        toast.error(data.error || "Analysis failed");
+        toast.error(dataStatic.error || "Analysis failed");
+        setAnalyzing(false);
+        setAiAnalyzing(false);
+        return;
+      }
+
+      // Phase 2: AI Analysis (Slow)
+      const resAi = await fetch(`/api/applications/${applicationId}/resume/checklist`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resumeText: textToAnalyze, mode: "ai" }),
+      });
+      const dataAi = await resAi.json();
+      
+      if (dataAi.success && dataAi.data?.checklist) {
+        setChecklist(dataAi.data.checklist);
+        lastAnalyzedTextRef.current = textToAnalyze;
+        toast.success("Resume completely analyzed");
+      } else {
+        toast.error(dataAi.error || "AI Analysis failed");
       }
     } catch {
       toast.error("Failed to analyze resume");
     } finally {
       setAnalyzing(false);
+      setAiAnalyzing(false);
     }
   }, [applicationId, resumeText, getResumeText]);
 
@@ -310,10 +333,10 @@ export function ResumeChecklist({
             variant="ghost"
             size="sm"
             onClick={runAnalysis}
-            disabled={analyzing}
+            disabled={analyzing || aiAnalyzing}
             className="h-7 px-2 text-[10px]"
           >
-            {analyzing ? (
+            {(analyzing || aiAnalyzing) ? (
               <Loader2 className="h-3 w-3 animate-spin" />
             ) : (
               <RefreshCw className="h-3 w-3" />
@@ -352,6 +375,14 @@ export function ResumeChecklist({
           )}
         </div>
       </div>
+
+      {/* AI Analyzing Banner */}
+      {aiAnalyzing && (
+        <div className="flex items-center gap-2 p-3 text-[11px] rounded-lg bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20">
+          <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+          <span className="font-medium">🤖 AI is generating deep suggestions...</span>
+        </div>
+      )}
 
       {/* Keyword Summary Toggle */}
       <button
@@ -402,9 +433,16 @@ export function ResumeChecklist({
           >
             All ({checklist.items.length})
           </button>
-          {Object.entries(CATEGORY_CONFIG).map(([key, config]) => {
-            const count = categoryCounts[key] || 0;
-            if (count === 0) return null;
+          {Object.entries(CATEGORY_CONFIG)
+            .filter(([key]) => (categoryCounts[key] || 0) > 0)
+            .sort(([keyA], [keyB]) => {
+              const issuesA = categoryIssueCounts[keyA] || 0;
+              const issuesB = categoryIssueCounts[keyB] || 0;
+              if (issuesA > 0 && issuesB === 0) return -1;
+              if (issuesA === 0 && issuesB > 0) return 1;
+              return 0;
+            })
+            .map(([key, config]) => {
             const issues = categoryIssueCounts[key] || 0;
             return (
               <button
@@ -441,27 +479,29 @@ export function ResumeChecklist({
             <div
               key={item.id}
               className={cn(
-                "rounded-lg border transition-all",
+                "rounded-lg border transition-all overflow-hidden",
                 isDone
-                  ? "border-border/40 bg-muted/20 opacity-70"
-                  : "border-border/60 bg-card"
+                  ? "border-border/40 bg-muted/10 opacity-75 grayscale-[0.2]"
+                  : "border-border/60 bg-card shadow-xs"
               )}
             >
               {/* Item Header */}
               <button
                 onClick={() => toggleExpand(item.id)}
-                className="w-full flex items-start gap-2 px-3 py-2 text-left"
+                className="w-full flex items-start gap-3 px-3 py-2.5 text-left group hover:bg-muted/30 transition-colors"
               >
-                <SevIcon className={cn("h-3.5 w-3.5 mt-0.5 shrink-0", sevConfig.color)} />
+                <div className={cn("h-6 w-6 rounded-full flex items-center justify-center shrink-0 mt-0.5", sevConfig.bg)}>
+                  <SevIcon className={cn("h-3.5 w-3.5", sevConfig.color)} />
+                </div>
                 <div className="grow min-w-0">
                   <p className={cn(
-                    "text-[11px] font-medium leading-tight",
-                    isDone && "line-through text-muted-foreground"
+                    "text-xs font-semibold leading-tight",
+                    isDone ? "line-through text-muted-foreground" : "text-foreground"
                   )}>
                     {item.title}
                   </p>
                   {!isExpanded && item.description && (
-                    <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                    <p className="text-[11px] text-muted-foreground mt-1 truncate">
                       {item.description}
                     </p>
                   )}
@@ -469,8 +509,8 @@ export function ResumeChecklist({
                 <Badge
                   variant="outline"
                   className={cn(
-                    "text-[9px] py-0 px-1 shrink-0 mt-0.5",
-                    isDone ? "text-emerald-600 border-emerald-200" : ""
+                    "text-[10px] font-medium py-0.5 px-1.5 shrink-0 mt-0.5 whitespace-nowrap",
+                    isDone ? "text-emerald-700 border-emerald-300 bg-emerald-50 dark:text-emerald-400 dark:border-emerald-500/30 dark:bg-emerald-500/10" : ""
                   )}
                 >
                   {STATUS_LABELS[item.status] || item.status}
@@ -479,14 +519,14 @@ export function ResumeChecklist({
 
               {/* Expanded Details */}
               {isExpanded && (
-                <div className="px-3 pb-2.5 space-y-2 border-t border-border/30 pt-2 ml-5">
+                <div className="px-3 pb-3 space-y-2.5 border-t border-border/40 pt-2.5 ml-10 mr-2">
                   {item.description && (
-                    <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
                       {item.description}
                     </p>
                   )}
                   {item.suggestion && (
-                    <div className="text-[10px] text-primary bg-primary/5 border border-primary/10 rounded-md px-2.5 py-1.5">
+                    <div className="text-[11px] text-primary bg-primary/5 border border-primary/10 rounded-md px-3 py-2">
                       <span className="font-semibold">💡 </span>
                       {item.suggestion}
                     </div>
@@ -494,39 +534,39 @@ export function ResumeChecklist({
 
                   {/* Actions */}
                   {item.isUserDismissible && (
-                    <div className="flex gap-1.5 pt-0.5">
+                    <div className="flex gap-2 pt-1">
                       <Button
                         variant={item.status === "complete" ? "default" : "outline"}
                         size="sm"
-                        className="h-6 text-[10px] px-2"
+                        className="h-7 text-[11px] px-2.5 shadow-xs"
                         onClick={(e) => {
                           e.stopPropagation();
                           updateItemStatus(item.id, item.status === "complete" ? "not_started" : "complete");
                         }}
                       >
-                        <Check className="h-2.5 w-2.5 mr-0.5" /> Done
+                        <Check className="h-3 w-3 mr-1" /> Done
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-6 text-[10px] px-2 text-muted-foreground"
+                        className="h-7 text-[11px] px-2.5 text-muted-foreground hover:text-foreground"
                         onClick={(e) => {
                           e.stopPropagation();
                           updateItemStatus(item.id, "ignored");
                         }}
                       >
-                        <EyeOff className="h-2.5 w-2.5 mr-0.5" /> Ignore
+                        <EyeOff className="h-3 w-3 mr-1" /> Ignore
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-6 text-[10px] px-2 text-muted-foreground"
+                        className="h-7 text-[11px] px-2.5 text-muted-foreground hover:text-foreground"
                         onClick={(e) => {
                           e.stopPropagation();
                           updateItemStatus(item.id, "not_applicable");
                         }}
                       >
-                        <X className="h-2.5 w-2.5 mr-0.5" /> N/A
+                        <X className="h-3 w-3 mr-1" /> N/A
                       </Button>
                     </div>
                   )}

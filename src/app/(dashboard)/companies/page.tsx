@@ -142,7 +142,7 @@ export default function CompaniesPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto px-1">
+    <div className="space-y-6 px-1">
       {/* Header Banner */}
       <div className="relative overflow-hidden rounded-2xl border border-primary/10 bg-linear-to-r from-primary/5 via-transparent to-primary/5 p-6 sm:p-8">
         <div className="absolute right-0 top-0 h-40 w-40 bg-primary/5 blur-3xl rounded-full" />

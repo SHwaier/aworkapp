@@ -79,8 +79,13 @@ export default function FilesPage() {
     id: "",
   });
 
+  // Bulk Actions state
+  const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
   const fetchFiles = useCallback(async () => {
     try {
+      setSelectedFileIds(new Set()); // Reset selection on new fetch
       const params = new URLSearchParams({
         page: page.toString(),
         limit: "20",
@@ -167,6 +172,56 @@ export default function FilesPage() {
     }
   }
 
+  const toggleFileSelection = (id: string) => {
+    setSelectedFileIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleAllFiles = () => {
+    if (selectedFileIds.size === files.length) {
+      setSelectedFileIds(new Set());
+    } else {
+      setSelectedFileIds(new Set(files.map((f) => f.id || f._id || "")));
+    }
+  };
+
+  const handleBulkDownload = () => {
+    selectedFileIds.forEach((id) => {
+      const a = document.createElement("a");
+      a.href = `/api/files/${id}`;
+      a.download = "true";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
+    toast.success("Started downloading selected files");
+  };
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Are you sure you want to delete ${selectedFileIds.size} files?`)) return;
+    setIsBulkDeleting(true);
+    try {
+      const promises = Array.from(selectedFileIds).map((id) =>
+        fetch(`/api/files/${id}`, { method: "DELETE" })
+      );
+      await Promise.all(promises);
+      toast.success(`${selectedFileIds.size} files deleted`);
+      setSelectedFileIds(new Set());
+      fetchFiles();
+    } catch {
+      toast.error("Failed to delete some files");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
   function formatBytes(bytes: number, decimals = 2) {
     if (bytes === 0) return "0 Bytes";
     const k = 1024;
@@ -197,14 +252,14 @@ export default function FilesPage() {
                 type="file"
                 accept=".pdf,.docx"
                 onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                className="h-10 cursor-pointer"
+                className="h-10 cursor-pointer bg-card"
                 disabled={isUploading}
               />
             </div>
             <div className="w-full sm:w-[180px] space-y-1.5">
               <Label htmlFor="upload-category" className="text-xs font-semibold">Category</Label>
               <Select value={uploadCategory} onValueChange={(v) => setUploadCategory(v || "resume")} disabled={isUploading}>
-                <SelectTrigger id="upload-category" className="h-10">
+                <SelectTrigger id="upload-category" className="h-10 bg-card">
                   <SelectValue>
                     {uploadCategory.toUpperCase()}
                   </SelectValue>
@@ -241,7 +296,7 @@ export default function FilesPage() {
               setSearch(e.target.value);
               setPage(1);
             }}
-            className="pl-9"
+            className="pl-9 bg-card"
           />
         </div>
         <Select
@@ -251,7 +306,7 @@ export default function FilesPage() {
             setPage(1);
           }}
         >
-          <SelectTrigger className="w-full sm:w-[200px]" id="category-filter">
+          <SelectTrigger className="w-full sm:w-[200px] bg-card" id="category-filter">
             <SelectValue>
               {categoryFilter === "all" ? "All Categories" : categoryFilter.toUpperCase()}
             </SelectValue>
@@ -266,6 +321,25 @@ export default function FilesPage() {
           </SelectContent>
         </Select>
       </div>
+
+      {/* Bulk Actions Bar */}
+      {selectedFileIds.size > 0 && (
+        <div className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-md">
+          <span className="text-sm font-medium text-primary">
+            {selectedFileIds.size} file(s) selected
+          </span>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleBulkDownload} className="bg-card">
+              <Download className="mr-2 h-4 w-4" />
+              Download Selected
+            </Button>
+            <Button variant="destructive" size="sm" onClick={handleBulkDelete} disabled={isBulkDeleting}>
+              {isBulkDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+              Delete Selected
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Files List */}
       {isLoading ? (
@@ -287,6 +361,15 @@ export default function FilesPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[50px]">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-border text-primary cursor-pointer accent-primary"
+                    checked={files.length > 0 && selectedFileIds.size === files.length}
+                    onChange={toggleAllFiles}
+                    title="Select All"
+                  />
+                </TableHead>
                 <TableHead>File Name</TableHead>
                 <TableHead className="w-[120px]">Category</TableHead>
                 <TableHead className="w-[100px]">Size</TableHead>
@@ -295,8 +378,19 @@ export default function FilesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {files.map((file) => (
-                <TableRow key={file.id || file._id}>
+              {files.map((file) => {
+                const fileId = file.id || file._id || "";
+                return (
+                <TableRow key={fileId} className={selectedFileIds.has(fileId) ? "bg-primary/5" : ""}>
+                  <TableCell>
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-border text-primary cursor-pointer accent-primary"
+                      checked={selectedFileIds.has(fileId)}
+                      onChange={() => toggleFileSelection(fileId)}
+                      title="Select File"
+                    />
+                  </TableCell>
                   <TableCell className="font-medium truncate max-w-[300px]">
                     <div className="flex items-center gap-2">
                       <File className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -313,14 +407,14 @@ export default function FilesPage() {
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1.5">
                       <Link
-                        href={`/files/${file.id || file._id}/preview`}
+                        href={`/files/${fileId}/preview`}
                         className={buttonVariants({ variant: "ghost", size: "icon", className: "h-8 w-8 text-muted-foreground justify-center" })}
                         title="Preview file"
                       >
                         <Eye className="h-4 w-4" />
                       </Link>
                       <a
-                        href={`/api/files/${file.id || file._id}`}
+                        href={`/api/files/${fileId}`}
                         download
                         title="Download file"
                         className={buttonVariants({ variant: "ghost", size: "icon", className: "h-8 w-8 justify-center" })}
@@ -331,7 +425,7 @@ export default function FilesPage() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        onClick={() => requestDelete(file.id || file._id || "")}
+                        onClick={() => requestDelete(fileId)}
                         title="Delete file"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -339,7 +433,8 @@ export default function FilesPage() {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
 
@@ -404,3 +499,4 @@ export default function FilesPage() {
     </div>
   );
 }
+

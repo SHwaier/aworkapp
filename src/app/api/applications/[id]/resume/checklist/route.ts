@@ -64,16 +64,16 @@ export async function POST(request: Request, { params }: RouteParams): Promise<N
     mongoIdSchema.parse(applicationId);
 
     const ip = getClientIp(request);
-    const rateLimit = checkRateLimit(`checklist-post:${session.id || ip}`, RATE_LIMITS.strict);
+    const rateLimit = checkRateLimit(`checklist-post:${session.id || ip}`, RATE_LIMITS.api);
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { success: false, error: "Too many requests." },
-        { status: 429, headers: rateLimitHeaders(rateLimit, RATE_LIMITS.strict) }
+        { status: 429, headers: rateLimitHeaders(rateLimit, RATE_LIMITS.api) }
       );
     }
 
     const body = await request.json().catch(() => ({}));
-    let { resumeText } = body as { resumeText?: string };
+    let { resumeText, mode = "all" } = body as { resumeText?: string, mode?: "static" | "ai" | "all" };
 
     await dbConnect();
 
@@ -188,7 +188,7 @@ export async function POST(request: Request, { params }: RouteParams): Promise<N
       resumeText,
       jobTitle: app.jobTitle,
       companyName,
-    });
+    }, mode);
 
     // Upsert checklist
     const score = computeScore(result.items.map((i) => ({ status: i.status || "not_started" })));
@@ -208,8 +208,19 @@ export async function POST(request: Request, { params }: RouteParams): Promise<N
         userIds.set(item.title, item._id);
       }
 
+      // Retain items from the other mode that we aren't regenerating right now
+      const retainedItems = checklist.items.filter((item) => {
+        const isAiItem = item.title.startsWith("🤖 AI:");
+        if (mode === "static" && isAiItem) return true;
+        if (mode === "ai" && !isAiItem) return true;
+        return false;
+      }).map(i => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return typeof (i as any).toObject === 'function' ? (i as any).toObject() : i;
+      });
+
       // Merge: keep user overrides and stable IDs
-      const mergedItems = result.items.map((item) => {
+      const newlyGeneratedItems = result.items.map((item) => {
         const prevId = userIds.get(item.title || "");
         const userStatus = userStatuses.get(item.title || "");
         const newItem = { ...item };
@@ -223,14 +234,20 @@ export async function POST(request: Request, { params }: RouteParams): Promise<N
         return newItem;
       });
 
+      const mergedItems = [...retainedItems, ...newlyGeneratedItems];
+
       checklist.items = mergedItems as IChecklistItemType[];
-      checklist.keywords = result.keywords as IChecklistKeywordType[];
+      if (mode !== "ai") {
+        checklist.keywords = result.keywords as IChecklistKeywordType[];
+      }
       checklist.overallScore = computeScore(
         mergedItems.map((i) => ({ status: i.status || "not_started" }))
       );
       checklist.lastAnalyzedAt = new Date();
       checklist.resumeVersionId = snapshot.baseResumeVersionId;
-      checklist.lastAnalyzedHash = currentHash;
+      if (mode === "all" || mode === "ai") {
+        checklist.lastAnalyzedHash = currentHash;
+      }
       await checklist.save();
     } else {
       checklist = await ResumeChecklist.create({
@@ -241,7 +258,7 @@ export async function POST(request: Request, { params }: RouteParams): Promise<N
         keywords: result.keywords,
         overallScore: score,
         lastAnalyzedAt: new Date(),
-        lastAnalyzedHash: currentHash,
+        lastAnalyzedHash: (mode === "all" || mode === "ai") ? currentHash : "",
       });
     }
 
