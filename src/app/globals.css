@@ -158,3 +158,8 @@
     @apply font-sans;
   }
 }
+
+/* Hide duplicate sonner Toaster injected by third-party libraries at the bottom right */
+[data-sonner-toaster="true"][data-yposition="bottom"][data-xposition="right"] {
+  display: none !important;
+}

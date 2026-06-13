@@ -13,6 +13,7 @@ export interface IResumeSnapshot extends Document {
   matchScore: number | null;
   manuallyEdited: boolean;
   promotedToBaseVersion: boolean;
+  isLocked: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -47,6 +48,7 @@ const ResumeSnapshotSchema = new Schema<IResumeSnapshot>(
     matchScore: { type: Number, default: null, min: 0, max: 100 },
     manuallyEdited: { type: Boolean, default: false },
     promotedToBaseVersion: { type: Boolean, default: false },
+    isLocked: { type: Boolean, default: false },
   },
   {
     timestamps: true,

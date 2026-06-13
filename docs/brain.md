@@ -122,6 +122,15 @@ AWorkApp is a modern, premium SaaS platform built on **Next.js** (using App Rout
 
 - Renamed the project from `ApplicationOS` to `AWorkApp` across PRD docs, CSS theme classes, shell layouts, metadata headers, and Nominatim API User-Agents.
 
+### O. Resume Checklist Modularization & DOCX Live Analysis
+
+- **Modular Architecture**: Replaced the monolithic checklist logic with a modular `ChecklistGenerationService` containing specialized analyzer classes (`ATSAnalyzer`, `BulletQualityAnalyzer`, etc.) for scalable resume evaluation.
+- **DOCX Extraction Fixes**: Resolved text extraction failures in the backend and frontend by implementing `jszip` to properly unzip DOCX binaries and parse `word/document.xml`.
+- **Live Version Analysis**: Updated the frontend `ResumeChecklist` component to accept a `getResumeText` callback. The checklist now accurately extracts and analyzes the current, live contents of the `@eigenpal/docx-editor-react` instead of analyzing the stale initial document load.
+- **Keyword Matching Upgrades**: Improved keyword detection heuristics (`wordBoundaryMatch`) to support complex multi-word keywords separated by spaces, hyphens, or underscores (e.g., "problem solving").
+- **Audit Logging Fixed**: Synchronized `AuditLog` enums with Mongoose schemas and resolved validation errors for new actions (`resume_snapshot.customized`, `checklist.generated`).
+- **Notification Deduplication**: Fixed an issue where the native DOCX editor silently mounted its own duplicate `<Toaster />` container. A global CSS override now visually hides any third-party injected bottom-right `sonner` notifications, unifying all alerts to the application's global top-right toaster.
+
 ---
 
 ## 3. Database Schema Overview

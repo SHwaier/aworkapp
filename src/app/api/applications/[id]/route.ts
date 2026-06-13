@@ -4,9 +4,11 @@ import Application from "@/models/Application";
 import TimelineEvent from "@/models/TimelineEvent";
 import Note from "@/models/Note";
 import { requireAuth } from "@/lib/auth/session";
+import ResumeSnapshot from "@/models/ResumeSnapshot";
 import {
   updateApplicationSchema,
   mongoIdSchema,
+  APPLICATION_STATUSES,
 } from "@/lib/validators/schemas";
 import {
   successResponse,
@@ -148,6 +150,16 @@ export async function PATCH(
         eventDate: new Date(),
         source: "system",
       });
+
+      // Lock resume snapshot if submitted
+      const statusIndex = APPLICATION_STATUSES.indexOf(validated.currentStatus as any);
+      const appliedIndex = APPLICATION_STATUSES.indexOf("Applied");
+      if (statusIndex >= appliedIndex) {
+        await ResumeSnapshot.updateMany(
+          { applicationId: id, userId: session.id, isLocked: false },
+          { $set: { isLocked: true } }
+        );
+      }
 
       await createAuditLog({
         userId: session.id,

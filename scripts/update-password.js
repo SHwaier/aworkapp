@@ -61,38 +61,35 @@ async function main() {
   const email = args[0];
   const newPassword = args[1];
 
+  const env = loadEnv();
+  const mongoUri = env.MONGODB_URI;
+
+  if (!mongoUri) {
+    console.error("Error: MONGODB_URI not found in .env.local");
+    process.exit(1);
+  }
+
   if (!email || !newPassword) {
     console.log("\x1b[36mUsage:\x1b[0m node scripts/update-password.js <email> <newPassword>");
     console.log(
       "\x1b[36mExample:\x1b[0m node scripts/update-password.js user@example.com NewPassword123"
     );
-
-    // Help out by showing the existing users if connected
-    const env = loadEnv();
-    const mongoUri = env.MONGODB_URI;
-    if (mongoUri) {
-      console.log("\nConnecting to database to retrieve current users...");
-      try {
-        await mongoose.connect(mongoUri);
-        const UserSchema = new mongoose.Schema(
-          {
-            email: { type: String, required: true, unique: true },
-          },
-          { collection: "users" }
-        );
-        const User = mongoose.models.User || mongoose.model("User", UserSchema);
-        const allUsers = await User.find({}, { email: 1 });
-        if (allUsers.length > 0) {
-          console.log("Available users in database:");
-          allUsers.forEach((u) => console.log(` - ${u.email}`));
-        } else {
-          console.log("No users found in the database.");
-        }
-      } catch (err) {
-        console.error("Could not fetch user list:", err.message);
-      } finally {
-        await mongoose.disconnect();
+    
+    console.log("\nConnecting to database to retrieve current users...");
+    try {
+      await mongoose.connect(mongoUri);
+      const usersCollection = mongoose.connection.db.collection("users");
+      const allUsers = await usersCollection.find({}, { projection: { email: 1 } }).toArray();
+      if (allUsers.length > 0) {
+        console.log("Available users in database:");
+        allUsers.forEach((u) => console.log(` - ${u.email}`));
+      } else {
+        console.log("No users found in the database.");
       }
+    } catch (err) {
+      console.error("Could not fetch user list:", err.message);
+    } finally {
+      await mongoose.disconnect();
     }
     process.exit(1);
   }
@@ -105,39 +102,23 @@ async function main() {
     process.exit(1);
   }
 
-  const env = loadEnv();
-  const mongoUri = env.MONGODB_URI;
-
-  if (!mongoUri) {
-    console.error("Error: MONGODB_URI not found in .env.local");
-    process.exit(1);
-  }
-
   console.log("Connecting to MongoDB...");
   try {
     await mongoose.connect(mongoUri);
     console.log("Connected successfully.");
 
-    // Define simple schema to match the collection
-    const UserSchema = new mongoose.Schema(
-      {
-        email: { type: String, required: true, unique: true },
-        passwordHash: { type: String, required: true },
-      },
-      { collection: "users" }
-    );
+    const usersCollection = mongoose.connection.db.collection("users");
 
-    const User = mongoose.models.User || mongoose.model("User", UserSchema);
-
-    // Find user by lowercase email
+    // Find user by case-insensitive email matching
     const targetEmail = email.toLowerCase().trim();
-    const user = await User.findOne({ email: targetEmail });
+    const emailRegex = new RegExp("^" + targetEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&") + "$", "i");
+    const user = await usersCollection.findOne({ email: emailRegex });
 
     if (!user) {
       console.error(
         `\x1b[31mError:\x1b[0m User with email "${targetEmail}" not found in database.`
       );
-      const allUsers = await User.find({}, { email: 1 });
+      const allUsers = await usersCollection.find({}, { projection: { email: 1 } }).toArray();
       if (allUsers.length > 0) {
         console.log("Available users in database:");
         allUsers.forEach((u) => console.log(` - ${u.email}`));
@@ -147,14 +128,28 @@ async function main() {
       process.exit(1);
     }
 
-    console.log(`Hashing new password for ${targetEmail}...`);
+    console.log(`Hashing new password for ${user.email}...`);
     const passwordHash = await bcrypt.hash(newPassword, 12);
-
+    console.log(passwordHash);
+    console.log(user.email);
+    console.log(user._id);
+    console.log(newPassword);
     console.log("Updating password hash in database...");
-    user.passwordHash = passwordHash;
-    await user.save();
+    const result = await usersCollection.updateOne(
+      { _id: user._id },
+      { 
+        $set: { 
+          passwordHash: passwordHash,
+          updatedAt: new Date()
+        } 
+      }
+    );
 
-    console.log(`\x1b[32mSuccess:\x1b[0m Password updated successfully for user "${targetEmail}".`);
+    if (result.modifiedCount === 0) {
+      console.warn("Warning: Database reported 0 documents modified.");
+    }
+
+    console.log(`\x1b[32mSuccess:\x1b[0m Password updated successfully for user "${user.email}".`);
   } catch (error) {
     console.error("An error occurred:", error);
     process.exit(1);

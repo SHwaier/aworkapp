@@ -6,8 +6,8 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
+import { ResumeChecklist } from "@/components/resume-checklist/resume-checklist";
 import type { DocxEditorRef } from "@eigenpal/docx-editor-react";
 import "@eigenpal/docx-editor-react/styles.css";
 import {
@@ -17,8 +17,6 @@ import {
   RotateCcw,
   Building2,
   FileText,
-  Briefcase,
-  Lightbulb,
   Maximize2,
   Minimize2,
   PanelLeftClose,
@@ -59,8 +57,7 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
   const [saving, setSaving] = useState(false);
   const [data, setData] = useState<ResumeData | null>(null);
   const [docBuffer, setDocBuffer] = useState<ArrayBuffer | null>(null);
-  const [customKeywords, setCustomKeywords] = useState<string[]>([]);
-  const [keywordInput, setKeywordInput] = useState("");
+  const [resumeText, setResumeText] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
   const [editorKey, setEditorKey] = useState(0);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -252,18 +249,38 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
     }
   };
 
-  const addKeyword = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!keywordInput.trim()) return;
-    if (!customKeywords.includes(keywordInput.trim())) {
-      setCustomKeywords([...customKeywords, keywordInput.trim()]);
+  // Extract plain text from the editor for checklist analysis
+  const extractResumeText = useCallback(async (): Promise<string> => {
+    if (!editorRef.current) return "";
+    try {
+      const buffer = await editorRef.current.save();
+      if (!buffer) return "";
+      // Decode the DOCX buffer to extract text content
+      const JSZip = (await import("jszip")).default;
+      const zip = await JSZip.loadAsync(buffer);
+      const documentXml = zip.file("word/document.xml");
+      if (!documentXml) return "";
+      const rawText = await documentXml.async("text");
+      // Strip XML tags to get plain text
+      const plainText = rawText.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      if (plainText.length > 50) {
+        setResumeText(plainText);
+        return plainText;
+      }
+    } catch {
+      // Silent — extraction is best-effort
     }
-    setKeywordInput("");
-  };
+    return "";
+  }, []);
 
-  const removeKeyword = (kw: string) => {
-    setCustomKeywords(customKeywords.filter((k) => k !== kw));
-  };
+  // Extract text after initial load
+  useEffect(() => {
+    if (docBuffer && !resumeText) {
+      // Wait for editor to mount, then extract
+      const timer = setTimeout(extractResumeText, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [docBuffer, resumeText, extractResumeText]);
 
   if (loading) {
     return (
@@ -431,81 +448,18 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
 
       {/* Editor Body */}
       <div className="grow flex flex-col md:flex-row min-h-0">
-        {/* Left Side: Job Description Reference Panel */}
+        {/* Left Side: Resume Checklist Sidebar */}
         <aside
-          className={`w-full md:w-[35%] border-r border-border bg-muted/10 p-5 overflow-y-auto space-y-6 shrink-0 transition-all duration-300 ${isMaximized || sidebarCollapsed ? "hidden" : "hidden md:block"}`}
+          className={`w-full md:w-[35%] border-r border-border bg-muted/10 p-5 overflow-y-auto shrink-0 transition-all duration-300 ${isMaximized || sidebarCollapsed ? "hidden" : "hidden md:block"}`}
         >
-          <div className="space-y-3">
-            <h3 className="text-sm font-bold flex items-center gap-2 text-foreground">
-              <Briefcase className="h-4 w-4 text-primary" />
-              Job Details
-            </h3>
-            <div className="text-xs space-y-1 bg-background p-4 rounded-xl border border-border/60">
-              <p>
-                <span className="font-bold text-foreground">Role:</span> {data?.jobTitle}
-              </p>
-              <p>
-                <span className="font-bold text-foreground">Company:</span> {data?.companyName}
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <h3 className="text-sm font-bold flex items-center gap-2 text-foreground">
-              <Lightbulb className="h-4 w-4 text-primary" />
-              Tailoring Checklist
-            </h3>
-            <Card className="border-border/60">
-              <CardContent className="p-4 space-y-4">
-                <form onSubmit={addKeyword} className="flex gap-2">
-                  <input
-                    type="text"
-                    value={keywordInput}
-                    onChange={(e) => setKeywordInput(e.target.value)}
-                    placeholder="Add target skill/keyword..."
-                    className="grow text-xs px-2.5 py-1.5 rounded-md border border-input bg-background outline-none focus:ring-1 focus:ring-primary"
-                  />
-                  <Button type="submit" size="sm" className="h-8">
-                    Add
-                  </Button>
-                </form>
-
-                <div className="flex flex-wrap gap-1.5">
-                  {customKeywords.length === 0 && (
-                    <p className="text-[11px] text-muted-foreground italic">
-                      Add core keywords from the job description here to check them off as you
-                      inject them.
-                    </p>
-                  )}
-                  {customKeywords.map((kw, i) => (
-                    <Badge
-                      key={i}
-                      variant="outline"
-                      className="text-[10px] pl-2 pr-1 py-0.5 flex items-center gap-1 cursor-pointer hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20 transition-all"
-                      onClick={() => removeKeyword(kw)}
-                    >
-                      {kw}
-                      <span className="font-bold text-[9px] opacity-60">×</span>
-                    </Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="space-y-3">
-            <h3 className="text-sm font-bold flex items-center gap-2 text-foreground">
-              <FileText className="h-4 w-4 text-primary" />
-              Job Description
-            </h3>
-            <Card className="border-border/60 bg-background max-h-[300px] overflow-y-auto">
-              <CardContent className="p-4 text-xs whitespace-pre-wrap text-muted-foreground leading-relaxed">
-                {data?.jobDescription || (
-                  <span className="italic">No job description available for this application.</span>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+          <ResumeChecklist
+            applicationId={applicationId}
+            resumeText={resumeText}
+            jobDescription={data?.jobDescription || ""}
+            jobTitle={data?.jobTitle || ""}
+            companyName={data?.companyName || ""}
+            getResumeText={extractResumeText}
+          />
         </aside>
 
         {/* Right Side: DOCX Editor */}

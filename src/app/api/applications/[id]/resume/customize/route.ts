@@ -59,6 +59,7 @@ export async function GET(
 
     // Find resume snapshot
     const snapshot = await ResumeSnapshot.findOne({ applicationId, userId: session.id })
+      .sort({ createdAt: -1 })
       .populate("baseResumeVersionId")
       .populate("finalSubmittedFileId");
 
@@ -129,9 +130,29 @@ export async function POST(
     }
 
     // Find resume snapshot
-    const snapshot = await ResumeSnapshot.findOne({ applicationId, userId: session.id });
+    let snapshot = await ResumeSnapshot.findOne({ applicationId, userId: session.id }).sort({ createdAt: -1 });
     if (!snapshot) {
       return errorResponse("No resume assigned to this application", 400);
+    }
+
+    if (snapshot.isLocked) {
+      // Create a new snapshot for editing
+      const newSnapshot = new ResumeSnapshot({
+        userId: snapshot.userId,
+        applicationId: snapshot.applicationId,
+        baseResumeVersionId: snapshot.baseResumeVersionId,
+        finalSubmittedFileId: snapshot.finalSubmittedFileId,
+        tailoringNotes: snapshot.tailoringNotes,
+        aiGeneratedChangeSummary: snapshot.aiGeneratedChangeSummary,
+        keywordsAdded: snapshot.keywordsAdded,
+        keywordsMissing: snapshot.keywordsMissing,
+        matchScore: snapshot.matchScore,
+        manuallyEdited: snapshot.manuallyEdited,
+        promotedToBaseVersion: snapshot.promotedToBaseVersion,
+        isLocked: false,
+      });
+      await newSnapshot.save();
+      snapshot = newSnapshot;
     }
 
     const companyName = (app.companyId as any)?.name || "Company";
@@ -160,7 +181,8 @@ export async function POST(
     }
 
     // Check if there was a previous customized file that should be deleted
-    const oldCustomFileId = snapshot.finalSubmittedFileId;
+    // Only delete if we didn't just clone from a locked snapshot
+    const oldCustomFileId = snapshot.isNew ? null : snapshot.finalSubmittedFileId;
 
     // Create DB entry for the new file
     const fileDoc = await File.create({
@@ -181,8 +203,8 @@ export async function POST(
     snapshot.manuallyEdited = true;
     await snapshot.save();
 
-    // Physically delete old customized file if it exists
-    if (oldCustomFileId) {
+    // Physically delete old customized file if it exists and wasn't locked
+    if (oldCustomFileId && !snapshot.isNew) {
       const oldFile = await File.findOne({ _id: oldCustomFileId, userId: session.id }).select("+storageKey");
       if (oldFile) {
         await File.deleteOne({ _id: oldFile._id });

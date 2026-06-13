@@ -20,6 +20,13 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Features
+- **Application Tracking**: Manage application lifecycle stages in List or interactive Kanban Board views.
+- **Native DOCX Editor**: Edit tailored resumes directly in the browser with full Microsoft Word formatting preservation (via `@eigenpal/docx-editor-react`).
+- **Live Resume Analysis**: Modular checklist analyzer evaluates your live resume against the job description for ATS formatting, action verbs, and keyword matching.
+- **Analytics Dashboard**: Automatic calculations of interview success rates, active applications, and lifecycle conversions.
+- **Company Tracking**: Rate and track companies with "Do Not Apply" list integration.
+
 ## Google OAuth Setup
 
 This application supports production-grade Google Authentication. To enable "Sign in with Google" on the login and registration pages, configure the following credentials in your `.env.local` file:

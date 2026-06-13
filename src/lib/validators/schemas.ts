@@ -438,3 +438,43 @@ export type PaginationInput = z.infer<typeof paginationSchema>;
 // ============================================
 
 export const mongoIdSchema = z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid ID format");
+
+// ============================================
+// Resume Checklist Schemas
+// ============================================
+
+export const CHECKLIST_CATEGORIES = [
+  "job_match",
+  "ats_formatting",
+  "header",
+  "education",
+  "skills",
+  "projects",
+  "experience",
+  "bullet_quality",
+  "action_verbs",
+  "final_review",
+] as const;
+
+export const CHECKLIST_STATUSES = [
+  "not_started",
+  "in_progress",
+  "complete",
+  "needs_review",
+  "ignored",
+  "not_applicable",
+] as const;
+
+export const CHECKLIST_SEVERITIES = [
+  "info",
+  "suggestion",
+  "warning",
+  "critical",
+] as const;
+
+export const updateChecklistItemSchema = z.object({
+  status: z.enum(CHECKLIST_STATUSES),
+});
+
+export type UpdateChecklistItemInput = z.infer<typeof updateChecklistItemSchema>;
+
