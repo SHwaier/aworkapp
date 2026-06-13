@@ -7,17 +7,8 @@ import File from "@/models/File";
 import { createAuditLog } from "@/models/AuditLog";
 import { requireAuth } from "@/lib/auth/session";
 import { mongoIdSchema } from "@/lib/validators/schemas";
-import {
-  successResponse,
-  errorResponse,
-  handleApiError,
-} from "@/lib/api/response";
-import {
-  checkRateLimit,
-  getClientIp,
-  RATE_LIMITS,
-  rateLimitHeaders,
-} from "@/lib/rate-limit";
+import { successResponse, errorResponse, handleApiError } from "@/lib/api/response";
+import { checkRateLimit, getClientIp, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
 import { analyzeResume, computeScore } from "@/lib/services/checklist";
 
 interface RouteParams {
@@ -28,10 +19,7 @@ interface RouteParams {
  * GET /api/applications/:id/resume/checklist
  * Returns the existing checklist for this application.
  */
-export async function GET(
-  request: Request,
-  { params }: RouteParams
-): Promise<NextResponse> {
+export async function GET(request: Request, { params }: RouteParams): Promise<NextResponse> {
   try {
     const session = await requireAuth();
     const { id: applicationId } = await params;
@@ -69,10 +57,7 @@ export async function GET(
  * Body: { resumeText?: string }
  * If resumeText is not provided, the server reads the DOCX file and extracts text.
  */
-export async function POST(
-  request: Request,
-  { params }: RouteParams
-): Promise<NextResponse> {
+export async function POST(request: Request, { params }: RouteParams): Promise<NextResponse> {
   try {
     const session = await requireAuth();
     const { id: applicationId } = await params;
@@ -154,7 +139,10 @@ export async function POST(
               const documentXml = zip.file("word/document.xml");
               if (documentXml) {
                 const text = await documentXml.async("text");
-                const xmlText = text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+                const xmlText = text
+                  .replace(/<[^>]+>/g, " ")
+                  .replace(/\s+/g, " ")
+                  .trim();
                 if (xmlText.length > 50) {
                   resumeText = xmlText;
                 }
@@ -176,7 +164,8 @@ export async function POST(
       resumeText = resumeText.slice(0, 50000);
     }
 
-    const companyName = ((app.companyId as unknown as Record<string, unknown>)?.name as string) || "Company";
+    const companyName =
+      ((app.companyId as unknown as Record<string, unknown>)?.name as string) || "Company";
 
     // Hash calculation to prevent redundant analysis
     const crypto = await import("crypto");
@@ -206,7 +195,11 @@ export async function POST(
 
     if (checklist) {
       // Preserve user-set statuses and IDs for items that still exist
-      const userStatuses = new Map<string, string>();
+      const userStatuses = new Map<
+        string,
+        "not_started" | "in_progress" | "complete" | "needs_review" | "ignored" | "not_applicable"
+      >();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const userIds = new Map<string, any>();
       for (const item of checklist.items) {
         if (["complete", "ignored", "not_applicable"].includes(item.status)) {
@@ -221,17 +214,20 @@ export async function POST(
         const userStatus = userStatuses.get(item.title || "");
         const newItem = { ...item };
         if (prevId) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (newItem as any)._id = prevId;
         }
         if (userStatus) {
-          newItem.status = userStatus as any;
+          newItem.status = userStatus;
         }
         return newItem;
       });
 
       checklist.items = mergedItems as IChecklistItemType[];
       checklist.keywords = result.keywords as IChecklistKeywordType[];
-      checklist.overallScore = computeScore(mergedItems.map((i) => ({ status: i.status || "not_started" })));
+      checklist.overallScore = computeScore(
+        mergedItems.map((i) => ({ status: i.status || "not_started" }))
+      );
       checklist.lastAnalyzedAt = new Date();
       checklist.resumeVersionId = snapshot.baseResumeVersionId;
       checklist.lastAnalyzedHash = currentHash;
