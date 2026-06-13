@@ -209,6 +209,10 @@ export async function POST(
       await snapshot.save();
     }
 
+    if (!targetStorageKey) {
+      throw new Error("Failed to determine target storage key for the customized resume.");
+    }
+
     // Write file to storage using the determined storage key
     if (provider === "s3" || provider === "r2") {
       const { uploadToS3 } = await import("@/lib/storage/s3");
