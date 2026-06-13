@@ -6,6 +6,7 @@ import { HeaderAnalyzer } from "./analyzers/header-analyzer";
 import { SectionAnalyzer } from "./analyzers/section-analyzer";
 import { BulletQualityAnalyzer } from "./analyzers/bullet-quality-analyzer";
 import { FinalReviewAnalyzer } from "./analyzers/final-review-analyzer";
+import { AIAnalyzer } from "./analyzers/ai-analyzer";
 
 export class ChecklistGenerationService {
   private analyzers: ChecklistAnalyzer[];
@@ -18,17 +19,20 @@ export class ChecklistGenerationService {
       new SectionAnalyzer(),
       new BulletQualityAnalyzer(),
       new FinalReviewAnalyzer(),
+      new AIAnalyzer(),
     ];
   }
 
-  public analyze(input: AnalysisInput): AnalysisResult {
+  public async analyze(input: AnalysisInput): Promise<AnalysisResult> {
     const { jobDescription, resumeText } = input;
     
     // Extract keywords
     const keywords = extractKeywords(jobDescription, resumeText);
     
-    // Run all analyzers
-    const items = this.analyzers.flatMap((analyzer) => analyzer.analyze(input, keywords));
+    // Run all analyzers concurrently
+    const itemsPromises = this.analyzers.map((analyzer) => analyzer.analyze(input, keywords));
+    const itemsArrays = await Promise.all(itemsPromises);
+    const items = itemsArrays.flat();
 
     return { items, keywords };
   }

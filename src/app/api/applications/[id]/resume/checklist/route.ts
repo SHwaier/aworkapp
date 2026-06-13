@@ -176,9 +176,25 @@ export async function POST(
       resumeText = resumeText.slice(0, 50000);
     }
 
-    // Run analysis
     const companyName = ((app.companyId as unknown as Record<string, unknown>)?.name as string) || "Company";
-    const result = analyzeResume({
+
+    // Hash calculation to prevent redundant analysis
+    const crypto = await import("crypto");
+    const hashPayload = `${resumeText}|${app.jobDescription || ""}`;
+    const currentHash = crypto.createHash("sha256").update(hashPayload).digest("hex");
+
+    let checklist = await ResumeChecklist.findOne({
+      applicationId,
+      userId: session.id,
+    });
+
+    if (checklist && checklist.lastAnalyzedHash === currentHash) {
+      // Early return to prevent abuse / unnecessary AI calls
+      return successResponse({ checklist });
+    }
+
+    // Run analysis
+    const result = await analyzeResume({
       jobDescription: app.jobDescription || "",
       resumeText,
       jobTitle: app.jobTitle,
@@ -187,11 +203,6 @@ export async function POST(
 
     // Upsert checklist
     const score = computeScore(result.items.map((i) => ({ status: i.status || "not_started" })));
-
-    let checklist = await ResumeChecklist.findOne({
-      applicationId,
-      userId: session.id,
-    });
 
     if (checklist) {
       // Preserve user-set statuses and IDs for items that still exist
@@ -213,7 +224,7 @@ export async function POST(
           (newItem as any)._id = prevId;
         }
         if (userStatus) {
-          newItem.status = userStatus;
+          newItem.status = userStatus as any;
         }
         return newItem;
       });
@@ -223,6 +234,7 @@ export async function POST(
       checklist.overallScore = computeScore(mergedItems.map((i) => ({ status: i.status || "not_started" })));
       checklist.lastAnalyzedAt = new Date();
       checklist.resumeVersionId = snapshot.baseResumeVersionId;
+      checklist.lastAnalyzedHash = currentHash;
       await checklist.save();
     } else {
       checklist = await ResumeChecklist.create({
@@ -233,6 +245,7 @@ export async function POST(
         keywords: result.keywords,
         overallScore: score,
         lastAnalyzedAt: new Date(),
+        lastAnalyzedHash: currentHash,
       });
     }
 

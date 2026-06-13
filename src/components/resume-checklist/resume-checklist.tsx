@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -124,6 +124,7 @@ export function ResumeChecklist({
   const [activeTab, setActiveTab] = useState("all");
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [showKeywords, setShowKeywords] = useState(false);
+  const lastAnalyzedTextRef = useRef<string | null>(null);
 
   // Load existing checklist
   const loadChecklist = useCallback(async () => {
@@ -149,6 +150,13 @@ export function ResumeChecklist({
     setAnalyzing(true);
     try {
       const textToAnalyze = getResumeText ? await getResumeText() : resumeText;
+      
+      if (lastAnalyzedTextRef.current === textToAnalyze) {
+        toast.info("No changes detected in the resume since the last analysis.");
+        setAnalyzing(false);
+        return;
+      }
+
       const res = await fetch(`/api/applications/${applicationId}/resume/checklist`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -157,6 +165,7 @@ export function ResumeChecklist({
       const data = await res.json();
       if (data.success && data.data?.checklist) {
         setChecklist(data.data.checklist);
+        lastAnalyzedTextRef.current = textToAnalyze;
         toast.success("Resume analyzed successfully");
       } else {
         toast.error(data.error || "Analysis failed");

@@ -3,7 +3,7 @@ import { AnalysisInput, AnalysisResult } from "./checklist/types";
 
 const service = new ChecklistGenerationService();
 
-export function analyzeResume(input: AnalysisInput): AnalysisResult {
+export async function analyzeResume(input: AnalysisInput): Promise<AnalysisResult> {
   return service.analyze(input);
 }
 
