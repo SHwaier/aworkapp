@@ -282,7 +282,10 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
       if (!documentXml) return "";
       const rawText = await documentXml.async("text");
       // Strip XML tags to get plain text
-      const plainText = rawText.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      const plainText = rawText
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
       if (plainText.length > 50) {
         setResumeText(plainText);
         return plainText;
@@ -313,9 +316,7 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
   return (
     <div
       className={`flex flex-col bg-background overflow-hidden transition-all duration-200 ${
-        isMaximized
-          ? "fixed inset-0 z-50 h-screen"
-          : "flex-1 min-h-0"
+        isMaximized ? "fixed inset-0 z-50 h-screen" : "flex-1 min-h-0"
       }`}
     >
       {/* Isolate DocxEditor from Tailwind preflight resets and Dark Mode */}
@@ -502,7 +503,7 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
       <div className="grow flex flex-col md:flex-row min-h-0">
         {/* Left Side: Resume Checklist Sidebar */}
         <aside
-          className={`w-full md:w-[35%] border-r border-border bg-muted/10 p-5 overflow-y-auto shrink-0 transition-all duration-300 ${isMaximized || sidebarCollapsed ? "hidden" : "hidden md:block"}`}
+          className={`w-full md:w-[35%] max-w-sm border-r border-border bg-muted/10 p-5 overflow-y-auto shrink-0 transition-all duration-300 ${isMaximized || sidebarCollapsed ? "hidden" : "hidden md:block"}`}
         >
           <ResumeChecklist
             applicationId={applicationId}

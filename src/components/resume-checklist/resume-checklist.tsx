@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import {
   Target,
@@ -119,6 +118,18 @@ const STATUS_LABELS: Record<string, string> = {
   not_applicable: "N/A",
 };
 
+const STATUS_BADGE_STYLES: Record<string, string> = {
+  not_started: "",
+  in_progress:
+    "text-blue-700 border-blue-300 bg-blue-50 dark:text-blue-400 dark:border-blue-500/30 dark:bg-blue-500/10",
+  needs_review:
+    "text-amber-700 border-amber-300 bg-amber-50 dark:text-amber-400 dark:border-amber-500/30 dark:bg-amber-500/10",
+  complete:
+    "text-emerald-700 border-emerald-300 bg-emerald-50 dark:text-emerald-400 dark:border-emerald-500/30 dark:bg-emerald-500/10",
+  ignored: "text-muted-foreground border-border/40 bg-muted/20",
+  not_applicable: "text-muted-foreground border-border/40 bg-muted/20",
+};
+
 // ─── Component ───
 
 export function ResumeChecklist({
@@ -133,7 +144,7 @@ export function ResumeChecklist({
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
   const [aiAnalyzing, setAiAnalyzing] = useState(false);
-  const [activeTab, setActiveTab] = useState("all");
+
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [showKeywords, setShowKeywords] = useState(false);
   const lastAnalyzedTextRef = useRef<string | null>(null);
@@ -246,30 +257,8 @@ export function ResumeChecklist({
     });
   };
 
-  // Filter items by active tab
-  const filteredItems =
-    checklist?.items.filter((item) => activeTab === "all" || item.category === activeTab) || [];
-
-  // Category counts
-  const categoryCounts =
-    checklist?.items.reduce(
-      (acc, item) => {
-        acc[item.category] = (acc[item.category] || 0) + 1;
-        return acc;
-      },
-      {} as Record<string, number>
-    ) || {};
-
-  const categoryIssueCounts =
-    checklist?.items.reduce(
-      (acc, item) => {
-        if (!["complete", "ignored", "not_applicable"].includes(item.status)) {
-          acc[item.category] = (acc[item.category] || 0) + 1;
-        }
-        return acc;
-      },
-      {} as Record<string, number>
-    ) || {};
+  // All items (no tab filtering — dropdowns handle grouping)
+  const allItems = checklist?.items || [];
 
   // Stats
   const stats = {
@@ -301,8 +290,8 @@ export function ResumeChecklist({
     total: checklist?.keywords.length || 0,
   };
 
-  // Group filtered items by category
-  const itemsByCategory = filteredItems.reduce(
+  // Group all items by category
+  const itemsByCategory = allItems.reduce(
     (acc, item) => {
       if (!acc[item.category]) {
         acc[item.category] = [];
@@ -351,7 +340,7 @@ export function ResumeChecklist({
           </div>
           <div>
             <h3 className="text-sm font-bold">Resume Checklist</h3>
-            <p className="text-xs text-muted-foreground mt-1 max-w-[220px] mx-auto">
+            <p className="text-xs text-muted-foreground mt-1 max-w-[80%] mx-auto">
               Analyze your resume against this job description to get tailored improvement
               suggestions.
             </p>
@@ -414,7 +403,7 @@ export function ResumeChecklist({
             size="sm"
             onClick={runAnalysis}
             disabled={analyzing || aiAnalyzing}
-            className="h-7 px-2.5 text-[10px] flex items-center gap-1.5 hover:bg-muted/80"
+            className="h-7 px-2.5 text-xs flex items-center gap-1.5 hover:bg-muted/80"
           >
             {analyzing || aiAnalyzing ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -434,35 +423,44 @@ export function ResumeChecklist({
               {stats.completed}/{checklist.items.length} items
             </span>
           </div>
-          <Progress value={checklist.overallScore} className="h-1.5" />
+          <Progress value={checklist.overallScore} className="h-2" />
         </div>
 
         {/* Quick Stats */}
         <div className="flex gap-2 text-[10px]">
-          {stats.critical > 0 && (
-            <Badge
-              variant="outline"
-              className="text-red-600 border-red-200 bg-red-50 dark:bg-red-500/10 dark:border-red-500/20 py-0 px-1.5"
-            >
-              {stats.critical} critical
-            </Badge>
-          )}
-          {stats.warnings > 0 && (
-            <Badge
-              variant="outline"
-              className="text-amber-600 border-amber-200 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/20 py-0 px-1.5"
-            >
-              {stats.warnings} warning{stats.warnings !== 1 ? "s" : ""}
-            </Badge>
-          )}
-          {stats.suggestions > 0 && (
-            <Badge
-              variant="outline"
-              className="text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-500/10 dark:border-blue-500/20 py-0 px-1.5"
-            >
-              {stats.suggestions} suggestion{stats.suggestions !== 1 ? "s" : ""}
-            </Badge>
-          )}
+          <Badge
+            variant="outline"
+            className={cn(
+              "py-0 px-1.5",
+              stats.critical > 0
+                ? "text-red-600 border-red-200 bg-red-50 dark:bg-red-500/10 dark:border-red-500/20"
+                : "text-muted-foreground/50 border-border/30 bg-transparent opacity-50"
+            )}
+          >
+            {stats.critical} critical
+          </Badge>
+          <Badge
+            variant="outline"
+            className={cn(
+              "py-0 px-1.5",
+              stats.warnings > 0
+                ? "text-amber-600 border-amber-200 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/20"
+                : "text-muted-foreground/50 border-border/30 bg-transparent opacity-50"
+            )}
+          >
+            {stats.warnings} warning{stats.warnings !== 1 ? "s" : ""}
+          </Badge>
+          <Badge
+            variant="outline"
+            className={cn(
+              "py-0 px-1.5",
+              stats.suggestions > 0
+                ? "text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-500/10 dark:border-blue-500/20"
+                : "text-muted-foreground/50 border-border/30 bg-transparent opacity-50"
+            )}
+          >
+            {stats.suggestions} suggestion{stats.suggestions !== 1 ? "s" : ""}
+          </Badge>
         </div>
       </div>
 
@@ -477,16 +475,19 @@ export function ResumeChecklist({
       {/* Keyword Summary Toggle */}
       <button
         onClick={() => setShowKeywords(!showKeywords)}
-        className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-muted/40 hover:bg-muted/60 transition-colors text-xs"
+        className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-card border border-border/60 shadow-sm hover:bg-muted/30 transition-colors text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
       >
-        <span className="font-semibold flex items-center gap-1.5">
-          <Target className="h-3.5 w-3.5 text-primary" />
-          Keywords: {keywordStats.matched}/{keywordStats.total} matched
-        </span>
+        <div className="flex items-center gap-2">
+          <Target className="h-4 w-4 text-primary shrink-0" />
+          <span className="font-semibold">Keywords</span>
+          <span className="text-muted-foreground font-normal">
+            {keywordStats.matched}/{keywordStats.total} matched
+          </span>
+        </div>
         {showKeywords ? (
-          <ChevronDown className="h-3.5 w-3.5" />
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
         ) : (
-          <ChevronRight className="h-3.5 w-3.5" />
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
         )}
       </button>
 
@@ -513,54 +514,6 @@ export function ResumeChecklist({
         </div>
       )}
 
-      {/* Category Tabs */}
-      <ScrollArea className="w-full">
-        <div className="flex gap-1 pb-1">
-          <button
-            onClick={() => setActiveTab("all")}
-            className={cn(
-              "px-2 py-1 rounded-md text-[10px] font-semibold whitespace-nowrap transition-all",
-              activeTab === "all"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "bg-muted/40 text-muted-foreground hover:bg-muted/60"
-            )}
-          >
-            All ({checklist.items.length})
-          </button>
-          {Object.entries(CATEGORY_CONFIG)
-            .filter(([key]) => (categoryCounts[key] || 0) > 0)
-            .sort(([keyA], [keyB]) => {
-              const issuesA = categoryIssueCounts[keyA] || 0;
-              const issuesB = categoryIssueCounts[keyB] || 0;
-              if (issuesA > 0 && issuesB === 0) return -1;
-              if (issuesA === 0 && issuesB > 0) return 1;
-              return 0;
-            })
-            .map(([key, config]) => {
-              const issues = categoryIssueCounts[key] || 0;
-              return (
-                <button
-                  key={key}
-                  onClick={() => setActiveTab(key)}
-                  className={cn(
-                    "px-2 py-1 rounded-md text-[10px] font-semibold whitespace-nowrap transition-all flex items-center gap-1",
-                    activeTab === key
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "bg-muted/40 text-muted-foreground hover:bg-muted/60"
-                  )}
-                >
-                  {config.label}
-                  {issues > 0 && activeTab !== key && (
-                    <span className="bg-amber-500/20 text-amber-700 dark:text-amber-400 rounded-full px-1 text-[9px]">
-                      {issues}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-        </div>
-      </ScrollArea>
-
       {/* Checklist Items */}
       <div className="space-y-3">
         {categoriesToRender.map((category) => {
@@ -575,22 +528,24 @@ export function ResumeChecklist({
           return (
             <div
               key={category}
-              className="space-y-1.5 border border-border/40 rounded-lg p-2 bg-muted/5"
+              className="rounded-lg border border-border/60 bg-card shadow-sm overflow-hidden"
             >
               {/* Category Header (Dropdown toggle) */}
               <button
                 onClick={() => toggleCategory(category)}
-                className="w-full flex items-center justify-between px-2 py-1.5 rounded-md hover:bg-muted/40 transition-colors text-xs font-semibold"
+                className="w-full flex items-center justify-between px-3 py-2.5 bg-muted/30 hover:bg-muted/50 transition-colors text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
               >
                 <div className="flex items-center gap-2">
                   <IconComponent className="h-4 w-4 text-primary shrink-0" />
-                  <span>
-                    {config.label} ({items.length})
-                  </span>
+                  <span>{config.label}</span>
+                  <span className="text-muted-foreground font-normal">({items.length})</span>
                   {remainingIssues > 0 && (
-                    <span className="bg-amber-500/20 text-amber-700 dark:text-amber-400 rounded-full px-1.5 py-0.5 text-[9px] font-bold">
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] py-0 px-1.5 bg-amber-500/15 text-amber-700 border-amber-300 dark:text-amber-400 dark:border-amber-500/30 dark:bg-amber-500/10"
+                    >
                       {remainingIssues} left
-                    </span>
+                    </Badge>
                   )}
                 </div>
                 {isCollapsed ? (
@@ -600,136 +555,141 @@ export function ResumeChecklist({
                 )}
               </button>
 
-              {/* Items in Category */}
-              {!isCollapsed && (
-                <div className="space-y-1.5 mt-1.5">
-                  {items.map((item) => {
-                    const sevConfig = SEVERITY_CONFIG[item.severity] || SEVERITY_CONFIG.info;
-                    const SevIcon = sevConfig.icon;
-                    const isDone = ["complete", "ignored", "not_applicable"].includes(item.status);
-                    const isExpanded = expandedItems.has(item.id);
+              {/* Items in Category — CSS grid animation for smooth collapse */}
+              <div
+                className="grid transition-[grid-template-rows] duration-200 ease-out"
+                style={{ gridTemplateRows: isCollapsed ? "0fr" : "1fr" }}
+              >
+                <div className="overflow-hidden">
+                  <div className="space-y-1.5 p-2 pt-1.5">
+                    {items.map((item) => {
+                      const sevConfig = SEVERITY_CONFIG[item.severity] || SEVERITY_CONFIG.info;
+                      const SevIcon = sevConfig.icon;
+                      const isDone = ["complete", "ignored", "not_applicable"].includes(
+                        item.status
+                      );
+                      const isExpanded = expandedItems.has(item.id);
 
-                    return (
-                      <div
-                        key={item.id}
-                        className={cn(
-                          "rounded-lg border transition-all overflow-hidden",
-                          isDone
-                            ? "border-border/40 bg-muted/10 opacity-75 grayscale-[0.2]"
-                            : "border-border/60 bg-card shadow-xs"
-                        )}
-                      >
-                        {/* Item Header */}
-                        <button
-                          onClick={() => toggleExpand(item.id)}
-                          className="w-full flex items-start gap-3 px-3 py-2.5 text-left group hover:bg-muted/30 transition-colors"
+                      return (
+                        <div
+                          key={item.id}
+                          className={cn(
+                            "rounded-lg border transition-all overflow-hidden",
+                            isDone
+                              ? "border-border/30 bg-muted/5 opacity-50"
+                              : "border-border/60 bg-background shadow-sm"
+                          )}
                         >
-                          <div
-                            className={cn(
-                              "h-6 w-6 rounded-full flex items-center justify-center shrink-0 mt-0.5",
-                              sevConfig.bg
-                            )}
+                          {/* Item Header */}
+                          <button
+                            onClick={() => toggleExpand(item.id)}
+                            className="w-full flex items-start gap-3 px-3 py-2.5 text-left group hover:bg-muted/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
                           >
-                            <SevIcon className={cn("h-3.5 w-3.5", sevConfig.color)} />
-                          </div>
-                          <div className="grow min-w-0">
-                            <p
+                            <div
                               className={cn(
-                                "text-xs font-semibold leading-tight",
-                                isDone ? "line-through text-muted-foreground" : "text-foreground"
+                                "h-6 w-6 rounded-full flex items-center justify-center shrink-0 mt-0.5",
+                                sevConfig.bg
                               )}
                             >
-                              {item.title}
-                            </p>
-                            {!isExpanded && item.description && (
-                              <p className="text-[11px] text-muted-foreground mt-1 truncate">
-                                {item.description}
+                              <SevIcon className={cn("h-3.5 w-3.5", sevConfig.color)} />
+                            </div>
+                            <div className="grow min-w-0">
+                              <p
+                                className={cn(
+                                  "text-xs font-semibold leading-tight",
+                                  isDone ? "line-through text-muted-foreground" : "text-foreground"
+                                )}
+                              >
+                                {item.title}
                               </p>
-                            )}
-                          </div>
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              "text-[10px] font-medium py-0.5 px-1.5 shrink-0 mt-0.5 whitespace-nowrap",
-                              isDone
-                                ? "text-emerald-700 border-emerald-300 bg-emerald-50 dark:text-emerald-400 dark:border-emerald-500/30 dark:bg-emerald-500/10"
-                                : ""
-                            )}
-                          >
-                            {STATUS_LABELS[item.status] || item.status}
-                          </Badge>
-                        </button>
+                              {!isExpanded && item.description && (
+                                <p className="text-[11px] text-muted-foreground mt-1 truncate">
+                                  {item.description}
+                                </p>
+                              )}
+                            </div>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "text-[10px] font-medium py-0.5 px-1.5 shrink-0 mt-0.5 whitespace-nowrap",
+                                STATUS_BADGE_STYLES[item.status] || ""
+                              )}
+                            >
+                              {STATUS_LABELS[item.status] || item.status}
+                            </Badge>
+                          </button>
 
-                        {/* Expanded Details */}
-                        {isExpanded && (
-                          <div className="px-3 pb-3 space-y-2.5 border-t border-border/40 pt-2.5 ml-10 mr-2">
-                            {item.description && (
-                              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                                {item.description}
-                              </p>
-                            )}
-                            {item.suggestion && (
-                              <div className="text-[11px] text-primary bg-primary/5 border border-primary/10 rounded-md px-3 py-2">
-                                <span className="font-semibold">💡 </span>
-                                {item.suggestion}
-                              </div>
-                            )}
+                          {/* Expanded Details */}
+                          {isExpanded && (
+                            <div className="px-3 pb-3 space-y-2.5 border-t border-border/40 pt-2.5 ml-10 mr-2">
+                              {item.description && (
+                                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                  {item.description}
+                                </p>
+                              )}
+                              {item.suggestion && (
+                                <div className="text-[11px] text-foreground bg-primary/5 border-l-2 border-primary/40 rounded-r-md px-3 py-2">
+                                  <span className="font-semibold">💡 </span>
+                                  {item.suggestion}
+                                </div>
+                              )}
 
-                            {/* Actions */}
-                            {item.isUserDismissible && (
-                              <div className="flex gap-2 pt-1">
-                                <Button
-                                  variant={item.status === "complete" ? "default" : "outline"}
-                                  size="sm"
-                                  className="h-7 text-[11px] px-2.5 shadow-xs"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    updateItemStatus(
-                                      item.id,
-                                      item.status === "complete" ? "not_started" : "complete"
-                                    );
-                                  }}
-                                >
-                                  <Check className="h-3 w-3 mr-1" /> Done
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 text-[11px] px-2.5 text-muted-foreground hover:text-foreground"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    updateItemStatus(item.id, "ignored");
-                                  }}
-                                >
-                                  <EyeOff className="h-3 w-3 mr-1" /> Ignore
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 text-[11px] px-2.5 text-muted-foreground hover:text-foreground"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    updateItemStatus(item.id, "not_applicable");
-                                  }}
-                                >
-                                  <X className="h-3 w-3 mr-1" /> N/A
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                              {/* Actions */}
+                              {item.isUserDismissible && (
+                                <div className="flex gap-2 pt-1">
+                                  <Button
+                                    variant={item.status === "complete" ? "default" : "outline"}
+                                    size="sm"
+                                    className="h-7 text-[11px] px-2.5 shadow-sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      updateItemStatus(
+                                        item.id,
+                                        item.status === "complete" ? "not_started" : "complete"
+                                      );
+                                    }}
+                                  >
+                                    <Check className="h-3 w-3 mr-1" /> Done
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 text-[11px] px-2.5 text-muted-foreground hover:text-foreground"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      updateItemStatus(item.id, "ignored");
+                                    }}
+                                  >
+                                    <EyeOff className="h-3 w-3 mr-1" /> Ignore
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 text-[11px] px-2.5 text-muted-foreground hover:text-foreground"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      updateItemStatus(item.id, "not_applicable");
+                                    }}
+                                  >
+                                    <X className="h-3 w-3 mr-1" /> N/A
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
           );
         })}
 
-        {filteredItems.length === 0 && (
+        {allItems.length === 0 && (
           <p className="text-xs text-muted-foreground text-center py-6 italic">
-            No items in this category.
+            No items to display. Run an analysis to get started.
           </p>
         )}
       </div>
