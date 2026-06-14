@@ -2,6 +2,8 @@ import { AnalysisInput, ChecklistAnalyzer } from "../types";
 import type { IChecklistItem, IChecklistKeyword } from "@/models/ResumeChecklist";
 
 export class AIAnalyzer implements ChecklistAnalyzer {
+  public readonly isAi = true;
+
   public async analyze(
     input: AnalysisInput,
     _keywords?: Partial<IChecklistKeyword>[]
