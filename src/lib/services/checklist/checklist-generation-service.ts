@@ -23,18 +23,21 @@ export class ChecklistGenerationService {
     ];
   }
 
-  public async analyze(input: AnalysisInput, mode: "static" | "ai" | "all" = "all"): Promise<AnalysisResult> {
+  public async analyze(
+    input: AnalysisInput,
+    mode: "static" | "ai" | "all" = "all"
+  ): Promise<AnalysisResult> {
     const { jobDescription, resumeText } = input;
-    
+
     // Extract keywords (only need to extract them if we are doing static or all)
     const keywords = mode === "ai" ? [] : extractKeywords(jobDescription, resumeText);
-    
+
     // Run selected analyzers concurrently
-    const activeAnalyzers = this.analyzers.filter(a => {
-       const isAi = a.constructor.name === "AIAnalyzer";
-       if (mode === "static") return !isAi;
-       if (mode === "ai") return isAi;
-       return true;
+    const activeAnalyzers = this.analyzers.filter((a) => {
+      const isAi = !!a.isAi;
+      if (mode === "static") return !isAi;
+      if (mode === "ai") return isAi;
+      return true;
     });
 
     const itemsPromises = activeAnalyzers.map((analyzer) => analyzer.analyze(input, keywords));

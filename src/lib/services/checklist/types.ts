@@ -13,5 +13,9 @@ export interface AnalysisResult {
 }
 
 export interface ChecklistAnalyzer {
-  analyze(input: AnalysisInput, keywords?: Partial<IChecklistKeyword>[]): Partial<IChecklistItem>[] | Promise<Partial<IChecklistItem>[]>;
+  readonly isAi?: boolean;
+  analyze(
+    input: AnalysisInput,
+    keywords?: Partial<IChecklistKeyword>[]
+  ): Partial<IChecklistItem>[] | Promise<Partial<IChecklistItem>[]>;
 }

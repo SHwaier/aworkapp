@@ -2,7 +2,10 @@ import type { IChecklistItem, IChecklistKeyword } from "@/models/ResumeChecklist
 import { ChecklistAnalyzer, AnalysisInput } from "../types";
 
 export class JobMatchAnalyzer implements ChecklistAnalyzer {
-  analyze(input: AnalysisInput, keywords?: Partial<IChecklistKeyword>[]): Partial<IChecklistItem>[] {
+  analyze(
+    input: AnalysisInput,
+    keywords?: Partial<IChecklistKeyword>[]
+  ): Partial<IChecklistItem>[] {
     const items: Partial<IChecklistItem>[] = [];
     const { jobDescription } = input;
 
@@ -10,7 +13,9 @@ export class JobMatchAnalyzer implements ChecklistAnalyzer {
     items.push({
       category: "job_match",
       title: "Job description imported",
-      description: jobDescription ? "The job description is available for analysis." : "Paste the job description to enable keyword matching.",
+      description: jobDescription
+        ? "The job description is available for analysis."
+        : "Paste the job description to enable keyword matching.",
       status: jobDescription ? "complete" : "not_started",
       severity: jobDescription ? "info" : "critical",
       isAutoDetected: true,
@@ -19,19 +24,7 @@ export class JobMatchAnalyzer implements ChecklistAnalyzer {
 
     if (!jobDescription || !keywords) return items;
 
-    const matched = keywords.filter((k) => k.appearsInResume);
     const missing = keywords.filter((k) => !k.appearsInResume);
-    const required = missing.filter((k) => k.requirementLevel === "required");
-
-    items.push({
-      category: "job_match",
-      title: `${matched.length} of ${keywords.length} job keywords found in resume`,
-      description: `Your resume matches ${matched.length} keywords. ${missing.length} keywords are missing.`,
-      status: missing.length === 0 ? "complete" : required.length > 0 ? "needs_review" : "in_progress",
-      severity: required.length > 0 ? "warning" : missing.length > 0 ? "suggestion" : "info",
-      isAutoDetected: true,
-      isUserDismissible: true,
-    });
 
     // Per-keyword items for missing required/preferred
     for (const kw of missing.filter((k) => k.requirementLevel !== "nice_to_have").slice(0, 15)) {

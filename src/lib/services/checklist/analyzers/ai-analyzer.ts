@@ -2,10 +2,9 @@ import { AnalysisInput, ChecklistAnalyzer } from "../types";
 import type { IChecklistItem, IChecklistKeyword } from "@/models/ResumeChecklist";
 
 export class AIAnalyzer implements ChecklistAnalyzer {
-  public async analyze(
-    input: AnalysisInput,
-    _keywords?: Partial<IChecklistKeyword>[]
-  ): Promise<Partial<IChecklistItem>[]> {
+  public readonly isAi = true;
+
+  public async analyze(input: AnalysisInput): Promise<Partial<IChecklistItem>[]> {
     if (!process.env.GEMINI_API_KEY) {
       return [];
     }
@@ -26,8 +25,10 @@ export class AIAnalyzer implements ChecklistAnalyzer {
 
       const data = await res.json();
       return this.parseResponse(data);
-    } catch (_error) {
-      return this.getFallbackItem();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      console.error("Gemini API Error in AIAnalyzer:", error);
+      return this.getFallbackItem(error?.message || String(error));
     }
   }
 
@@ -80,7 +81,15 @@ ${input.resumeText.slice(0, 10000)}`;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private parseResponse(data: any): Partial<IChecklistItem>[] {
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+    let text = data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+
+    // Strip markdown JSON formatting if the model wrapped it
+    text = text.trim();
+    if (text.startsWith("```")) {
+      text = text.replace(/^```(?:json)?\n?/, "");
+      text = text.replace(/\n?```$/, "");
+    }
+
     const parsed = JSON.parse(text);
 
     if (!Array.isArray(parsed)) return [];
@@ -98,12 +107,12 @@ ${input.resumeText.slice(0, 10000)}`;
     }));
   }
 
-  private getFallbackItem(): Partial<IChecklistItem>[] {
+  private getFallbackItem(errorMsg: string): Partial<IChecklistItem>[] {
     return [
       {
         category: "final_review",
         title: "🤖 AI Analysis Failed",
-        description: "We couldn't generate AI suggestions for your resume at this time.",
+        description: `We couldn't generate AI suggestions for your resume at this time. Error details: ${errorMsg}`,
         severity: "info",
         status: "not_started",
         isAutoDetected: true,
