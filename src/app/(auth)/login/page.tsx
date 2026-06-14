@@ -25,6 +25,7 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [usernameConfirm, setUsernameConfirm] = useState("");
 
   useEffect(() => {
     const errorParam = searchParams.get("error");
@@ -40,7 +41,7 @@ function LoginForm() {
     setIsSubmitting(true);
 
     try {
-      await login(email, password);
+      await login(email, password, usernameConfirm);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -67,6 +68,23 @@ function LoginForm() {
               {error}
             </div>
           )}
+
+          {/* Honeypot field (hidden from screen reader and visual layout) */}
+          <div
+            className="absolute -top-[9999px] -left-[9999px] h-0 w-0 overflow-hidden opacity-0"
+            aria-hidden="true"
+          >
+            <label htmlFor="login-username-confirm">Confirm Username</label>
+            <input
+              id="login-username-confirm"
+              type="text"
+              name="username_confirm"
+              value={usernameConfirm}
+              onChange={(e) => setUsernameConfirm(e.target.value)}
+              tabIndex={-1}
+              autoComplete="off"
+            />
+          </div>
 
           <div className="space-y-1.5">
             <Label

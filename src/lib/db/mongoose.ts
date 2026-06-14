@@ -6,6 +6,7 @@ import "@/models/Application";
 import "@/models/File";
 import "@/models/ResumeVersion";
 import "@/models/ResumeChecklist";
+import "@/models/SecurityBan";
 
 const MONGODB_URI = process.env.MONGODB_URI;
 

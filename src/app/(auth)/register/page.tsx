@@ -38,6 +38,7 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [usernameConfirm, setUsernameConfirm] = useState("");
 
   // Password strength indicators
   const hasMinLength = password.length >= 8;
@@ -52,7 +53,7 @@ export default function RegisterPage() {
     setIsSubmitting(true);
 
     try {
-      await register(name, email, password, confirmPassword);
+      await register(name, email, password, confirmPassword, usernameConfirm);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
     } finally {
@@ -79,6 +80,23 @@ export default function RegisterPage() {
               {error}
             </div>
           )}
+
+          {/* Honeypot field (hidden from screen reader and visual layout) */}
+          <div
+            className="absolute -top-[9999px] -left-[9999px] h-0 w-0 overflow-hidden opacity-0"
+            aria-hidden="true"
+          >
+            <label htmlFor="register-username-confirm">Confirm Username</label>
+            <input
+              id="register-username-confirm"
+              type="text"
+              name="username_confirm"
+              value={usernameConfirm}
+              onChange={(e) => setUsernameConfirm(e.target.value)}
+              tabIndex={-1}
+              autoComplete="off"
+            />
+          </div>
 
           <div className="space-y-1.5">
             <Label
