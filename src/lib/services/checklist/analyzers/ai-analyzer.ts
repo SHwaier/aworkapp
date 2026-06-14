@@ -4,10 +4,7 @@ import type { IChecklistItem, IChecklistKeyword } from "@/models/ResumeChecklist
 export class AIAnalyzer implements ChecklistAnalyzer {
   public readonly isAi = true;
 
-  public async analyze(
-    input: AnalysisInput,
-    _keywords?: Partial<IChecklistKeyword>[]
-  ): Promise<Partial<IChecklistItem>[]> {
+  public async analyze(input: AnalysisInput): Promise<Partial<IChecklistItem>[]> {
     if (!process.env.GEMINI_API_KEY) {
       return [];
     }
