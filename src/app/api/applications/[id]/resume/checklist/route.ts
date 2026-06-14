@@ -73,7 +73,8 @@ export async function POST(request: Request, { params }: RouteParams): Promise<N
     }
 
     const body = await request.json().catch(() => ({}));
-    let { resumeText, mode = "all" } = body as { resumeText?: string, mode?: "static" | "ai" | "all" };
+    const { mode = "all" } = body as { mode?: "static" | "ai" | "all" };
+    let { resumeText } = body as { resumeText?: string };
 
     await dbConnect();
 
@@ -178,17 +179,27 @@ export async function POST(request: Request, { params }: RouteParams): Promise<N
     });
 
     if (checklist && checklist.lastAnalyzedHash === currentHash) {
-      // Early return to prevent abuse / unnecessary AI calls
-      return successResponse({ checklist });
+      // Check if the cached checklist actually contains the AI failure fallback.
+      // If it does, we shouldn't cache the failure—we should try again.
+      const hasAiFailure = checklist.items.some(
+        (item: IChecklistItemType) => item.title === "🤖 AI Analysis Failed"
+      );
+      if (!hasAiFailure) {
+        // Early return to prevent abuse / unnecessary AI calls
+        return successResponse({ checklist });
+      }
     }
 
     // Run analysis
-    const result = await analyzeResume({
-      jobDescription: app.jobDescription || "",
-      resumeText,
-      jobTitle: app.jobTitle,
-      companyName,
-    }, mode);
+    const result = await analyzeResume(
+      {
+        jobDescription: app.jobDescription || "",
+        resumeText,
+        jobTitle: app.jobTitle,
+        companyName,
+      },
+      mode
+    );
 
     // Upsert checklist
     const score = computeScore(result.items.map((i) => ({ status: i.status || "not_started" })));
@@ -209,15 +220,17 @@ export async function POST(request: Request, { params }: RouteParams): Promise<N
       }
 
       // Retain items from the other mode that we aren't regenerating right now
-      const retainedItems = checklist.items.filter((item) => {
-        const isAiItem = item.title.startsWith("🤖 AI:");
-        if (mode === "static" && isAiItem) return true;
-        if (mode === "ai" && !isAiItem) return true;
-        return false;
-      }).map(i => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return typeof (i as any).toObject === 'function' ? (i as any).toObject() : i;
-      });
+      const retainedItems = checklist.items
+        .filter((item) => {
+          const isAiItem = item.title.startsWith("🤖 AI:");
+          if (mode === "static" && isAiItem) return true;
+          if (mode === "ai" && !isAiItem) return true;
+          return false;
+        })
+        .map((i) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return typeof (i as any).toObject === "function" ? (i as any).toObject() : i;
+        });
 
       // Merge: keep user overrides and stable IDs
       const newlyGeneratedItems = result.items.map((item) => {
@@ -258,7 +271,7 @@ export async function POST(request: Request, { params }: RouteParams): Promise<N
         keywords: result.keywords,
         overallScore: score,
         lastAnalyzedAt: new Date(),
-        lastAnalyzedHash: (mode === "all" || mode === "ai") ? currentHash : "",
+        lastAnalyzedHash: mode === "all" || mode === "ai" ? currentHash : "",
       });
     }
 
