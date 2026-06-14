@@ -131,6 +131,13 @@ AWorkApp is a modern, premium SaaS platform built on **Next.js** (using App Rout
 - **Audit Logging Fixed**: Synchronized `AuditLog` enums with Mongoose schemas and resolved validation errors for new actions (`resume_snapshot.customized`, `checklist.generated`).
 - **Notification Deduplication**: Fixed an issue where the native DOCX editor silently mounted its own duplicate `<Toaster />` container. A global CSS override now visually hides any third-party injected bottom-right `sonner` notifications, unifying all alerts to the application's global top-right toaster.
 
+### P. Brute-Force & Bot Protections (Fail2ban & Honeypot)
+
+- **Fail2ban-like Lockout**: Implemented a database-backed sliding-window lockout system (`src/models/SecurityBan.ts` and `src/lib/services/security.ts`) that tracks failed login attempts. Bans IP addresses (IP ban) or email addresses (account lock) for 15 minutes after 5 failed attempts.
+- **Honeypot Shield**: Added an off-screen `username_confirm` input field in login and register forms. Requests with value in this field are rejected instantly by the API, protecting against automated bot submittals.
+- **Disposable Email Filter**: Automatically blocks signups using temporary/disposable email address domains.
+- **User Enumeration Prevention**: Captures failed registration attempts against already existing accounts as a security failure to block account scanners.
+
 ---
 
 ## 3. Database Schema Overview

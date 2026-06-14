@@ -7,17 +7,14 @@ import { loginSchema } from "@/lib/validators/schemas";
 import { handleApiError, successResponse } from "@/lib/api/response";
 import { createAuditLog } from "@/models/AuditLog";
 import { AppError } from "@/lib/api/app-error";
-import {
-  checkRateLimit,
-  getClientIp,
-  RATE_LIMITS,
-  rateLimitHeaders,
-} from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
+import { checkLoginBan, recordLoginFailure, recordLoginSuccess } from "@/lib/services/security";
 
 export async function POST(request: Request): Promise<NextResponse> {
   try {
-    // Rate limit: auth (5/minute)
     const ip = getClientIp(request);
+
+    // 1. General Rate limit: auth (5/minute)
     const rateLimit = checkRateLimit(`login:${ip}`, RATE_LIMITS.auth);
     if (!rateLimit.allowed) {
       return NextResponse.json(
@@ -26,40 +23,55 @@ export async function POST(request: Request): Promise<NextResponse> {
       );
     }
 
-    // Parse and validate input
+    // 2. Parse request body
     const body = await request.json();
+
+    // 3. Honeypot protection
+    if (body.username_confirm) {
+      console.warn(`[SECURITY] Honeypot triggered on login by IP: ${ip}`);
+      return NextResponse.json(
+        { success: false, error: "Invalid request parameters." },
+        { status: 400 }
+      );
+    }
+
+    // 4. Validate input schema
     const validated = loginSchema.parse(body);
 
-    // Connect to database
+    // 5. Connect to database
     await dbConnect();
 
-    // Find user — explicitly select passwordHash (excluded by default)
-    const user = await User.findOne({ email: validated.email }).select(
-      "+passwordHash"
-    );
+    // 6. Check if IP or email is currently banned (Fail2ban equivalent)
+    await checkLoginBan(ip, validated.email);
+
+    // 7. Find user
+    const user = await User.findOne({ email: validated.email }).select("+passwordHash");
 
     if (!user) {
-      // Use same error message whether email or password is wrong (prevents user enumeration)
+      // Record failure for both IP and email
+      await recordLoginFailure(ip, validated.email, request);
       throw new AppError("Invalid credentials", 401);
     }
 
-    // Verify password
-    const isValid = await verifyPassword(
-      validated.password,
-      user.passwordHash
-    );
+    // 8. Verify password
+    const isValid = await verifyPassword(validated.password, user.passwordHash);
     if (!isValid) {
+      // Record failure for both IP and email
+      await recordLoginFailure(ip, validated.email, request);
       throw new AppError("Invalid credentials", 401);
     }
 
-    // Set auth cookies
+    // 9. Reset security ban tracking on successful authentication
+    await recordLoginSuccess(ip, validated.email);
+
+    // 10. Set auth cookies
     await setAuthCookies({
       id: user._id.toString(),
       email: user.email,
       name: user.name,
     });
 
-    // Audit log
+    // 11. Audit log
     await createAuditLog({
       userId: user._id.toString(),
       action: "user.login",

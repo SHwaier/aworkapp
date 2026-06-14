@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 interface User {
@@ -19,12 +12,13 @@ interface User {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, usernameConfirm?: string) => Promise<void>;
   register: (
     name: string,
     email: string,
     password: string,
-    confirmPassword: string
+    confirmPassword: string,
+    usernameConfirm?: string
   ) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -55,11 +49,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string, usernameConfirm?: string) => {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, username_confirm: usernameConfirm }),
       });
 
       const data = await res.json();
@@ -78,12 +72,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       name: string,
       email: string,
       password: string,
-      confirmPassword: string
+      confirmPassword: string,
+      usernameConfirm?: string
     ) => {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, confirmPassword }),
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+          confirmPassword,
+          username_confirm: usernameConfirm,
+        }),
       });
 
       const data = await res.json();

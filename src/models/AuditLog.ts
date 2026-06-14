@@ -25,6 +25,8 @@ const AuditLogSchema = new Schema<IAuditLog>(
       required: true,
       enum: [
         "user.login",
+        "user.login_failed",
+        "security.ban_triggered",
         "user.register",
         "user.logout",
         "user.settings_changed",
@@ -63,6 +65,7 @@ const AuditLogSchema = new Schema<IAuditLog>(
   {
     timestamps: { createdAt: true, updatedAt: false },
     toJSON: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       transform(_doc, ret: any) {
         ret.id = ret._id.toString();
         delete ret._id;
@@ -77,8 +80,7 @@ AuditLogSchema.index({ userId: 1, createdAt: -1 });
 AuditLogSchema.index({ userId: 1, action: 1 });
 
 const AuditLog: Model<IAuditLog> =
-  mongoose.models.AuditLog ||
-  mongoose.model<IAuditLog>("AuditLog", AuditLogSchema);
+  mongoose.models.AuditLog || mongoose.model<IAuditLog>("AuditLog", AuditLogSchema);
 
 export default AuditLog;
 
