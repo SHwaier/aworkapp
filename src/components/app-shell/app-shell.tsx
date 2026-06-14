@@ -15,17 +15,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -95,8 +86,7 @@ function NavLink({
   onClick?: () => void;
 }) {
   const pathname = usePathname();
-  const isActive =
-    pathname === item.href || pathname.startsWith(`${item.href}/`);
+  const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
   const Icon = item.icon;
 
   const link = (
@@ -160,21 +150,13 @@ function UserMenu() {
         </Avatar>
         <div className="flex-1 text-left min-w-0">
           <p className="text-sm font-medium truncate">{user?.name}</p>
-          <p className="text-xs text-muted-foreground truncate">
-            {user?.email}
-          </p>
+          <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
         </div>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuItem
           onClick={() =>
-            setTheme(
-              theme === "dark"
-                ? "light"
-                : theme === "light"
-                  ? "system"
-                  : "dark"
-            )
+            setTheme(theme === "dark" ? "light" : theme === "light" ? "system" : "dark")
           }
           id="theme-toggle"
         >
@@ -185,8 +167,7 @@ function UserMenu() {
           ) : (
             <Monitor className="mr-2 h-4 w-4" />
           )}
-          Theme:{" "}
-          {theme.charAt(0).toUpperCase() + theme.slice(1)}
+          Theme: {theme.charAt(0).toUpperCase() + theme.slice(1)}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
@@ -232,9 +213,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </svg>
         </div>
         {(!collapsed || mobile) && (
-          <span className="text-lg font-bold tracking-tight">
-            AWorkApp
-          </span>
+          <span className="text-lg font-bold tracking-tight">AWorkApp</span>
         )}
       </div>
 
@@ -278,12 +257,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger
               render={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  id="mobile-menu-trigger"
-                  className="h-9 w-9"
-                />
+                <Button variant="ghost" size="icon" id="mobile-menu-trigger" className="h-9 w-9" />
               }
             >
               <Menu className="h-5 w-5" />
@@ -316,21 +290,23 @@ export function AppShell({ children }: { children: ReactNode }) {
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           id="sidebar-collapse-toggle"
         >
-          <ChevronLeft
-            className={cn(
-              "h-3 w-3 transition-transform",
-              collapsed && "rotate-180"
-            )}
-          />
+          <ChevronLeft className={cn("h-3 w-3 transition-transform", collapsed && "rotate-180")} />
         </button>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto flex flex-col">
-        <div className={cn(
-          "w-full flex-1 flex flex-col",
-          usePathname().endsWith("/resume/customize") ? "" : "px-4 py-6 md:px-6 lg:px-8"
-        )}>
+      <main
+        className={cn(
+          "flex-1 flex flex-col",
+          usePathname().endsWith("/resume/customize") ? "overflow-hidden" : "overflow-auto"
+        )}
+      >
+        <div
+          className={cn(
+            "w-full flex-1 flex flex-col min-h-0",
+            usePathname().endsWith("/resume/customize") ? "" : "px-4 py-6 md:px-6 lg:px-8"
+          )}
+        >
           {children}
         </div>
       </main>
