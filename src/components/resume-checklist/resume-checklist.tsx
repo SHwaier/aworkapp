@@ -320,7 +320,18 @@ export function ResumeChecklist({
     ...Object.keys(itemsByCategory).filter(
       (cat) => !CATEGORY_CONFIG[cat] && itemsByCategory[cat].length > 0
     ),
-  ];
+  ].sort((a, b) => {
+    const issuesA = (itemsByCategory[a] || []).filter(
+      (item) => !["complete", "ignored", "not_applicable"].includes(item.status)
+    ).length;
+    const issuesB = (itemsByCategory[b] || []).filter(
+      (item) => !["complete", "ignored", "not_applicable"].includes(item.status)
+    ).length;
+    // Categories with issues float to top; within that, sort by count descending
+    if (issuesA > 0 && issuesB === 0) return -1;
+    if (issuesA === 0 && issuesB > 0) return 1;
+    return issuesB - issuesA;
+  });
 
   if (loading) {
     return (
