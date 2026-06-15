@@ -5,7 +5,7 @@ import { AppError } from "@/lib/api/app-error";
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET!;
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "15m";
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "1d";
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || "7d";
 
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
@@ -32,22 +32,18 @@ const REFRESH_TOKEN_COOKIE = "aos_refresh_token";
  * Generate an access token (short-lived)
  */
 export function generateAccessToken(user: SessionUser): string {
-  return jwt.sign(
-    { userId: user.id, email: user.email, name: user.name },
-    JWT_SECRET,
-    { expiresIn: JWT_EXPIRES_IN as any }
-  );
+  return jwt.sign({ userId: user.id, email: user.email, name: user.name }, JWT_SECRET, {
+    expiresIn: JWT_EXPIRES_IN as string,
+  });
 }
 
 /**
  * Generate a refresh token (long-lived)
  */
 export function generateRefreshToken(user: SessionUser): string {
-  return jwt.sign(
-    { userId: user.id, email: user.email, name: user.name },
-    JWT_REFRESH_SECRET,
-    { expiresIn: JWT_REFRESH_EXPIRES_IN as any }
-  );
+  return jwt.sign({ userId: user.id, email: user.email, name: user.name }, JWT_REFRESH_SECRET, {
+    expiresIn: JWT_REFRESH_EXPIRES_IN as string,
+  });
 }
 
 /**
@@ -116,12 +112,7 @@ export async function verifyAccessTokenEdge(token: string): Promise<TokenPayload
     const data = encoder.encode(`${headerB64}.${payloadB64}`);
 
     // Verify signature
-    const isValid = await crypto.subtle.verify(
-      "HMAC",
-      key,
-      signatureBytes,
-      data
-    );
+    const isValid = await crypto.subtle.verify("HMAC", key, signatureBytes, data);
 
     if (!isValid) return null;
 
@@ -156,7 +147,7 @@ export async function setAuthCookies(user: SessionUser): Promise<void> {
     secure: IS_PRODUCTION,
     sameSite: "lax",
     path: "/",
-    maxAge: 15 * 60, // 15 minutes
+    maxAge: 24 * 60 * 60, // 24 hours
   });
 
   // Refresh token cookie — restricted to auth endpoints only
@@ -205,9 +196,7 @@ export async function getSession(): Promise<SessionUser | null> {
  * Get session from a NextRequest (for proxy.ts / middleware)
  * Does NOT use the async cookies() API — reads from request directly.
  */
-export async function getSessionFromRequest(
-  request: NextRequest
-): Promise<SessionUser | null> {
+export async function getSessionFromRequest(request: NextRequest): Promise<SessionUser | null> {
   const token = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
 
   if (!token) {

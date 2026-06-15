@@ -5,6 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import {
   Target,
@@ -29,6 +35,7 @@ import {
   Lightbulb,
   CircleAlert,
   Sparkles,
+  Copy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -156,6 +163,70 @@ export function ResumeChecklist({
       [category]: !prev[category],
     }));
   }, []);
+
+  const getUnfinishedTasks = useCallback(() => {
+    return (checklist?.items || []).filter(
+      (item) => !["complete", "ignored", "not_applicable"].includes(item.status)
+    );
+  }, [checklist]);
+
+  const copyUnfinishedAsText = useCallback(() => {
+    const tasks = getUnfinishedTasks();
+    if (tasks.length === 0) {
+      toast.info("No unfinished tasks to copy!");
+      return;
+    }
+
+    let text = `Please help me update my resume for the ${jobTitle} role at ${companyName}.\n\n`;
+    text += `Here is the feedback I need addressed:\n\n`;
+
+    text += tasks
+      .map((t, i) => {
+        let itemText = `${i + 1}. [${CATEGORY_CONFIG[t.category]?.label || t.category}] ${t.title}`;
+        if (t.description) itemText += `\n   Description: ${t.description}`;
+        if (t.suggestion) itemText += `\n   Suggestion: ${t.suggestion}`;
+        return itemText;
+      })
+      .join("\n\n");
+
+    const missingKeywords = checklist?.keywords.filter((k) => !k.appearsInResume) || [];
+    if (missingKeywords.length > 0) {
+      text += `\n\nAdditionally, please organically integrate the following missing keywords into my experience if possible:\n`;
+      text += missingKeywords.map((k) => `   - ${k.keyword}`).join("\n");
+    }
+
+    navigator.clipboard.writeText(text);
+    toast.success("AI Prompt copied as Text");
+  }, [getUnfinishedTasks, jobTitle, companyName, checklist]);
+
+  const copyUnfinishedAsMarkdown = useCallback(() => {
+    const tasks = getUnfinishedTasks();
+    if (tasks.length === 0) {
+      toast.info("No unfinished tasks to copy!");
+      return;
+    }
+
+    let text = `Please help me update my resume for the **${jobTitle}** role at **${companyName}**.\n\n`;
+    text += `### Required Updates:\n\n`;
+
+    text += tasks
+      .map((t) => {
+        let itemText = `- [ ] **${t.title}** (${CATEGORY_CONFIG[t.category]?.label || t.category})`;
+        if (t.description) itemText += `\n  - _Description:_ ${t.description}`;
+        if (t.suggestion) itemText += `\n  - _Suggestion:_ **${t.suggestion}**`;
+        return itemText;
+      })
+      .join("\n\n");
+
+    const missingKeywords = checklist?.keywords.filter((k) => !k.appearsInResume) || [];
+    if (missingKeywords.length > 0) {
+      text += `\n\n### Missing Keywords to Integrate:\n`;
+      text += missingKeywords.map((k) => `- \`${k.keyword}\``).join("\n");
+    }
+
+    navigator.clipboard.writeText(text);
+    toast.success("AI Prompt copied as Markdown");
+  }, [getUnfinishedTasks, jobTitle, companyName, checklist]);
 
   // Load existing checklist
   const loadChecklist = useCallback(async () => {
@@ -398,20 +469,46 @@ export function ResumeChecklist({
             <CheckCircle2 className="h-4 w-4 text-primary" />
             Resume Checklist
           </h3>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={runAnalysis}
-            disabled={analyzing || aiAnalyzing}
-            className="h-7 px-2.5 text-xs flex items-center gap-1.5 hover:bg-muted/80"
-          >
-            {analyzing || aiAnalyzing ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <RefreshCw className="h-3.5 w-3.5" />
+          <div className="flex items-center gap-1.5">
+            {checklist && checklist.items.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2.5 text-xs flex items-center gap-1.5 hover:bg-muted/80"
+                    />
+                  }
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  Copy Tasks
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={copyUnfinishedAsText} className="text-xs">
+                    Copy as Text
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={copyUnfinishedAsMarkdown} className="text-xs">
+                    Copy as Markdown
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
-            Analyze
-          </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={runAnalysis}
+              disabled={analyzing || aiAnalyzing}
+              className="h-7 px-2.5 text-xs flex items-center gap-1.5 hover:bg-muted/80"
+            >
+              {analyzing || aiAnalyzing ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5" />
+              )}
+              Analyze
+            </Button>
+          </div>
         </div>
 
         <div className="space-y-1">

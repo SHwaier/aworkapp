@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 interface User {
@@ -40,7 +33,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function checkSession() {
       try {
-        const res = await fetch("/api/auth/me");
+        let res = await fetch("/api/auth/me");
+        if (res.status === 401) {
+          // Attempt to refresh the session
+          const refreshRes = await fetch("/api/auth/refresh", { method: "POST" });
+          if (refreshRes.ok) {
+            res = await fetch("/api/auth/me");
+          }
+        }
+
         if (res.ok) {
           const data = await res.json();
           setUser(data.data.user);
@@ -52,7 +53,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
     checkSession();
-  }, []);
+
+    // Background token refresh every 1 hour to prevent session interruption
+    const refreshInterval = setInterval(
+      async () => {
+        if (user) {
+          try {
+            await fetch("/api/auth/refresh", { method: "POST" });
+          } catch {
+            // Ignore background errors
+          }
+        }
+      },
+      1000 * 60 * 60
+    );
+
+    return () => clearInterval(refreshInterval);
+  }, [user]);
 
   const login = useCallback(
     async (email: string, password: string) => {
@@ -74,12 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const register = useCallback(
-    async (
-      name: string,
-      email: string,
-      password: string,
-      confirmPassword: string
-    ) => {
+    async (name: string, email: string, password: string, confirmPassword: string) => {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
