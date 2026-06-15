@@ -852,10 +852,13 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
           Back to applications
         </Link>
         <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-          <Button variant="outline" size="sm" onClick={openEditDialog}>
+          <Link
+            href={`/applications/${applicationId}/edit`}
+            className={buttonVariants({ variant: "outline", size: "sm" })}
+          >
             <Pencil className="mr-2 h-4 w-4" />
             Edit Details
-          </Button>
+          </Link>
           <Button
             variant="destructive"
             size="sm"
@@ -2118,12 +2121,16 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
           if (!isOpen) setIsEditDialogOpen(false);
         }}
       >
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Application Details</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleUpdateDetails} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0">
+          <div className="px-6 py-4 border-b border-border/60 shrink-0">
+            <DialogHeader>
+              <DialogTitle className="text-lg">Edit Application Details</DialogTitle>
+            </DialogHeader>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-6 min-h-0">
+            <form id="edit-app-form" onSubmit={handleUpdateDetails} className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               {/* Job Title */}
               <div className="space-y-1.5">
                 <Label htmlFor="edit-title" className="text-sm font-semibold">
@@ -2188,7 +2195,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               {/* Job URL */}
               <div className="space-y-1.5">
                 <Label htmlFor="edit-joburl" className="text-sm font-semibold">
@@ -2217,7 +2224,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
               {/* Work Mode */}
               <div className="space-y-1.5">
                 <Label htmlFor="edit-workmode" className="text-sm font-semibold">
@@ -2288,7 +2295,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               {/* Seniority */}
               <div className="space-y-1.5">
                 <Label htmlFor="edit-seniority" className="text-sm font-semibold">
@@ -2361,20 +2368,21 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                   setEditDetailsForm((p) => ({ ...p, jobDescription: e.target.value }))
                 }
                 placeholder="Paste the job description..."
-                rows={5}
+                className="min-h-[250px] font-mono text-xs"
               />
             </div>
-
-            <DialogFooter className="mt-6 flex items-center justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isUpdatingDetails}>
-                {isUpdatingDetails && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save Details
-              </Button>
-            </DialogFooter>
-          </form>
+            </form>
+          </div>
+          
+          <div className="px-6 py-4 border-t border-border/60 shrink-0 flex items-center justify-end gap-2 bg-muted/10">
+            <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button form="edit-app-form" type="submit" disabled={isUpdatingDetails}>
+              {isUpdatingDetails && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Details
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

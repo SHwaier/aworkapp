@@ -21,6 +21,7 @@ import {
   Minimize2,
   PanelLeftClose,
   PanelLeftOpen,
+  Download,
 } from "lucide-react";
 
 // Dynamically import DocxEditor to prevent SSR issues (it requires browser DOM)
@@ -475,6 +476,16 @@ export default function ResumeCustomizePage({ params }: RouteParams) {
             <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
             Reset to Base
           </Button>
+          {data?.fileId && (
+            <a
+              href={`/api/files/${data.fileId}`}
+              download
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              <Download className="mr-1.5 h-3.5 w-3.5" />
+              Download
+            </a>
+          )}
           <Button variant="outline" size="sm" onClick={() => handleSave(false)} disabled={saving}>
             {saving ? (
               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />

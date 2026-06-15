@@ -485,7 +485,7 @@ export default function NewApplicationPage() {
       {/* ═══════════ STEP 2: COMPANY & ROLE ═══════════ */}
       {step === 2 && (
         <Card className="border-border/60 shadow-sm">
-          <CardContent className="p-6 sm:p-8 space-y-5">
+          <CardContent className="p-6 sm:p-8 space-y-6">
             {wasAutofilled && (
               <div className="flex items-center gap-2 text-xs text-primary bg-primary/5 border border-primary/10 px-3 py-2 rounded-lg font-medium">
                 <Sparkles className="h-3.5 w-3.5" />
@@ -494,7 +494,7 @@ export default function NewApplicationPage() {
             )}
 
             {/* Company */}
-            <div className="space-y-1.5 relative" ref={companyRef}>
+            <div className="space-y-2 relative" ref={companyRef}>
               <Label htmlFor="wizard-company" className="text-sm font-semibold">
                 Company <span className="text-destructive">*</span>
               </Label>
@@ -538,7 +538,7 @@ export default function NewApplicationPage() {
                     }
                   }}
                   className={cn(
-                    "pl-9 h-11 bg-card",
+                    "pl-9 h-11 bg-card/50 focus-visible:bg-background transition-colors",
                     showValidationErrors && !companySearchText.trim() && "border-destructive ring-destructive/20 focus-visible:ring-destructive/30"
                   )}
                 />
@@ -579,7 +579,7 @@ export default function NewApplicationPage() {
             </div>
 
             {/* Job Title */}
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label htmlFor="wizard-title" className="text-sm font-semibold">
                 Job Title <span className="text-destructive">*</span>
               </Label>
@@ -589,7 +589,7 @@ export default function NewApplicationPage() {
                 value={form.jobTitle}
                 onChange={(e) => setForm((p) => ({ ...p, jobTitle: e.target.value }))}
                 className={cn(
-                  "h-11 bg-card",
+                  "h-11 bg-card/50 focus-visible:bg-background transition-colors",
                   showValidationErrors && !form.jobTitle.trim() && "border-destructive ring-destructive/20 focus-visible:ring-destructive/30"
                 )}
               />
@@ -609,31 +609,52 @@ export default function NewApplicationPage() {
       {/* ═══════════ STEP 3: DETAILS ═══════════ */}
       {step === 3 && (
         <Card className="border-border/60 shadow-sm">
-          <CardContent className="p-6 sm:p-8 space-y-5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
+          <CardContent className="p-6 sm:p-8 space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {/* Location */}
+              <div className="space-y-2">
                 <div className="flex justify-between items-baseline">
                   <Label htmlFor="wizard-location" className="text-sm font-semibold">Location</Label>
-                  <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
+                  
                 </div>
                 <LocationAutocomplete
                   id="wizard-location"
                   value={form.location}
                   onChange={(v) => setForm((p) => ({ ...p, location: v }))}
                   placeholder="e.g. Toronto, ON"
-                  className="h-10 bg-card"
+                  className="h-11 bg-card/50 focus-visible:bg-background transition-colors"
                 />
               </div>
-              <div className="space-y-1.5">
+
+              {/* Job URL */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-baseline">
+                  <Label htmlFor="wizard-joburl" className="text-sm font-semibold">Job URL</Label>
+                  
+                </div>
+                <Input
+                  id="wizard-joburl"
+                  type="url"
+                  value={jobUrl}
+                  onChange={(e) => setJobUrl(e.target.value)}
+                  placeholder="https://linkedin.com/jobs/view/..."
+                  className="h-11 bg-card/50 focus-visible:bg-background transition-colors"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              {/* Work Mode */}
+              <div className="space-y-2">
                 <div className="flex justify-between items-baseline">
                   <Label htmlFor="wizard-workmode" className="text-sm font-semibold">Work Mode</Label>
-                  <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
+                  
                 </div>
                 <Select
                   value={form.workMode}
                   onValueChange={(v) => setForm((p) => ({ ...p, workMode: v || "" }))}
                 >
-                  <SelectTrigger id="wizard-workmode" className="h-10 bg-card">
+                  <SelectTrigger id="wizard-workmode" className="h-11 bg-card/50 focus-visible:bg-background transition-colors">
                     <SelectValue>
                       {form.workMode
                         ? form.workMode.charAt(0).toUpperCase() + form.workMode.slice(1)
@@ -649,19 +670,18 @@ export default function NewApplicationPage() {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
+              {/* Employment Type */}
+              <div className="space-y-2">
                 <div className="flex justify-between items-baseline">
                   <Label htmlFor="wizard-emptype" className="text-sm font-semibold">Employment Type</Label>
-                  <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
+                  
                 </div>
                 <Select
                   value={form.employmentType}
                   onValueChange={(v) => setForm((p) => ({ ...p, employmentType: v || "" }))}
                 >
-                  <SelectTrigger id="wizard-emptype" className="h-10 bg-card">
+                  <SelectTrigger id="wizard-emptype" className="h-11 bg-card/50 focus-visible:bg-background transition-colors">
                     <SelectValue>
                       {form.employmentType
                         ? form.employmentType.charAt(0).toUpperCase() + form.employmentType.slice(1)
@@ -677,16 +697,18 @@ export default function NewApplicationPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5">
+
+              {/* Source */}
+              <div className="space-y-2">
                 <div className="flex justify-between items-baseline">
                   <Label htmlFor="wizard-source" className="text-sm font-semibold">Source</Label>
-                  <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
+                  
                 </div>
                 <Select
                   value={form.source}
                   onValueChange={(v) => setForm((p) => ({ ...p, source: v || "" }))}
                 >
-                  <SelectTrigger id="wizard-source" className="h-10 bg-card">
+                  <SelectTrigger id="wizard-source" className="h-11 bg-card/50 focus-visible:bg-background transition-colors">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -698,82 +720,55 @@ export default function NewApplicationPage() {
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-baseline w-full sm:w-1/2">
-                <Label htmlFor="wizard-status" className="text-sm font-semibold">Initial Status</Label>
-                <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
-              </div>
-              <Select
-                value={form.currentStatus}
-                onValueChange={(v) => setForm((p) => ({ ...p, currentStatus: v || "" }))}
-              >
-                <SelectTrigger id="wizard-status" className="h-10 bg-card w-full sm:w-1/2">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {APPLICATION_STATUSES.map((s) => (
-                    <SelectItem key={s} value={s}>{s}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-baseline">
-                <Label htmlFor="wizard-joburl" className="text-sm font-semibold">Job URL</Label>
-                <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
-              </div>
-              <Input
-                id="wizard-joburl"
-                type="url"
-                value={jobUrl}
-                onChange={(e) => setJobUrl(e.target.value)}
-                placeholder="https://linkedin.com/jobs/view/..."
-                className="h-10 bg-card"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
+            <div className="space-y-6">
+              {/* Seniority */}
+              <div className="space-y-2">
                 <div className="flex justify-between items-baseline">
                   <Label htmlFor="wizard-seniority" className="text-sm font-semibold">Seniority Level</Label>
-                  <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
+                  
                 </div>
                 <Input
                   id="wizard-seniority"
                   value={form.seniorityLevel}
                   onChange={(e) => setForm((p) => ({ ...p, seniorityLevel: e.target.value }))}
                   placeholder="e.g. Junior, Senior, Lead"
-                  className="h-10 bg-card"
+                  className="h-11 bg-card/50 focus-visible:bg-background transition-colors"
                 />
               </div>
 
-              <div className="space-y-1.5">
+              {/* Salary */}
+              <div className="space-y-2">
                 <div className="flex justify-between items-baseline">
                   <Label className="text-sm font-semibold">Salary Range</Label>
-                  <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
+                  
                 </div>
                 <div className="flex items-center gap-2">
                   <Input
-                    type="number"
-                    value={form.salaryMin}
-                    onChange={(e) => setForm((p) => ({ ...p, salaryMin: e.target.value }))}
+                    type="text"
+                    value={form.salaryMin ? Number(form.salaryMin).toLocaleString("en-US") : ""}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\D/g, "");
+                      setForm((p) => ({ ...p, salaryMin: raw }));
+                    }}
                     placeholder="Min"
-                    className="h-10 bg-card flex-1"
+                    className="h-11 bg-card/50 focus-visible:bg-background transition-colors flex-1"
                   />
-                  <span className="text-muted-foreground text-xs font-semibold px-0.5">to</span>
+                  <span className="text-muted-foreground text-xs font-semibold px-1">to</span>
                   <Input
-                    type="number"
-                    value={form.salaryMax}
-                    onChange={(e) => setForm((p) => ({ ...p, salaryMax: e.target.value }))}
+                    type="text"
+                    value={form.salaryMax ? Number(form.salaryMax).toLocaleString("en-US") : ""}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\D/g, "");
+                      setForm((p) => ({ ...p, salaryMax: raw }));
+                    }}
                     placeholder="Max"
-                    className="h-10 bg-card flex-1"
+                    className="h-11 bg-card/50 focus-visible:bg-background transition-colors flex-1"
                   />
                   <Select
                     value={form.currency}
                     onValueChange={(v) => setForm((p) => ({ ...p, currency: v || "USD" }))}
                   >
-                    <SelectTrigger className="h-10 bg-card w-24">
+                    <SelectTrigger className="h-11 bg-card/50 focus-visible:bg-background transition-colors w-24">
                       <SelectValue placeholder="USD" />
                     </SelectTrigger>
                     <SelectContent>
@@ -789,18 +784,40 @@ export default function NewApplicationPage() {
               </div>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {/* Initial Status */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-baseline">
+                  <Label htmlFor="wizard-status" className="text-sm font-semibold">Initial Status</Label>
+                  
+                </div>
+                <Select
+                  value={form.currentStatus}
+                  onValueChange={(v) => setForm((p) => ({ ...p, currentStatus: v || "" }))}
+                >
+                  <SelectTrigger id="wizard-status" className="h-11 bg-card/50 focus-visible:bg-background transition-colors">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {APPLICATION_STATUSES.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
               <div className="flex justify-between items-baseline">
                 <Label htmlFor="wizard-desc" className="text-sm font-semibold">Job Description</Label>
-                <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
+                
               </div>
               <Textarea
                 id="wizard-desc"
                 value={form.jobDescription}
                 onChange={(e) => setForm((p) => ({ ...p, jobDescription: e.target.value }))}
                 placeholder="Paste or type the job description..."
-                rows={4}
-                className="bg-card"
+                className="min-h-[250px] font-mono text-sm bg-card/50 focus-visible:bg-background transition-colors p-4 resize-y leading-relaxed"
               />
             </div>
           </CardContent>
@@ -907,24 +924,35 @@ export default function NewApplicationPage() {
           </Button>
 
           {step < 4 ? (
-            <Button
-              onClick={handleNext}
-              disabled={isCheckingDuplicate}
-              className="h-11 px-6 shadow-md shadow-primary/10"
-              id="wizard-next-btn"
-            >
-              {isCheckingDuplicate ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Checking...
-                </>
-              ) : (
-                <>
-                  Next
-                  <ArrowRight className="ml-1.5 h-4 w-4" />
-                </>
+            <div className="flex items-center gap-2">
+              {step === 3 && (
+                <Button
+                  variant="ghost"
+                  onClick={handleNext}
+                  className="h-11 px-4 text-muted-foreground hover:text-foreground"
+                >
+                  Skip
+                </Button>
               )}
-            </Button>
+              <Button
+                onClick={handleNext}
+                disabled={isCheckingDuplicate}
+                className="h-11 px-6 shadow-md shadow-primary/10"
+                id="wizard-next-btn"
+              >
+                {isCheckingDuplicate ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Checking...
+                  </>
+                ) : (
+                  <>
+                    Next
+                    <ArrowRight className="ml-1.5 h-4 w-4" />
+                  </>
+                )}
+              </Button>
+            </div>
           ) : (
             <Button
               onClick={handleSubmit}

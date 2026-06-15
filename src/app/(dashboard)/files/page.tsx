@@ -244,43 +244,57 @@ export default function FilesPage() {
       {/* Upload Panel Card */}
       <Card className="border-border/60">
         <CardContent className="p-4">
-          <form onSubmit={handleUpload} className="flex flex-col gap-4 sm:flex-row sm:items-end">
-            <div className="flex-1 space-y-1.5">
-              <Label htmlFor="file-input-el" className="text-xs font-semibold">Select File (PDF or DOCX, Max 10MB)</Label>
+          <form onSubmit={handleUpload} className="flex flex-col gap-5">
+            <div className="flex-1">
+              <Label 
+                htmlFor="file-input-el" 
+                className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all text-center"
+              >
+                <Upload className="h-8 w-8 text-muted-foreground mb-3" />
+                <span className="text-sm font-medium">Click to select a file</span>
+                <span className="text-xs text-muted-foreground mt-1">PDF or DOCX, Max 10MB</span>
+                {selectedFile && (
+                  <Badge variant="secondary" className="mt-4 px-3 py-1">
+                    {selectedFile.name}
+                  </Badge>
+                )}
+              </Label>
               <Input
                 id="file-input-el"
                 type="file"
                 accept=".pdf,.docx"
                 onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                className="h-10 cursor-pointer bg-card"
+                className="hidden"
                 disabled={isUploading}
               />
             </div>
-            <div className="w-full sm:w-[180px] space-y-1.5">
-              <Label htmlFor="upload-category" className="text-xs font-semibold">Category</Label>
-              <Select value={uploadCategory} onValueChange={(v) => setUploadCategory(v || "resume")} disabled={isUploading}>
-                <SelectTrigger id="upload-category" className="h-10 bg-card">
-                  <SelectValue>
-                    {uploadCategory.toUpperCase()}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {FILE_CATEGORIES.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c.toUpperCase()}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex flex-row items-end gap-4">
+              <div className="w-[180px] space-y-1.5">
+                <Label htmlFor="upload-category" className="text-xs font-semibold">Category</Label>
+                <Select value={uploadCategory} onValueChange={(v) => setUploadCategory(v || "resume")} disabled={isUploading}>
+                  <SelectTrigger id="upload-category" className="h-10 bg-card">
+                    <SelectValue>
+                      {uploadCategory.toUpperCase()}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FILE_CATEGORIES.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c.toUpperCase()}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button type="submit" disabled={isUploading || !selectedFile} className="h-10 shrink-0">
+                {isUploading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="mr-2 h-4 w-4" />
+                )}
+                Upload Document
+              </Button>
             </div>
-            <Button type="submit" disabled={isUploading || !selectedFile} className="h-10">
-              {isUploading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Upload className="mr-2 h-4 w-4" />
-              )}
-              Upload Document
-            </Button>
           </form>
         </CardContent>
       </Card>

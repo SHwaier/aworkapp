@@ -28,6 +28,7 @@ import {
   Target,
   FileDown,
   Eye,
+  Edit,
 } from "lucide-react";
 
 interface FileItem {
@@ -57,7 +58,17 @@ export default function ResumesPage() {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showNewDialog, setShowNewDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [editResume, setEditResume] = useState({
+    id: "",
+    name: "",
+    targetRole: "",
+    targetIndustry: "",
+    skillsRaw: "",
+    notes: "",
+    fileId: "",
+  });
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
     id: string;
@@ -106,6 +117,43 @@ export default function ResumesPage() {
     fetchResumes();
     fetchFiles();
   }, [fetchResumes, fetchFiles]);
+
+  async function handleUpdateResume(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editResume.name.trim()) return;
+    setIsCreating(true);
+
+    try {
+      const skillsEmphasized = editResume.skillsRaw
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+
+      const res = await fetch(`/api/resumes/${editResume.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editResume.name,
+          targetRole: editResume.targetRole,
+          targetIndustry: editResume.targetIndustry,
+          skillsEmphasized,
+          notes: editResume.notes,
+          fileId: editResume.fileId || null,
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error);
+
+      toast.success("Resume version updated");
+      setShowEditDialog(false);
+      fetchResumes();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Update failed");
+    } finally {
+      setIsCreating(false);
+    }
+  }
 
   async function handleCreateResume(e: React.FormEvent) {
     e.preventDefault();
@@ -217,14 +265,37 @@ export default function ResumesPage() {
                     Created: {new Date(resume.createdAt).toLocaleDateString()}
                   </span>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
-                  onClick={() => requestDeleteResume(resume.id || resume._id || "")}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-primary shrink-0"
+                    onClick={() => {
+                      setEditResume({
+                        id: resume.id || resume._id || "",
+                        name: resume.name,
+                        targetRole: resume.targetRole || "",
+                        targetIndustry: resume.targetIndustry || "",
+                        skillsRaw: resume.skillsEmphasized?.join(", ") || "",
+                        notes: resume.notes || "",
+                        fileId: typeof resume.fileId === "object" ? (resume.fileId?._id || resume.fileId?.id || "") : (resume.fileId || ""),
+                      });
+                      setShowEditDialog(true);
+                    }}
+                    title="Edit Resume"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+                    onClick={() => requestDeleteResume(resume.id || resume._id || "")}
+                    title="Delete Resume"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="flex-1 flex flex-col space-y-4">
                 {/* Target profile */}
@@ -414,6 +485,132 @@ export default function ResumesPage() {
               <Button type="submit" disabled={isCreating}>
                 {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save Version
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Resume Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Resume Version</DialogTitle>
+            <DialogDescription>
+              Update your resume version details or change the attached file.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateResume} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-resume-name" className="text-sm font-semibold">
+                Version Name <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="edit-resume-name"
+                placeholder="e.g. Master Resume, Web Dev focus"
+                value={editResume.name}
+                onChange={(e) =>
+                  setEditResume((p) => ({ ...p, name: e.target.value }))
+                }
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-baseline">
+                  <Label htmlFor="edit-target-role" className="text-sm font-semibold">Target Role</Label>
+                  <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
+                </div>
+                <Input
+                  id="edit-target-role"
+                  placeholder="e.g. Fullstack Engineer"
+                  value={editResume.targetRole}
+                  onChange={(e) =>
+                    setEditResume((p) => ({ ...p, targetRole: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-baseline">
+                  <Label htmlFor="edit-target-industry" className="text-sm font-semibold">Industry</Label>
+                  <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
+                </div>
+                <Input
+                  id="edit-target-industry"
+                  placeholder="e.g. SaaS / Fintech"
+                  value={editResume.targetIndustry}
+                  onChange={(e) =>
+                    setEditResume((p) => ({ ...p, targetIndustry: e.target.value }))
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-baseline">
+                <Label htmlFor="edit-skills-raw" className="text-sm font-semibold">Emphasized Skills</Label>
+                <span className="text-[10px] text-muted-foreground font-medium">Comma-separated</span>
+              </div>
+              <Input
+                id="edit-skills-raw"
+                placeholder="e.g. React, TypeScript, Node.js"
+                value={editResume.skillsRaw}
+                onChange={(e) =>
+                  setEditResume((p) => ({ ...p, skillsRaw: e.target.value }))
+                }
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-baseline">
+                <Label htmlFor="edit-attached-file" className="text-sm font-semibold">Attach Document</Label>
+                <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
+              </div>
+              <select
+                id="edit-attached-file"
+                value={editResume.fileId}
+                onChange={(e) =>
+                  setEditResume((p) => ({ ...p, fileId: e.target.value }))
+                }
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="">-- Choose Document --</option>
+                {files.map((f) => (
+                  <option key={f.id || f._id} value={f.id || f._id}>
+                    {f.displayName}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-baseline">
+                <Label htmlFor="edit-resume-notes" className="text-sm font-semibold">Version Notes</Label>
+                <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
+              </div>
+              <Textarea
+                id="edit-resume-notes"
+                placeholder="What changes did you make in this version?"
+                value={editResume.notes}
+                onChange={(e) =>
+                  setEditResume((p) => ({ ...p, notes: e.target.value }))
+                }
+                rows={3}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowEditDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isCreating}>
+                {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save Changes
               </Button>
             </div>
           </form>
