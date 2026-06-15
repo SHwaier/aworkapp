@@ -33,7 +33,7 @@ const REFRESH_TOKEN_COOKIE = "aos_refresh_token";
  */
 export function generateAccessToken(user: SessionUser): string {
   return jwt.sign({ userId: user.id, email: user.email, name: user.name }, JWT_SECRET, {
-    expiresIn: JWT_EXPIRES_IN as string,
+    expiresIn: JWT_EXPIRES_IN as unknown as number,
   });
 }
 
@@ -42,7 +42,7 @@ export function generateAccessToken(user: SessionUser): string {
  */
 export function generateRefreshToken(user: SessionUser): string {
   return jwt.sign({ userId: user.id, email: user.email, name: user.name }, JWT_REFRESH_SECRET, {
-    expiresIn: JWT_REFRESH_EXPIRES_IN as string,
+    expiresIn: JWT_REFRESH_EXPIRES_IN as unknown as number,
   });
 }
 

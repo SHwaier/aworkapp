@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import {
   verifyRefreshToken,
   setAuthCookies,
@@ -15,16 +14,14 @@ export async function POST() {
 
     if (!refreshToken) {
       await clearAuthCookies();
-      return NextResponse.json(errorResponse("No refresh token found", 401), { status: 401 });
+      return errorResponse("No refresh token found", 401);
     }
 
     const payload = verifyRefreshToken(refreshToken);
 
     if (!payload) {
       await clearAuthCookies();
-      return NextResponse.json(errorResponse("Invalid or expired refresh token", 401), {
-        status: 401,
-      });
+      return errorResponse("Invalid or expired refresh token", 401);
     }
 
     const user: SessionUser = {
@@ -36,10 +33,10 @@ export async function POST() {
     // Set new tokens (both access and refresh)
     await setAuthCookies(user);
 
-    return NextResponse.json(successResponse({ user }, "Tokens refreshed successfully"));
+    return successResponse({ user });
   } catch (error) {
     console.error("Refresh token error:", error);
     await clearAuthCookies();
-    return NextResponse.json(errorResponse("Internal server error", 500), { status: 500 });
+    return errorResponse("Internal server error", 500);
   }
 }
