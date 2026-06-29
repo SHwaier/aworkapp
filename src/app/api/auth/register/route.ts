@@ -1,27 +1,21 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db/mongoose";
 import User from "@/models/User";
+import RefreshToken from "@/models/RefreshToken";
 import { hashPassword } from "@/lib/auth/password";
-import { setAuthCookies } from "@/lib/auth/session";
+import { setAuthCookies, hashToken } from "@/lib/auth/session";
 import { registerSchema } from "@/lib/validators/schemas";
 import { handleApiError, successResponse } from "@/lib/api/response";
 import { createAuditLog } from "@/models/AuditLog";
 import { AppError } from "@/lib/api/app-error";
-import {
-  checkRateLimit,
-  getClientIp,
-  RATE_LIMITS,
-  rateLimitHeaders,
-} from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
+import { v4 as uuidv4 } from "uuid";
 
 export async function POST(request: Request): Promise<NextResponse> {
   try {
     // Rate limit: strict (3/minute)
     const ip = getClientIp(request);
-    const rateLimit = checkRateLimit(
-      `register:${ip}`,
-      RATE_LIMITS.strict
-    );
+    const rateLimit = checkRateLimit(`register:${ip}`, RATE_LIMITS.strict);
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { success: false, error: "Too many registration attempts. Please try again later." },
@@ -52,11 +46,20 @@ export async function POST(request: Request): Promise<NextResponse> {
       passwordHash,
     });
 
-    // Set auth cookies
-    await setAuthCookies({
+    // Set auth cookies — returns raw refresh token for DB storage
+    const refreshToken = await setAuthCookies({
       id: user._id.toString(),
       email: user.email,
       name: user.name,
+    });
+
+    // Store refresh token hash in DB for rotation tracking
+    const family = uuidv4();
+    await RefreshToken.create({
+      tokenHash: hashToken(refreshToken),
+      userId: user._id,
+      family,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     });
 
     // Audit log

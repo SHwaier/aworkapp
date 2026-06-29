@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
-import { clearAuthCookies, getSession } from "@/lib/auth/session";
+import dbConnect from "@/lib/db/mongoose";
+import RefreshToken from "@/models/RefreshToken";
+import { clearAuthCookies, getSession, hashToken } from "@/lib/auth/session";
 import { createAuditLog } from "@/models/AuditLog";
 import { successResponse, handleApiError } from "@/lib/api/response";
-import {
-  checkRateLimit,
-  getClientIp,
-  RATE_LIMITS,
-  rateLimitHeaders,
-} from "@/lib/rate-limit";
+import { cookies } from "next/headers";
+import { checkRateLimit, getClientIp, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
 
 export async function POST(request: Request): Promise<NextResponse> {
   try {
@@ -24,6 +22,24 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
 
     if (session) {
+      await dbConnect();
+
+      // Revoke the current refresh token and its entire family
+      const cookieStore = await cookies();
+      const rawRefreshToken = cookieStore.get("aos_refresh_token")?.value;
+
+      if (rawRefreshToken) {
+        const tokenHash = hashToken(rawRefreshToken);
+        const storedToken = await RefreshToken.findOne({ tokenHash });
+        if (storedToken) {
+          // Revoke entire family — invalidates all rotated tokens
+          await RefreshToken.updateMany(
+            { family: storedToken.family },
+            { $set: { isRevoked: true } }
+          );
+        }
+      }
+
       await createAuditLog({
         userId: session.id,
         action: "user.logout",

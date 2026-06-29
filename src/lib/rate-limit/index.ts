@@ -1,8 +1,13 @@
 /**
  * In-memory rate limiter for API routes.
  * Uses a sliding window counter pattern.
- * 
- * For production, replace with Redis-based limiter (e.g., @upstash/ratelimit).
+ *
+ * LIMITATION: In-memory state is NOT shared across serverless instances.
+ * For multi-instance deployments (Vercel, etc.), this provides best-effort
+ * protection only. Auth-critical endpoints are additionally protected by
+ * the MongoDB-backed brute-force system (src/lib/security/brute-force.ts).
+ *
+ * To upgrade: replace with @upstash/ratelimit or a Redis-backed limiter.
  */
 
 interface RateLimitEntry {
@@ -56,15 +61,12 @@ export const RATE_LIMITS = {
 
 /**
  * Check if a request is within rate limits.
- * 
+ *
  * @param identifier - Unique key for the rate limit (e.g., IP + endpoint)
  * @param config - Rate limit configuration
  * @returns Whether the request is allowed and remaining quota
  */
-export function checkRateLimit(
-  identifier: string,
-  config: RateLimitConfig
-): RateLimitResult {
+export function checkRateLimit(identifier: string, config: RateLimitConfig): RateLimitResult {
   cleanup();
 
   const now = Date.now();
@@ -106,25 +108,48 @@ export function checkRateLimit(
 
 /**
  * Get the client IP from request headers.
- * Checks X-Forwarded-For first (reverse proxy), then falls back.
+ * Checks common reverse proxy headers with priority order.
+ * Falls back to a fingerprint hash rather than a shared "unknown" bucket.
  */
 export function getClientIp(request: Request): string {
+  // Standard proxy header (Vercel, Cloudflare, nginx, etc.)
   const forwarded = request.headers.get("x-forwarded-for");
   if (forwarded) {
-    // Take the first IP in the chain (original client)
     return forwarded.split(",")[0].trim();
   }
-  // Fallback for direct connections
-  return "unknown";
+
+  // Cloudflare
+  const cfIp = request.headers.get("cf-connecting-ip");
+  if (cfIp) {
+    return cfIp.trim();
+  }
+
+  // Vercel
+  const vercelIp = request.headers.get("x-real-ip");
+  if (vercelIp) {
+    return vercelIp.trim();
+  }
+
+  // Fallback: fingerprint from available headers to avoid shared bucket
+  const ua = request.headers.get("user-agent") || "";
+  const accept = request.headers.get("accept-language") || "";
+  return `fp:${simpleHash(ua + accept)}`;
+}
+
+/** Simple non-crypto hash for fingerprinting (not security-critical) */
+function simpleHash(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash + char) | 0;
+  }
+  return Math.abs(hash).toString(36);
 }
 
 /**
  * Create rate limit response headers
  */
-export function rateLimitHeaders(
-  result: RateLimitResult,
-  config?: RateLimitConfig
-): HeadersInit {
+export function rateLimitHeaders(result: RateLimitResult, config?: RateLimitConfig): HeadersInit {
   return {
     "X-RateLimit-Limit": (config?.maxRequests ?? result.remaining).toString(),
     "X-RateLimit-Remaining": Math.max(0, result.remaining).toString(),

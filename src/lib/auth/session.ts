@@ -1,12 +1,14 @@
 import jwt from "jsonwebtoken";
+import type { StringValue } from "ms";
+import { createHash } from "crypto";
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
 import { AppError } from "@/lib/api/app-error";
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET!;
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "1d";
-const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || "7d";
+const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN || "1d") as StringValue;
+const JWT_REFRESH_EXPIRES_IN = (process.env.JWT_REFRESH_EXPIRES_IN || "7d") as StringValue;
 
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
@@ -29,11 +31,19 @@ const ACCESS_TOKEN_COOKIE = "aos_access_token";
 const REFRESH_TOKEN_COOKIE = "aos_refresh_token";
 
 /**
+ * SHA-256 hash a token for safe storage in the database.
+ * Never store raw tokens — only their hashes.
+ */
+export function hashToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+/**
  * Generate an access token (short-lived)
  */
 export function generateAccessToken(user: SessionUser): string {
   return jwt.sign({ userId: user.id, email: user.email, name: user.name }, JWT_SECRET, {
-    expiresIn: JWT_EXPIRES_IN as unknown as number,
+    expiresIn: JWT_EXPIRES_IN,
   });
 }
 
@@ -42,7 +52,7 @@ export function generateAccessToken(user: SessionUser): string {
  */
 export function generateRefreshToken(user: SessionUser): string {
   return jwt.sign({ userId: user.id, email: user.email, name: user.name }, JWT_REFRESH_SECRET, {
-    expiresIn: JWT_REFRESH_EXPIRES_IN as unknown as number,
+    expiresIn: JWT_REFRESH_EXPIRES_IN,
   });
 }
 
@@ -134,8 +144,10 @@ export async function verifyAccessTokenEdge(token: string): Promise<TokenPayload
  * Set auth cookies with security flags.
  * Access token: short-lived, HTTP-only, Secure, SameSite=Lax
  * Refresh token: long-lived, HTTP-only, Secure, SameSite=Strict, path=/api/auth
+ *
+ * Returns the raw refresh token so the caller can store its hash in the DB.
  */
-export async function setAuthCookies(user: SessionUser): Promise<void> {
+export async function setAuthCookies(user: SessionUser): Promise<string> {
   const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user);
 
@@ -158,6 +170,8 @@ export async function setAuthCookies(user: SessionUser): Promise<void> {
     path: "/api/auth",
     maxAge: 7 * 24 * 60 * 60, // 7 days
   });
+
+  return refreshToken;
 }
 
 /**

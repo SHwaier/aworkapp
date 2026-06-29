@@ -5,6 +5,7 @@ export interface IUser extends Document {
   name: string;
   email: string;
   passwordHash: string;
+  googleId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -31,6 +32,11 @@ const UserSchema = new Schema<IUser>(
       required: true,
       // Never expose password hash in queries by default
       select: false,
+    },
+    googleId: {
+      type: String,
+      sparse: true,
+      index: true,
     },
   },
   {

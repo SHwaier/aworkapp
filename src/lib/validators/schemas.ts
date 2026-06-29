@@ -20,7 +20,7 @@ export const registerSchema = z
     email: z.string().email("Please enter a valid email address").max(255).toLowerCase().trim(),
     password: z
       .string()
-      .min(8, "Password must be at least 8 characters")
+      .min(10, "Password must be at least 10 characters")
       .max(128, "Password is too long")
       .regex(/[a-z]/, "Password must contain a lowercase letter")
       .regex(/[A-Z]/, "Password must contain an uppercase letter")
@@ -465,16 +465,10 @@ export const CHECKLIST_STATUSES = [
   "not_applicable",
 ] as const;
 
-export const CHECKLIST_SEVERITIES = [
-  "info",
-  "suggestion",
-  "warning",
-  "critical",
-] as const;
+export const CHECKLIST_SEVERITIES = ["info", "suggestion", "warning", "critical"] as const;
 
 export const updateChecklistItemSchema = z.object({
   status: z.enum(CHECKLIST_STATUSES),
 });
 
 export type UpdateChecklistItemInput = z.infer<typeof updateChecklistItemSchema>;
-

@@ -2,29 +2,11 @@
  * Security headers for all responses.
  * Applied via proxy.ts on every request.
  */
-export const SECURITY_HEADERS: Record<string, string> = {
-  // Prevent MIME type sniffing
-  "X-Content-Type-Options": "nosniff",
-  // Prevent clickjacking
-  "X-Frame-Options": "DENY",
-  // Enable XSS filtering
-  "X-XSS-Protection": "1; mode=block",
-  // Control referrer information
-  "Referrer-Policy": "strict-origin-when-cross-origin",
-  // Permissions policy — restrict browser features
-  "Permissions-Policy":
-    "camera=(), microphone=(), geolocation=(), payment=()",
-  // Strict transport security (only in production)
-  ...(process.env.NODE_ENV === "production"
-    ? { "Strict-Transport-Security": "max-age=31536000; includeSubDomains" }
-    : {}),
-};
 
 /**
  * Content Security Policy header.
- * Kept separate for easier customization.
  */
-export function getCSPHeader(): string {
+function getCSPHeader(): string {
   const directives = [
     "default-src 'self'",
     "script-src 'self' 'unsafe-eval' 'unsafe-inline'", // Next.js requires these
@@ -39,3 +21,22 @@ export function getCSPHeader(): string {
 
   return directives.join("; ");
 }
+
+export const SECURITY_HEADERS: Record<string, string> = {
+  // Prevent MIME type sniffing
+  "X-Content-Type-Options": "nosniff",
+  // Prevent clickjacking
+  "X-Frame-Options": "DENY",
+  // Enable XSS filtering
+  "X-XSS-Protection": "1; mode=block",
+  // Control referrer information
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  // Permissions policy — restrict browser features
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
+  // Content Security Policy
+  "Content-Security-Policy": getCSPHeader(),
+  // Strict transport security (only in production)
+  ...(process.env.NODE_ENV === "production"
+    ? { "Strict-Transport-Security": "max-age=31536000; includeSubDomains" }
+    : {}),
+};

@@ -1,6 +1,14 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 
 interface User {
@@ -28,8 +36,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const userRef = useRef(user);
 
-  // Check session on mount
+  // Keep ref in sync with state
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  // Check session on mount — runs once only
   useEffect(() => {
     async function checkSession() {
       try {
@@ -53,11 +67,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
     checkSession();
+  }, []); // Empty deps — mount only
 
-    // Background token refresh every 1 hour to prevent session interruption
+  // Background token refresh every 1 hour (separate effect)
+  useEffect(() => {
     const refreshInterval = setInterval(
       async () => {
-        if (user) {
+        // Use ref to read current user without re-triggering effect
+        if (userRef.current) {
           try {
             await fetch("/api/auth/refresh", { method: "POST" });
           } catch {
@@ -69,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     return () => clearInterval(refreshInterval);
-  }, [user]);
+  }, []); // Empty deps — interval set once
 
   const login = useCallback(
     async (email: string, password: string) => {

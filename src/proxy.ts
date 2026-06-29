@@ -10,6 +10,7 @@ import { SECURITY_HEADERS } from "@/lib/security/headers";
  * - Redirect unauthenticated users away from protected routes
  * - Redirect authenticated users away from auth pages
  * - Add security headers to all responses
+ * - CSRF protection via Origin verification on mutating requests
  *
  * This runs on the Edge and must be fast. No heavy DB operations.
  */
@@ -45,8 +46,71 @@ const PROTECTED_API_PREFIXES = [
   "/api/import-job",
 ];
 
+// Mutating HTTP methods that need CSRF protection
+const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+// API routes exempt from CSRF Origin check (e.g., OAuth callbacks that come from Google)
+const CSRF_EXEMPT_PATHS = ["/api/auth/google/callback"];
+
+/**
+ * Verify the Origin header matches our app URL for CSRF protection.
+ * Returns true if the request is safe, false if it should be blocked.
+ */
+function verifyCsrfOrigin(request: NextRequest): boolean {
+  const method = request.method.toUpperCase();
+
+  // GET/HEAD/OPTIONS are safe methods — no CSRF check needed
+  if (!MUTATING_METHODS.has(method)) {
+    return true;
+  }
+
+  const { pathname } = request.nextUrl;
+
+  // Skip CSRF check for exempt paths
+  if (CSRF_EXEMPT_PATHS.some((p) => pathname.startsWith(p))) {
+    return true;
+  }
+
+  // Only enforce on API routes
+  if (!pathname.startsWith("/api/")) {
+    return true;
+  }
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const allowedOrigin = new URL(appUrl).origin;
+
+  // Check Origin header first (most reliable)
+  const origin = request.headers.get("origin");
+  if (origin) {
+    return origin === allowedOrigin;
+  }
+
+  // Fall back to Referer header
+  const referer = request.headers.get("referer");
+  if (referer) {
+    try {
+      return new URL(referer).origin === allowedOrigin;
+    } catch {
+      return false;
+    }
+  }
+
+  // No Origin or Referer — block mutating requests (could be a direct curl/tool call,
+  // but that's safe since those don't send cookies unless explicitly configured)
+  return false;
+}
+
 export async function proxy(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
+
+  // CSRF Origin verification for mutating API requests
+  if (!verifyCsrfOrigin(request)) {
+    return NextResponse.json(
+      { success: false, error: "Forbidden: cross-origin request blocked" },
+      { status: 403 }
+    );
+  }
+
   const session = await getSessionFromRequest(request);
   const isAuthenticated = !!session;
 
