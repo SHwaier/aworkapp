@@ -11,16 +11,34 @@ export class AIAnalyzer implements ChecklistAnalyzer {
 
     try {
       const payload = this.buildPayload(input);
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`;
+      let res;
+      let retries = 3;
 
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      while (retries > 0) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+        res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
 
-      if (!res.ok) {
+        if (res.ok) {
+          break;
+        }
+
+        if (res.status === 503 || res.status === 429) {
+          retries--;
+          if (retries > 0) {
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+            continue;
+          }
+        }
+
         throw new Error(`Gemini API error ${res.status}`);
+      }
+
+      if (!res || !res.ok) {
+        throw new Error(`Gemini API error ${res?.status || "Unknown"}`);
       }
 
       const data = await res.json();
