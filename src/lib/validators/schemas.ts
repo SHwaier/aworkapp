@@ -10,30 +10,66 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Password is required").max(128, "Password is too long"),
 });
 
-export const registerSchema = z
+export type LoginInput = z.infer<typeof loginSchema>;
+
+const newPasswordSchema = z
+  .string()
+  .min(10, "Password must be at least 10 characters")
+  .max(128, "Password is too long")
+  .regex(/[a-z]/, "Password must contain a lowercase letter")
+  .regex(/[A-Z]/, "Password must contain an uppercase letter")
+  .regex(/[0-9]/, "Password must contain a number");
+
+export const changePasswordSchema = z
   .object({
-    name: z
-      .string()
-      .min(2, "Name must be at least 2 characters")
-      .max(100, "Name is too long")
-      .trim(),
-    email: z.string().email("Please enter a valid email address").max(255).toLowerCase().trim(),
-    password: z
-      .string()
-      .min(10, "Password must be at least 10 characters")
-      .max(128, "Password is too long")
-      .regex(/[a-z]/, "Password must contain a lowercase letter")
-      .regex(/[A-Z]/, "Password must contain an uppercase letter")
-      .regex(/[0-9]/, "Password must contain a number"),
+    currentPassword: z.string().min(1, "Current password is required").max(128),
+    newPassword: newPasswordSchema,
     confirmPassword: z.string(),
   })
-  .refine((data) => data.password === data.confirmPassword, {
+  .refine((data) => data.newPassword === data.confirmPassword, {
     message: "Passwords do not match",
     path: ["confirmPassword"],
+  })
+  .refine((data) => data.newPassword !== data.currentPassword, {
+    message: "New password must be different from your current password",
+    path: ["newPassword"],
   });
 
-export type LoginInput = z.infer<typeof loginSchema>;
-export type RegisterInput = z.infer<typeof registerSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+// ============================================
+// Admin: Member Management Schemas
+// ============================================
+
+export const createMemberSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters").max(100, "Name is too long").trim(),
+  email: z.string().email("Please enter a valid email address").max(255).toLowerCase().trim(),
+  password: newPasswordSchema,
+  role: z.enum(["user", "admin"]).optional().default("user"),
+});
+
+export const updateMemberSchema = z
+  .object({
+    role: z.enum(["user", "admin"]).optional(),
+    disabled: z.boolean().optional(),
+  })
+  .refine((data) => data.role !== undefined || data.disabled !== undefined, {
+    message: "Nothing to update",
+  });
+
+export const deleteMemberSchema = z.object({
+  // Typed by the admin to confirm a permanent delete
+  confirmEmail: z.string().max(255).toLowerCase().trim(),
+});
+
+export const resetMemberPasswordSchema = z.object({
+  password: newPasswordSchema,
+});
+
+export type CreateMemberInput = z.infer<typeof createMemberSchema>;
+export type UpdateMemberInput = z.infer<typeof updateMemberSchema>;
+export type DeleteMemberInput = z.infer<typeof deleteMemberSchema>;
+export type ResetMemberPasswordInput = z.infer<typeof resetMemberPasswordSchema>;
 
 // ============================================
 // Company Schemas

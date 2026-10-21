@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useTheme } from "@/components/providers/theme-provider";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
@@ -17,7 +18,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Shield, User, Sun, Moon, Monitor } from "lucide-react";
+import { Loader2, Shield, User, Sun, Moon, Monitor, KeyRound } from "lucide-react";
 
 interface AuditLog {
   id: string;
@@ -109,6 +110,13 @@ export default function SettingsPage() {
                 </span>
                 <span className="text-sm font-medium">{user?.email}</span>
               </div>
+              <Link
+                href="/change-password"
+                className={buttonVariants({ variant: "outline", size: "sm", className: "gap-1.5" })}
+              >
+                <KeyRound className="h-4 w-4" />
+                Change password
+              </Link>
             </CardContent>
           </Card>
 

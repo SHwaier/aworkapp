@@ -4,7 +4,6 @@ import dbConnect from "@/lib/db/mongoose";
 import User from "@/models/User";
 import RefreshToken from "@/models/RefreshToken";
 import { setAuthCookies, hashToken } from "@/lib/auth/session";
-import { hashPassword } from "@/lib/auth/password";
 import { v4 as uuidv4 } from "uuid";
 
 export async function GET(request: Request) {
@@ -72,7 +71,6 @@ export async function GET(request: Request) {
   }
 
   let email = "";
-  let name = "";
   let googleId = "";
   let emailVerified = false;
 
@@ -128,7 +126,6 @@ export async function GET(request: Request) {
     }
 
     email = profile.email.toLowerCase().trim();
-    name = profile.name || profile.given_name || "Google User";
     googleId = profile.sub; // Google's unique user ID
   } catch (err) {
     console.error("Google OAuth Callback Exception:", err);
@@ -136,7 +133,8 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(message)}`, appUrl));
   }
 
-  // Database operations: Find or create user
+  // Database operations: find an existing member. Signup is disabled —
+  // accounts are created by admins only, so unknown emails are rejected.
   try {
     await dbConnect();
 
@@ -144,25 +142,27 @@ export async function GET(request: Request) {
     let user = await User.findOne({ googleId });
 
     if (!user) {
-      // Check if a user with this email already exists (email/password registration)
+      // Fall back to an admin-created account with the same email
       user = await User.findOne({ email });
 
-      if (user) {
-        // Link Google ID to existing account
-        user.googleId = googleId;
-        await user.save();
-      } else {
-        // Create new user with a secure random password hash
-        const randomPassword = uuidv4() + uuidv4();
-        const passwordHash = await hashPassword(randomPassword);
-
-        user = await User.create({
-          name,
-          email,
-          passwordHash,
-          googleId,
-        });
+      if (!user) {
+        return NextResponse.redirect(
+          new URL(
+            "/login?error=No account found for this Google email. Ask an admin to add you.",
+            appUrl
+          )
+        );
       }
+
+      // Link Google ID to existing account
+      user.googleId = googleId;
+      await user.save();
+    }
+
+    if (user.disabledAt) {
+      return NextResponse.redirect(
+        new URL("/login?error=This account has been disabled. Contact an admin.", appUrl)
+      );
     }
 
     // Sign in user: set cookies
@@ -170,6 +170,8 @@ export async function GET(request: Request) {
       id: user._id.toString(),
       email: user.email,
       name: user.name,
+      mustChangePassword: !!user.mustChangePassword,
+      sessionVersion: user.sessionVersion ?? 0,
     };
 
     const refreshToken = await setAuthCookies(sessionUser);
@@ -185,7 +187,7 @@ export async function GET(request: Request) {
 
     return NextResponse.redirect(new URL(callbackUrl, appUrl));
   } catch (err) {
-    console.error("DB Login/Registration Error during OAuth:", err);
+    console.error("DB Login Error during OAuth:", err);
     const message = err instanceof Error ? err.message : "Database login error";
     return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(message)}`, appUrl));
   }

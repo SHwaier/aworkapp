@@ -1,17 +1,12 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db/mongoose";
 import Note from "@/models/Note";
-import { requireAuth } from "@/lib/auth/session";
+import { requireAuth } from "@/lib/auth/guard";
 import { updateNoteSchema, mongoIdSchema } from "@/lib/validators/schemas";
 import { successResponse, errorResponse, handleApiError } from "@/lib/api/response";
 import { createAuditLog } from "@/models/AuditLog";
 
-import {
-  checkRateLimit,
-  getClientIp,
-  RATE_LIMITS,
-  rateLimitHeaders,
-} from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -21,10 +16,7 @@ interface RouteParams {
  * PATCH /api/notes/:id
  * Toggle pin state or edit body.
  */
-export async function PATCH(
-  request: Request,
-  { params }: RouteParams
-): Promise<NextResponse> {
+export async function PATCH(request: Request, { params }: RouteParams): Promise<NextResponse> {
   try {
     const session = await requireAuth();
     const { id } = await params;
@@ -74,10 +66,7 @@ export async function PATCH(
 /**
  * DELETE /api/notes/:id
  */
-export async function DELETE(
-  request: Request,
-  { params }: RouteParams
-): Promise<NextResponse> {
+export async function DELETE(request: Request, { params }: RouteParams): Promise<NextResponse> {
   try {
     const session = await requireAuth();
     const { id } = await params;

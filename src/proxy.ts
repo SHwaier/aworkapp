@@ -15,6 +15,9 @@ import { SECURITY_HEADERS } from "@/lib/security/headers";
  * This runs on the Edge and must be fast. No heavy DB operations.
  */
 
+// Where users with a temporary (admin-set) password are sent until they change it
+const CHANGE_PASSWORD_ROUTE = "/change-password";
+
 // Routes that require authentication
 const PROTECTED_PREFIXES = [
   "/dashboard",
@@ -26,10 +29,12 @@ const PROTECTED_PREFIXES = [
   "/contacts",
   "/analytics",
   "/settings",
+  "/admin",
+  CHANGE_PASSWORD_ROUTE,
 ];
 
 // Auth routes — redirect authenticated users away
-const AUTH_ROUTES = ["/login", "/register"];
+const AUTH_ROUTES = ["/login"];
 
 // API routes that require authentication
 const PROTECTED_API_PREFIXES = [
@@ -44,6 +49,7 @@ const PROTECTED_API_PREFIXES = [
   "/api/reminders",
   "/api/analytics",
   "/api/import-job",
+  "/api/admin",
 ];
 
 // Mutating HTTP methods that need CSRF protection
@@ -146,8 +152,24 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   if (!isAuthenticated && isProtectedApi) {
     return NextResponse.json(
       { success: false, error: "Authentication required" },
-      { status: 401, headers: Object.fromEntries(response.headers) }
+      // Not response.headers: that carries x-middleware-next, which makes Next
+      // discard this response and fall through to the route handler.
+      { status: 401, headers: SECURITY_HEADERS }
     );
+  }
+
+  // Temporary password → lock the session to the change-password page.
+  // /api/auth/* stays reachable so the user can change password, refresh, and log out.
+  if (session?.mustChangePassword) {
+    if (isProtectedApi) {
+      return NextResponse.json(
+        { success: false, error: "Password change required" },
+        { status: 403, headers: SECURITY_HEADERS }
+      );
+    }
+    if ((isProtectedRoute || isAuthRoute) && pathname !== CHANGE_PASSWORD_ROUTE) {
+      return NextResponse.redirect(new URL(CHANGE_PASSWORD_ROUTE, request.url));
+    }
   }
 
   // Authenticated user trying to access auth pages → redirect to dashboard

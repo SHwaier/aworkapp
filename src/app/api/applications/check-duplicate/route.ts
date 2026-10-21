@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db/mongoose";
 import Application from "@/models/Application";
-import { requireAuth } from "@/lib/auth/session";
+import { requireAuth } from "@/lib/auth/guard";
 import { checkRateLimit, getClientIp, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
 import { escapeRegex } from "@/lib/utils/escape-regex";
 import { successResponse, handleApiError } from "@/lib/api/response";

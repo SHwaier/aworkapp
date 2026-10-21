@@ -63,6 +63,11 @@ export async function POST(request: Request): Promise<NextResponse> {
       throw new AppError("Invalid credentials", 401);
     }
 
+    // Checked only after the password is verified, so it doesn't reveal which emails exist
+    if (user.disabledAt) {
+      throw new AppError("This account has been disabled. Contact an admin.", 403);
+    }
+
     // Record successful login
     await recordLoginAttempt(validated.email, ip, true, userAgent);
 
@@ -70,6 +75,8 @@ export async function POST(request: Request): Promise<NextResponse> {
       id: user._id.toString(),
       email: user.email,
       name: user.name,
+      mustChangePassword: !!user.mustChangePassword,
+      sessionVersion: user.sessionVersion ?? 0,
     };
 
     // Set auth cookies — returns raw refresh token for DB storage
@@ -98,6 +105,8 @@ export async function POST(request: Request): Promise<NextResponse> {
         id: user._id.toString(),
         name: user.name,
         email: user.email,
+        role: user.role ?? "user",
+        mustChangePassword: !!user.mustChangePassword,
       },
     });
   } catch (error) {

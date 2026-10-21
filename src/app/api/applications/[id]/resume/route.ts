@@ -2,23 +2,11 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db/mongoose";
 import Application from "@/models/Application";
 import ResumeSnapshot from "@/models/ResumeSnapshot";
-import { requireAuth } from "@/lib/auth/session";
+import { requireAuth } from "@/lib/auth/guard";
 import { mongoIdSchema } from "@/lib/validators/schemas";
-import {
-  successResponse,
-  errorResponse,
-  handleApiError,
-} from "@/lib/api/response";
-import {
-  checkRateLimit,
-  getClientIp,
-  RATE_LIMITS,
-  rateLimitHeaders,
-} from "@/lib/rate-limit";
-import {
-  assignResumeToApplication,
-  unassignResumeFromApplication,
-} from "@/lib/services/resume";
+import { successResponse, errorResponse, handleApiError } from "@/lib/api/response";
+import { checkRateLimit, getClientIp, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
+import { assignResumeToApplication, unassignResumeFromApplication } from "@/lib/services/resume";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -28,10 +16,7 @@ interface RouteParams {
  * GET /api/applications/:id/resume
  * Retrieve the resume snapshot assigned to this application.
  */
-export async function GET(
-  request: Request,
-  { params }: RouteParams
-): Promise<NextResponse> {
+export async function GET(request: Request, { params }: RouteParams): Promise<NextResponse> {
   try {
     const session = await requireAuth();
     const { id: applicationId } = await params;
@@ -77,10 +62,7 @@ export async function GET(
  * POST /api/applications/:id/resume
  * Assign a resume version (ResumeVersion) to this application.
  */
-export async function POST(
-  request: Request,
-  { params }: RouteParams
-): Promise<NextResponse> {
+export async function POST(request: Request, { params }: RouteParams): Promise<NextResponse> {
   try {
     const session = await requireAuth();
     const { id: applicationId } = await params;
@@ -130,10 +112,7 @@ export async function POST(
  * DELETE /api/applications/:id/resume
  * Unassign (delete) the resume snapshot from this application.
  */
-export async function DELETE(
-  request: Request,
-  { params }: RouteParams
-): Promise<NextResponse> {
+export async function DELETE(request: Request, { params }: RouteParams): Promise<NextResponse> {
   try {
     const session = await requireAuth();
     const { id: applicationId } = await params;

@@ -2,23 +2,11 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db/mongoose";
 import Company from "@/models/Company";
 import Application from "@/models/Application";
-import { requireAuth } from "@/lib/auth/session";
-import {
-  updateCompanySchema,
-  mongoIdSchema,
-} from "@/lib/validators/schemas";
-import {
-  successResponse,
-  errorResponse,
-  handleApiError,
-} from "@/lib/api/response";
+import { requireAuth } from "@/lib/auth/guard";
+import { updateCompanySchema, mongoIdSchema } from "@/lib/validators/schemas";
+import { successResponse, errorResponse, handleApiError } from "@/lib/api/response";
 import { createAuditLog } from "@/models/AuditLog";
-import {
-  checkRateLimit,
-  getClientIp,
-  RATE_LIMITS,
-  rateLimitHeaders,
-} from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -28,10 +16,7 @@ interface RouteParams {
  * GET /api/companies/:id
  * Get a single company with its applications.
  */
-export async function GET(
-  request: Request,
-  { params }: RouteParams
-): Promise<NextResponse> {
+export async function GET(request: Request, { params }: RouteParams): Promise<NextResponse> {
   try {
     const session = await requireAuth();
     const { id } = await params;
@@ -77,10 +62,7 @@ export async function GET(
  * PATCH /api/companies/:id
  * Update a company.
  */
-export async function PATCH(
-  request: Request,
-  { params }: RouteParams
-): Promise<NextResponse> {
+export async function PATCH(request: Request, { params }: RouteParams): Promise<NextResponse> {
   try {
     const session = await requireAuth();
     const { id } = await params;
@@ -131,10 +113,7 @@ export async function PATCH(
  * DELETE /api/companies/:id
  * Delete a company (only if no applications reference it).
  */
-export async function DELETE(
-  request: Request,
-  { params }: RouteParams
-): Promise<NextResponse> {
+export async function DELETE(request: Request, { params }: RouteParams): Promise<NextResponse> {
   try {
     const session = await requireAuth();
     const { id } = await params;

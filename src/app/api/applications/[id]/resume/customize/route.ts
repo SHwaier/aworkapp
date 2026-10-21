@@ -7,7 +7,7 @@ import Application from "@/models/Application";
 import ResumeVersion from "@/models/ResumeVersion";
 import ResumeSnapshot from "@/models/ResumeSnapshot";
 import File from "@/models/File";
-import { requireAuth } from "@/lib/auth/session";
+import { requireAuth } from "@/lib/auth/guard";
 import { mongoIdSchema } from "@/lib/validators/schemas";
 import { successResponse, errorResponse, handleApiError } from "@/lib/api/response";
 import { createAuditLog } from "@/models/AuditLog";

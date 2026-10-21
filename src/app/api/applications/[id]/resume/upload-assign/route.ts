@@ -4,7 +4,7 @@ import Application from "@/models/Application";
 import ResumeVersion from "@/models/ResumeVersion";
 import ResumeSnapshot from "@/models/ResumeSnapshot";
 import TimelineEvent from "@/models/TimelineEvent";
-import { requireAuth } from "@/lib/auth/session";
+import { requireAuth } from "@/lib/auth/guard";
 import { mongoIdSchema } from "@/lib/validators/schemas";
 import { successResponse, errorResponse, handleApiError } from "@/lib/api/response";
 import { checkRateLimit, getClientIp, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";

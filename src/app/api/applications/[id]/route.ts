@@ -3,7 +3,7 @@ import dbConnect from "@/lib/db/mongoose";
 import Application from "@/models/Application";
 import TimelineEvent from "@/models/TimelineEvent";
 import Note from "@/models/Note";
-import { requireAuth } from "@/lib/auth/session";
+import { requireAuth } from "@/lib/auth/guard";
 import ResumeSnapshot from "@/models/ResumeSnapshot";
 import {
   updateApplicationSchema,

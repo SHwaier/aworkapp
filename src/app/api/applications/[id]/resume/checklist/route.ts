@@ -5,7 +5,7 @@ import ResumeSnapshot from "@/models/ResumeSnapshot";
 import ResumeChecklist from "@/models/ResumeChecklist";
 import File from "@/models/File";
 import { createAuditLog } from "@/models/AuditLog";
-import { requireAuth } from "@/lib/auth/session";
+import { requireAuth } from "@/lib/auth/guard";
 import { mongoIdSchema } from "@/lib/validators/schemas";
 import { successResponse, errorResponse, handleApiError } from "@/lib/api/response";
 import { checkRateLimit, getClientIp, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
