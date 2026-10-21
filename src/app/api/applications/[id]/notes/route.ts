@@ -2,17 +2,12 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db/mongoose";
 import Note from "@/models/Note";
 import Application from "@/models/Application";
-import { requireAuth } from "@/lib/auth/session";
+import { requireAuth } from "@/lib/auth/guard";
 import { createNoteSchema, mongoIdSchema } from "@/lib/validators/schemas";
 import { successResponse, errorResponse, handleApiError } from "@/lib/api/response";
 import { createAuditLog } from "@/models/AuditLog";
 
-import {
-  checkRateLimit,
-  getClientIp,
-  RATE_LIMITS,
-  rateLimitHeaders,
-} from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -21,10 +16,7 @@ interface RouteParams {
 /**
  * GET /api/applications/:id/notes
  */
-export async function GET(
-  request: Request,
-  { params }: RouteParams
-): Promise<NextResponse> {
+export async function GET(request: Request, { params }: RouteParams): Promise<NextResponse> {
   try {
     const session = await requireAuth();
     const { id } = await params;
@@ -63,10 +55,7 @@ export async function GET(
 /**
  * POST /api/applications/:id/notes
  */
-export async function POST(
-  request: Request,
-  { params }: RouteParams
-): Promise<NextResponse> {
+export async function POST(request: Request, { params }: RouteParams): Promise<NextResponse> {
   try {
     const session = await requireAuth();
     const { id } = await params;

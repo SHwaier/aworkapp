@@ -2,14 +2,9 @@ import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import dbConnect from "@/lib/db/mongoose";
 import Application from "@/models/Application";
-import { requireAuth } from "@/lib/auth/session";
+import { requireAuth } from "@/lib/auth/guard";
 import { successResponse, handleApiError } from "@/lib/api/response";
-import {
-  checkRateLimit,
-  getClientIp,
-  RATE_LIMITS,
-  rateLimitHeaders,
-} from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
 
 export async function GET(request: Request): Promise<NextResponse> {
   try {
@@ -29,7 +24,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 
     const userId = new mongoose.Types.ObjectId(session.id);
     const now = new Date();
-    const match: Record<string, any> = { userId };
+    const match: Record<string, unknown> = { userId };
 
     const period = new URL(request.url).searchParams.get("period") || "this_month";
     let dateGte: Date | null = null;
@@ -55,13 +50,13 @@ export async function GET(request: Request): Promise<NextResponse> {
     }
 
     if (dateGte || dateLte) {
-      const dateQuery: Record<string, any> = {};
+      const dateQuery: Record<string, Date> = {};
       if (dateGte) dateQuery.$gte = dateGte;
       if (dateLte) dateQuery.$lte = dateLte;
       match.createdAt = dateQuery;
     }
 
-    const trendMatch: Record<string, any> = { userId };
+    const trendMatch: Record<string, unknown> = { userId };
     if (match.createdAt) {
       trendMatch.createdAt = match.createdAt;
     } else {
@@ -71,13 +66,7 @@ export async function GET(request: Request): Promise<NextResponse> {
     }
 
     // Run parallel aggregations for performance
-    const [
-      totalCount,
-      statusGroup,
-      sourceGroup,
-      workModeGroup,
-      monthlyGroup,
-    ] = await Promise.all([
+    const [totalCount, statusGroup, sourceGroup, workModeGroup, monthlyGroup] = await Promise.all([
       Application.countDocuments(match),
 
       // Status breakdown
@@ -126,13 +115,7 @@ export async function GET(request: Request): Promise<NextResponse> {
       const status = item._id || "Saved";
       statusMap[status] = item.count;
 
-      if (
-        [
-          "Interview scheduled",
-          "Interview completed",
-          "Final round",
-        ].includes(status)
-      ) {
+      if (["Interview scheduled", "Interview completed", "Final round"].includes(status)) {
         interviewCount += item.count;
       }
       if (["Offer received", "Offer accepted"].includes(status)) {

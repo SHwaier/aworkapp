@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/session";
+import { requireAuth } from "@/lib/auth/guard";
 import { handleApiError } from "@/lib/api/response";
-import {
-  checkRateLimit,
-  getClientIp,
-  RATE_LIMITS,
-  rateLimitHeaders,
-} from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
 
 // Simple in-memory cache for location search queries to save network calls and respect API usage guidelines
+interface PhotonFeature {
+  properties: { name?: string; city?: string; state?: string; country?: string };
+}
+
 interface CacheEntry {
   suggestions: string[];
   timestamp: number;
@@ -23,10 +22,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 
     // Rate Limit check
     const ip = getClientIp(request);
-    const rateLimit = checkRateLimit(
-      `locations-autocomplete:${session.id || ip}`,
-      RATE_LIMITS.api
-    );
+    const rateLimit = checkRateLimit(`locations-autocomplete:${session.id || ip}`, RATE_LIMITS.api);
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { success: false, error: "Too many requests. Please try again later." },
@@ -68,10 +64,10 @@ export async function GET(request: Request): Promise<NextResponse> {
         if (response.ok) {
           const data = await response.json();
           if (data && Array.isArray(data.features)) {
-            suggestions = data.features.map((feature: any) => {
+            suggestions = data.features.map((feature: PhotonFeature) => {
               const p = feature.properties;
               const parts: string[] = [];
-              
+
               if (p.name) parts.push(p.name);
               if (p.city && p.city !== p.name) parts.push(p.city);
               if (p.state && p.state !== p.name && p.state !== p.city) parts.push(p.state);
@@ -111,7 +107,7 @@ export async function GET(request: Request): Promise<NextResponse> {
           if (response.ok) {
             const data = await response.json();
             if (Array.isArray(data)) {
-              suggestions = data.map((item: any) => item.display_name);
+              suggestions = data.map((item: { display_name: string }) => item.display_name);
             }
           }
         } finally {

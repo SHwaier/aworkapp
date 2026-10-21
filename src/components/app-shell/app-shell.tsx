@@ -26,6 +26,7 @@ import {
   FolderOpen,
   BarChart3,
   Settings,
+  ShieldCheck,
   LogOut,
   Menu,
   Sun,
@@ -75,6 +76,12 @@ const BOTTOM_ITEMS = [
     icon: Settings,
   },
 ];
+
+const ADMIN_ITEM = {
+  label: "Admin",
+  href: "/admin",
+  icon: ShieldCheck,
+};
 
 function NavLink({
   item,
@@ -184,6 +191,8 @@ function UserMenu() {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  const bottomItems = user?.role === "admin" ? [ADMIN_ITEM, ...BOTTOM_ITEMS] : BOTTOM_ITEMS;
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -235,7 +244,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Bottom */}
       <div className="px-3 pb-2">
-        {BOTTOM_ITEMS.map((item) => (
+        {bottomItems.map((item) => (
           <NavLink
             key={item.href}
             item={item}

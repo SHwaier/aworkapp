@@ -3,25 +3,13 @@ import dbConnect from "@/lib/db/mongoose";
 import Application from "@/models/Application";
 import Company from "@/models/Company";
 import TimelineEvent from "@/models/TimelineEvent";
-import { requireAuth } from "@/lib/auth/session";
-import {
-  createApplicationSchema,
-  paginationSchema,
-} from "@/lib/validators/schemas";
-import {
-  successResponse,
-  errorResponse,
-  handleApiError,
-} from "@/lib/api/response";
+import { requireAuth } from "@/lib/auth/guard";
+import { createApplicationSchema, paginationSchema } from "@/lib/validators/schemas";
+import { successResponse, errorResponse, handleApiError } from "@/lib/api/response";
 import { createAuditLog } from "@/models/AuditLog";
 import { escapeRegex } from "@/lib/utils/escape-regex";
 
-import {
-  checkRateLimit,
-  getClientIp,
-  RATE_LIMITS,
-  rateLimitHeaders,
-} from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
 
 /**
  * GET /api/applications
@@ -54,7 +42,7 @@ export async function GET(request: Request): Promise<NextResponse> {
     // Build query — always scoped by userId
     const query: Record<string, unknown> = { userId: session.id };
 
-// Filters
+    // Filters
     const status = url.searchParams.get("status");
     const lifecycleStage = url.searchParams.get("lifecycleStage");
     const companyId = url.searchParams.get("companyId");

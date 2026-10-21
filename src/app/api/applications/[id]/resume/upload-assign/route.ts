@@ -4,21 +4,17 @@ import Application from "@/models/Application";
 import ResumeVersion from "@/models/ResumeVersion";
 import ResumeSnapshot from "@/models/ResumeSnapshot";
 import TimelineEvent from "@/models/TimelineEvent";
-import { requireAuth } from "@/lib/auth/session";
+import { requireAuth } from "@/lib/auth/guard";
 import { mongoIdSchema } from "@/lib/validators/schemas";
-import {
-  successResponse,
-  errorResponse,
-  handleApiError,
-} from "@/lib/api/response";
-import {
-  checkRateLimit,
-  getClientIp,
-  RATE_LIMITS,
-  rateLimitHeaders,
-} from "@/lib/rate-limit";
+import { successResponse, errorResponse, handleApiError } from "@/lib/api/response";
+import { checkRateLimit, getClientIp, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
 import { uploadFile } from "@/lib/services/file";
 import { assignResumeToApplication } from "@/lib/services/resume";
+
+interface PopulatedCompany {
+  name?: string;
+  industry?: string;
+}
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -28,10 +24,7 @@ interface RouteParams {
  * POST /api/applications/:id/resume/upload-assign
  * Refactored composite upload-assign endpoint using local service modules.
  */
-export async function POST(
-  request: Request,
-  { params }: RouteParams
-): Promise<NextResponse> {
+export async function POST(request: Request, { params }: RouteParams): Promise<NextResponse> {
   try {
     const session = await requireAuth();
     const { id: applicationId } = await params;
@@ -39,7 +32,10 @@ export async function POST(
 
     // Rate limit check
     const ip = getClientIp(request);
-    const rateLimit = checkRateLimit(`upload-assign-resume:${session.id || ip}`, RATE_LIMITS.upload);
+    const rateLimit = checkRateLimit(
+      `upload-assign-resume:${session.id || ip}`,
+      RATE_LIMITS.upload
+    );
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { success: false, error: "Too many upload attempts. Please try again later." },
@@ -50,7 +46,9 @@ export async function POST(
     await dbConnect();
 
     // 1. Verify Application exists and belongs to the user
-    const app = await Application.findOne({ _id: applicationId, userId: session.id }).populate("companyId");
+    const app = await Application.findOne({ _id: applicationId, userId: session.id }).populate(
+      "companyId"
+    );
     if (!app) {
       return errorResponse("Application not found", 404);
     }
@@ -63,7 +61,8 @@ export async function POST(
       return errorResponse("No file uploaded", 400);
     }
 
-    const originalFileName = (file as any).name || "resume.pdf";
+    const originalFileName =
+      ("name" in file && typeof file.name === "string" && file.name) || "resume.pdf";
 
     // 3. Upload file using the shared file service
     const { file: fileDoc } = await uploadFile({
@@ -75,9 +74,10 @@ export async function POST(
     });
 
     // 4. Create Targeted ResumeVersion
-    const companyName = (app.companyId as any)?.name || "Target Company";
+    const company = app.companyId as unknown as PopulatedCompany | null;
+    const companyName = company?.name || "Target Company";
     const resumeName = `${companyName} Resume - v1`;
-    const targetIndustry = (app.companyId as any)?.industry || "";
+    const targetIndustry = company?.industry || "";
 
     const resumeVersion = await ResumeVersion.create({
       userId: session.id,

@@ -2,19 +2,10 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db/mongoose";
 import ResumeChecklist from "@/models/ResumeChecklist";
 import { createAuditLog } from "@/models/AuditLog";
-import { requireAuth } from "@/lib/auth/session";
+import { requireAuth } from "@/lib/auth/guard";
 import { mongoIdSchema, updateChecklistItemSchema } from "@/lib/validators/schemas";
-import {
-  successResponse,
-  errorResponse,
-  handleApiError,
-} from "@/lib/api/response";
-import {
-  checkRateLimit,
-  getClientIp,
-  RATE_LIMITS,
-  rateLimitHeaders,
-} from "@/lib/rate-limit";
+import { successResponse, errorResponse, handleApiError } from "@/lib/api/response";
+import { checkRateLimit, getClientIp, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
 import { computeScore } from "@/lib/services/checklist";
 
 interface RouteParams {
@@ -25,10 +16,7 @@ interface RouteParams {
  * PATCH /api/applications/:id/resume/checklist/:itemId
  * Update a single checklist item's status.
  */
-export async function PATCH(
-  request: Request,
-  { params }: RouteParams
-): Promise<NextResponse> {
+export async function PATCH(request: Request, { params }: RouteParams): Promise<NextResponse> {
   try {
     const session = await requireAuth();
     const { id: applicationId, itemId } = await params;
@@ -36,10 +24,7 @@ export async function PATCH(
     mongoIdSchema.parse(itemId);
 
     const ip = getClientIp(request);
-    const rateLimit = checkRateLimit(
-      `checklist-patch:${session.id || ip}`,
-      RATE_LIMITS.api
-    );
+    const rateLimit = checkRateLimit(`checklist-patch:${session.id || ip}`, RATE_LIMITS.api);
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { success: false, error: "Too many requests." },
@@ -62,9 +47,7 @@ export async function PATCH(
     }
 
     // Find the item subdocument
-    const item = checklist.items.find(
-      (i) => i._id.toString() === itemId
-    );
+    const item = checklist.items.find((i) => i._id.toString() === itemId);
     if (!item) {
       return errorResponse("Checklist item not found", 404);
     }
@@ -72,9 +55,7 @@ export async function PATCH(
     item.status = parsed.status;
 
     // Recompute score
-    checklist.overallScore = computeScore(
-      checklist.items.map((i) => ({ status: i.status }))
-    );
+    checklist.overallScore = computeScore(checklist.items.map((i) => ({ status: i.status })));
 
     await checklist.save();
 

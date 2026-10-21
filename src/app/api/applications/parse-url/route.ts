@@ -1,13 +1,8 @@
 import { NextResponse } from "next/server";
 import * as cheerio from "cheerio";
-import { requireAuth } from "@/lib/auth/session";
+import { requireAuth } from "@/lib/auth/guard";
 import { handleApiError } from "@/lib/api/response";
-import {
-  checkRateLimit,
-  getClientIp,
-  RATE_LIMITS,
-  rateLimitHeaders,
-} from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
 
 interface ParsedJobData {
   jobTitle: string;
@@ -32,10 +27,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     // Rate limit — use strict since this does external fetches
     const ip = getClientIp(request);
-    const rateLimit = checkRateLimit(
-      `parse-url:${session.id || ip}`,
-      RATE_LIMITS.strict
-    );
+    const rateLimit = checkRateLimit(`parse-url:${session.id || ip}`, RATE_LIMITS.strict);
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { success: false, error: "Too many requests. Please try again later." },
@@ -47,10 +39,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     const { url } = body;
 
     if (!url || typeof url !== "string") {
-      return NextResponse.json(
-        { success: false, error: "URL is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: "URL is required" }, { status: 400 });
     }
 
     // Validate URL format and protocol
@@ -64,10 +53,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         );
       }
     } catch {
-      return NextResponse.json(
-        { success: false, error: "Invalid URL format" },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: "Invalid URL format" }, { status: 400 });
     }
 
     // Fetch the page with a browser-like User-Agent
@@ -79,8 +65,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         headers: {
           "User-Agent":
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          Accept:
-            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
           "Accept-Language": "en-US,en;q=0.5",
         },
         signal: controller.signal,
@@ -181,15 +166,10 @@ function extractJobData(html: string, url: URL): ParsedJobData {
 
       for (const item of items) {
         // Walk @graph if present
-        const candidates = item["@graph"]
-          ? [...item["@graph"], item]
-          : [item];
+        const candidates = item["@graph"] ? [...item["@graph"], item] : [item];
 
         for (const obj of candidates) {
-          if (
-            obj["@type"] === "JobPosting" ||
-            obj["@type"]?.includes?.("JobPosting")
-          ) {
+          if (obj["@type"] === "JobPosting" || obj["@type"]?.includes?.("JobPosting")) {
             applyJobPostingSchema(result, obj);
             break;
           }
@@ -209,7 +189,10 @@ function extractJobData(html: string, url: URL): ParsedJobData {
       "";
     // Clean common suffixes like " | Company - LinkedIn"
     result.jobTitle = result.jobTitle
-      .replace(/\s*[\|–—-]\s*(LinkedIn|Indeed|Glassdoor|ZipRecruiter|Lever|Greenhouse|Workday).*$/i, "")
+      .replace(
+        /\s*[\|–—-]\s*(LinkedIn|Indeed|Glassdoor|ZipRecruiter|Lever|Greenhouse|Workday).*$/i,
+        ""
+      )
       .trim();
   }
 
@@ -269,21 +252,14 @@ function extractJobData(html: string, url: URL): ParsedJobData {
   return result;
 }
 
-function applyJobPostingSchema(
-  result: ParsedJobData,
-  obj: Record<string, unknown>
-): void {
+function applyJobPostingSchema(result: ParsedJobData, obj: Record<string, unknown>): void {
   if (typeof obj.title === "string") {
     result.jobTitle = obj.title;
   }
 
   // Description — strip HTML
   if (typeof obj.description === "string") {
-    result.jobDescription = cheerio
-      .load(obj.description)
-      .text()
-      .replace(/\s+/g, " ")
-      .trim();
+    result.jobDescription = cheerio.load(obj.description).text().replace(/\s+/g, " ").trim();
   }
 
   // Company — hiringOrganization
@@ -303,9 +279,7 @@ function applyJobPostingSchema(
         const city = addr.addressLocality || "";
         const region = addr.addressRegion || "";
         const country = addr.addressCountry || "";
-        const locationStr = [city, region, country]
-          .filter(Boolean)
-          .join(", ");
+        const locationStr = [city, region, country].filter(Boolean).join(", ");
         if (locationStr) parts.push(locationStr as string);
       }
     }

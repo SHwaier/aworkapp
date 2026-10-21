@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useTheme } from "@/components/providers/theme-provider";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
@@ -17,7 +18,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Shield, User, Sun, Moon, Monitor } from "lucide-react";
+import { Loader2, Shield, User, Sun, Moon, Monitor, KeyRound } from "lucide-react";
 
 interface AuditLog {
   id: string;
@@ -37,25 +38,19 @@ export default function SettingsPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  const fetchLogs = useCallback(async () => {
-    setIsLoadingLogs(true);
-    try {
-      const res = await fetch(`/api/audit-logs?page=${page}&limit=10`);
-      const data = await res.json();
-      if (data.success) {
-        setLogs(data.data.logs);
-        setTotalPages(data.data.pagination.totalPages);
-      }
-    } catch {
-      toast.error("Failed to load audit logs");
-    } finally {
-      setIsLoadingLogs(false);
-    }
-  }, [page]);
-
+  // isLoadingLogs starts true; the spinner only shows before the first page arrives
   useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs]);
+    fetch(`/api/audit-logs?page=${page}&limit=10`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setLogs(data.data.logs);
+          setTotalPages(data.data.pagination.totalPages);
+        }
+      })
+      .catch(() => toast.error("Failed to load audit logs"))
+      .finally(() => setIsLoadingLogs(false));
+  }, [page]);
 
   // Parse user agent to a cleaner form
   function cleanUserAgent(ua: string) {
@@ -104,13 +99,24 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-1">
-                <span className="text-xs text-muted-foreground font-semibold uppercase">Full Name</span>
+                <span className="text-xs text-muted-foreground font-semibold uppercase">
+                  Full Name
+                </span>
                 <span className="text-sm font-medium">{user?.name}</span>
               </div>
               <div className="grid gap-1">
-                <span className="text-xs text-muted-foreground font-semibold uppercase">Email Address</span>
+                <span className="text-xs text-muted-foreground font-semibold uppercase">
+                  Email Address
+                </span>
                 <span className="text-sm font-medium">{user?.email}</span>
               </div>
+              <Link
+                href="/change-password"
+                className={buttonVariants({ variant: "outline", size: "sm", className: "gap-1.5" })}
+              >
+                <KeyRound className="h-4 w-4" />
+                Change password
+              </Link>
             </CardContent>
           </Card>
 
@@ -196,7 +202,10 @@ export default function SettingsPage() {
                             <TableCell className="text-xs text-muted-foreground font-mono">
                               {log.ipAddress || "Unknown IP"}
                             </TableCell>
-                            <TableCell className="text-xs text-muted-foreground truncate max-w-[200px]" title={log.userAgent}>
+                            <TableCell
+                              className="text-xs text-muted-foreground truncate max-w-[200px]"
+                              title={log.userAgent}
+                            >
                               {cleanUserAgent(log.userAgent)}
                             </TableCell>
                             <TableCell className="text-right text-xs text-muted-foreground">

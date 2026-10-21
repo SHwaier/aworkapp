@@ -2,20 +2,12 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db/mongoose";
 import ResumeVersion from "@/models/ResumeVersion";
 import File from "@/models/File";
-import { requireAuth } from "@/lib/auth/session";
-import {
-  createResumeVersionSchema,
-  paginationSchema,
-} from "@/lib/validators/schemas";
+import { requireAuth } from "@/lib/auth/guard";
+import { createResumeVersionSchema, paginationSchema } from "@/lib/validators/schemas";
 import { successResponse, handleApiError } from "@/lib/api/response";
 import { createAuditLog } from "@/models/AuditLog";
 import { escapeRegex } from "@/lib/utils/escape-regex";
-import {
-  checkRateLimit,
-  getClientIp,
-  RATE_LIMITS,
-  rateLimitHeaders,
-} from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
 
 /**
  * GET /api/resumes

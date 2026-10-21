@@ -1,15 +1,10 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db/mongoose";
 import AuditLog from "@/models/AuditLog";
-import { requireAuth } from "@/lib/auth/session";
+import { requireAuth } from "@/lib/auth/guard";
 import { paginationSchema } from "@/lib/validators/schemas";
 import { successResponse, handleApiError } from "@/lib/api/response";
-import {
-  checkRateLimit,
-  getClientIp,
-  RATE_LIMITS,
-  rateLimitHeaders,
-} from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
 
 /**
  * GET /api/audit-logs

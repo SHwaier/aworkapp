@@ -7,6 +7,7 @@ import {
 } from "@/lib/auth/session";
 import dbConnect from "@/lib/db/mongoose";
 import RefreshToken from "@/models/RefreshToken";
+import User from "@/models/User";
 import { cookies } from "next/headers";
 import { successResponse, errorResponse } from "@/lib/api/response";
 import { v4 as uuidv4 } from "uuid";
@@ -57,14 +58,31 @@ export async function POST() {
       return errorResponse("Suspicious activity detected. Please log in again.", 401);
     }
 
+    // Account may have been removed/disabled, or its sessions ended (sessionVersion bump),
+    // since this token was issued
+    const dbUser = await User.findById(storedToken.userId)
+      .select("name email mustChangePassword sessionVersion disabledAt")
+      .lean();
+    if (
+      !dbUser ||
+      dbUser.disabledAt ||
+      (dbUser.sessionVersion ?? 0) !== (payload.sessionVersion ?? 0)
+    ) {
+      await RefreshToken.updateMany({ userId: storedToken.userId }, { $set: { isRevoked: true } });
+      await clearAuthCookies();
+      return errorResponse("Session is no longer valid", 401);
+    }
+
     // Mark current token as used (one-time use)
     storedToken.isUsed = true;
     await storedToken.save();
 
     const user: SessionUser = {
-      id: payload.userId,
-      email: payload.email,
-      name: payload.name,
+      id: dbUser._id.toString(),
+      email: dbUser.email,
+      name: dbUser.name,
+      mustChangePassword: !!dbUser.mustChangePassword,
+      sessionVersion: dbUser.sessionVersion ?? 0,
     };
 
     // Issue new token pair

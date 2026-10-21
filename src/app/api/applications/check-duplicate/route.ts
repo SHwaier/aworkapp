@@ -1,19 +1,14 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db/mongoose";
 import Application from "@/models/Application";
-import { requireAuth } from "@/lib/auth/session";
-import {
-  checkRateLimit,
-  getClientIp,
-  RATE_LIMITS,
-  rateLimitHeaders,
-} from "@/lib/rate-limit";
+import { requireAuth } from "@/lib/auth/guard";
+import { checkRateLimit, getClientIp, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
 import { escapeRegex } from "@/lib/utils/escape-regex";
 import { successResponse, handleApiError } from "@/lib/api/response";
 
 /**
  * POST /api/applications/check-duplicate
- * Checks if there's an existing application with the same jobUrl, 
+ * Checks if there's an existing application with the same jobUrl,
  * or if no jobUrl is provided, checks if there is one with the same jobTitle and jobDescription.
  */
 export async function POST(request: Request): Promise<NextResponse> {
@@ -35,7 +30,8 @@ export async function POST(request: Request): Promise<NextResponse> {
     const body = await request.json();
     const jobUrl = typeof body.jobUrl === "string" ? body.jobUrl.trim() : "";
     const jobTitle = typeof body.jobTitle === "string" ? body.jobTitle.trim() : "";
-    const jobDescription = typeof body.jobDescription === "string" ? body.jobDescription.trim() : "";
+    const jobDescription =
+      typeof body.jobDescription === "string" ? body.jobDescription.trim() : "";
 
     let duplicate = null;
 
@@ -61,12 +57,17 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
 
     if (duplicate) {
+      const dup = duplicate as unknown as {
+        _id: { toString(): string };
+        jobTitle: string;
+        companyId?: { name?: string } | null;
+      };
       return successResponse({
         duplicate: true,
         application: {
-          id: (duplicate as any)._id?.toString() || (duplicate as any).id,
-          jobTitle: (duplicate as any).jobTitle,
-          companyName: (duplicate as any).companyId?.name || "Unknown Company",
+          id: dup._id.toString(),
+          jobTitle: dup.jobTitle,
+          companyName: dup.companyId?.name || "Unknown Company",
         },
       });
     }

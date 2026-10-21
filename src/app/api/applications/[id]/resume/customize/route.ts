@@ -7,20 +7,19 @@ import Application from "@/models/Application";
 import ResumeVersion from "@/models/ResumeVersion";
 import ResumeSnapshot from "@/models/ResumeSnapshot";
 import File from "@/models/File";
-import { requireAuth } from "@/lib/auth/session";
+import { requireAuth } from "@/lib/auth/guard";
 import { mongoIdSchema } from "@/lib/validators/schemas";
-import {
-  successResponse,
-  errorResponse,
-  handleApiError,
-} from "@/lib/api/response";
+import { successResponse, errorResponse, handleApiError } from "@/lib/api/response";
 import { createAuditLog } from "@/models/AuditLog";
-import {
-  checkRateLimit,
-  getClientIp,
-  RATE_LIMITS,
-  rateLimitHeaders,
-} from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
+
+interface PopulatedFile {
+  _id: { toString(): string };
+}
+
+interface PopulatedCompany {
+  name?: string;
+}
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -30,10 +29,7 @@ interface RouteParams {
  * GET /api/applications/:id/resume/customize
  * Converts the active DOCX resume file into clean HTML for editing.
  */
-export async function GET(
-  request: Request,
-  { params }: RouteParams
-): Promise<NextResponse> {
+export async function GET(request: Request, { params }: RouteParams): Promise<NextResponse> {
   try {
     const session = await requireAuth();
     const { id: applicationId } = await params;
@@ -52,7 +48,9 @@ export async function GET(
     await dbConnect();
 
     // Verify application
-    const app = await Application.findOne({ _id: applicationId, userId: session.id }).populate("companyId");
+    const app = await Application.findOne({ _id: applicationId, userId: session.id }).populate(
+      "companyId"
+    );
     if (!app) {
       return errorResponse("Application not found", 404);
     }
@@ -68,13 +66,14 @@ export async function GET(
     }
 
     // Determine which file to load: custom version if edited, otherwise base version
-    let fileDoc: any = snapshot.finalSubmittedFileId;
+    // finalSubmittedFileId / fileId are populated documents here
+    let fileDoc = snapshot.finalSubmittedFileId as unknown as PopulatedFile | null;
     if (!fileDoc) {
       const baseVersion = await ResumeVersion.findOne({
         _id: snapshot.baseResumeVersionId,
         userId: session.id,
       }).populate("fileId");
-      fileDoc = baseVersion?.fileId || null;
+      fileDoc = (baseVersion?.fileId as unknown as PopulatedFile | null) || null;
     }
 
     if (!fileDoc) {
@@ -85,7 +84,7 @@ export async function GET(
       fileId: fileDoc._id.toString(),
       manuallyEdited: snapshot.manuallyEdited,
       jobTitle: app.jobTitle,
-      companyName: (app.companyId as any)?.name || "Company",
+      companyName: (app.companyId as unknown as PopulatedCompany | null)?.name || "Company",
       jobDescription: app.jobDescription || "",
     });
   } catch (error) {
@@ -97,10 +96,7 @@ export async function GET(
  * POST /api/applications/:id/resume/customize
  * Receives customized DOCX buffer (base64), saves it, and updates the ResumeSnapshot.
  */
-export async function POST(
-  request: Request,
-  { params }: RouteParams
-): Promise<NextResponse> {
+export async function POST(request: Request, { params }: RouteParams): Promise<NextResponse> {
   try {
     const session = await requireAuth();
     const { id: applicationId } = await params;
@@ -124,13 +120,17 @@ export async function POST(
     await dbConnect();
 
     // Verify application
-    const app = await Application.findOne({ _id: applicationId, userId: session.id }).populate("companyId");
+    const app = await Application.findOne({ _id: applicationId, userId: session.id }).populate(
+      "companyId"
+    );
     if (!app) {
       return errorResponse("Application not found", 404);
     }
 
     // Find resume snapshot
-    let snapshot = await ResumeSnapshot.findOne({ applicationId, userId: session.id }).sort({ createdAt: -1 });
+    let snapshot = await ResumeSnapshot.findOne({ applicationId, userId: session.id }).sort({
+      createdAt: -1,
+    });
     if (!snapshot) {
       return errorResponse("No resume assigned to this application", 400);
     }
@@ -157,7 +157,7 @@ export async function POST(
       justCloned = true;
     }
 
-    const companyName = (app.companyId as any)?.name || "Company";
+    const companyName = (app.companyId as unknown as PopulatedCompany | null)?.name || "Company";
     const safeCompanyName = companyName.replace(/[^a-zA-Z0-9]/g, "_");
     const originalFileName = `Custom_Resume_${safeCompanyName}.docx`;
     const displayName = `Custom Resume (${companyName})`;
@@ -177,7 +177,10 @@ export async function POST(
 
     if (shouldOverwrite) {
       // Overwrite the existing customized file
-      fileDoc = await File.findOne({ _id: snapshot.finalSubmittedFileId, userId: session.id }).select("+storageKey");
+      fileDoc = await File.findOne({
+        _id: snapshot.finalSubmittedFileId,
+        userId: session.id,
+      }).select("+storageKey");
       if (fileDoc) {
         fileDoc.fileSize = docxBuffer.length;
         fileDoc.fileHash = hash;
@@ -216,11 +219,22 @@ export async function POST(
     // Write file to storage using the determined storage key
     if (provider === "s3" || provider === "r2") {
       const { uploadToS3 } = await import("@/lib/storage/s3");
-      await uploadToS3(targetStorageKey, docxBuffer, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+      await uploadToS3(
+        targetStorageKey,
+        docxBuffer,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      );
     } else {
-      const storageDir = path.resolve(/*turbopackIgnore: true*/ process.cwd(), process.env.FILE_STORAGE_PATH || "./uploads");
+      const storageDir = path.resolve(
+        /*turbopackIgnore: true*/ process.cwd(),
+        process.env.FILE_STORAGE_PATH || "./uploads"
+      );
       await fs.mkdir(storageDir, { recursive: true });
-      const fullPath = path.resolve(/*turbopackIgnore: true*/ process.cwd(), storageDir, targetStorageKey);
+      const fullPath = path.resolve(
+        /*turbopackIgnore: true*/ process.cwd(),
+        storageDir,
+        targetStorageKey
+      );
       await fs.writeFile(fullPath, docxBuffer);
     }
 

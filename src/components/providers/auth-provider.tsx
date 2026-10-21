@@ -10,21 +10,31 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
+import { installSessionFetchInterceptor, refreshSession } from "@/lib/auth/client-session";
+
+// Install at module load (not in an effect) so it is in place before any child
+// component's effects start fetching — child effects run before the provider's.
+installSessionFetchInterceptor();
+
+// Must stay below the access token lifetime (JWT_EXPIRES_IN) so active users
+// never hit an expired token on page navigation
+const BACKGROUND_REFRESH_MS = 1000 * 60 * 10;
 
 interface User {
   id: string;
   name: string;
   email: string;
+  role: "user" | "admin";
+  mustChangePassword: boolean;
 }
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (
-    name: string,
-    email: string,
-    password: string,
+  changePassword: (
+    currentPassword: string,
+    newPassword: string,
     confirmPassword: string
   ) => Promise<void>;
   logout: () => Promise<void>;
@@ -50,8 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         let res = await fetch("/api/auth/me");
         if (res.status === 401) {
           // Attempt to refresh the session
-          const refreshRes = await fetch("/api/auth/refresh", { method: "POST" });
-          if (refreshRes.ok) {
+          if (await refreshSession()) {
             res = await fetch("/api/auth/me");
           }
         }
@@ -69,21 +78,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkSession();
   }, []); // Empty deps — mount only
 
-  // Background token refresh every 1 hour (separate effect)
+  // Background token refresh (separate effect)
   useEffect(() => {
-    const refreshInterval = setInterval(
-      async () => {
-        // Use ref to read current user without re-triggering effect
-        if (userRef.current) {
-          try {
-            await fetch("/api/auth/refresh", { method: "POST" });
-          } catch {
-            // Ignore background errors
-          }
-        }
-      },
-      1000 * 60 * 60
-    );
+    const refreshInterval = setInterval(async () => {
+      // Use ref to read current user without re-triggering effect
+      if (userRef.current) {
+        await refreshSession();
+      }
+    }, BACKGROUND_REFRESH_MS);
 
     return () => clearInterval(refreshInterval);
   }, []); // Empty deps — interval set once
@@ -102,17 +104,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setUser(data.data.user);
-      router.push("/dashboard");
+      router.push(data.data.user.mustChangePassword ? "/change-password" : "/dashboard");
     },
     [router]
   );
 
-  const register = useCallback(
-    async (name: string, email: string, password: string, confirmPassword: string) => {
-      const res = await fetch("/api/auth/register", {
+  const changePassword = useCallback(
+    async (currentPassword: string, newPassword: string, confirmPassword: string) => {
+      const res = await fetch("/api/auth/change-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, confirmPassword }),
+        body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
       });
 
       const data = await res.json();
@@ -120,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(
           data.errors?.map((e: { message: string }) => e.message).join(", ") ||
             data.error ||
-            "Registration failed"
+            "Failed to change password"
         );
       }
 
@@ -137,7 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router]);
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, changePassword, logout }}>
       {children}
     </AuthContext.Provider>
   );

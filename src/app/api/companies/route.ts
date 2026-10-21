@@ -1,24 +1,13 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db/mongoose";
 import Company from "@/models/Company";
-import { requireAuth } from "@/lib/auth/session";
-import {
-  createCompanySchema,
-  paginationSchema,
-} from "@/lib/validators/schemas";
-import {
-  successResponse,
-  handleApiError,
-} from "@/lib/api/response";
+import { requireAuth } from "@/lib/auth/guard";
+import { createCompanySchema, paginationSchema } from "@/lib/validators/schemas";
+import { successResponse, handleApiError } from "@/lib/api/response";
 import { createAuditLog } from "@/models/AuditLog";
 
 import { escapeRegex } from "@/lib/utils/escape-regex";
-import {
-  checkRateLimit,
-  getClientIp,
-  RATE_LIMITS,
-  rateLimitHeaders,
-} from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
 
 /**
  * GET /api/companies

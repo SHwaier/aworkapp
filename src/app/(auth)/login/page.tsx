@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
@@ -166,17 +165,6 @@ function LoginForm() {
             </svg>
             Sign in with Google
           </Button>
-
-          <p className="text-center text-sm text-muted-foreground font-medium mt-2">
-            Don&apos;t have an account?{" "}
-            <Link
-              href="/register"
-              className="font-bold text-primary hover:text-primary/90 transition-colors underline underline-offset-4"
-              id="login-register-link"
-            >
-              Create one
-            </Link>
-          </p>
         </CardFooter>
       </form>
     </Card>

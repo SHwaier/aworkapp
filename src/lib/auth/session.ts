@@ -1,9 +1,8 @@
 import jwt from "jsonwebtoken";
 import type { StringValue } from "ms";
-import { createHash } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
-import { AppError } from "@/lib/api/app-error";
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET!;
@@ -16,12 +15,16 @@ export interface SessionUser {
   id: string;
   email: string;
   name: string;
+  mustChangePassword?: boolean;
+  sessionVersion?: number;
 }
 
 interface TokenPayload {
   userId: string;
   email: string;
   name: string;
+  mustChangePassword?: boolean;
+  sessionVersion?: number;
   iat?: number;
   exp?: number;
 }
@@ -42,18 +45,38 @@ export function hashToken(token: string): string {
  * Generate an access token (short-lived)
  */
 export function generateAccessToken(user: SessionUser): string {
-  return jwt.sign({ userId: user.id, email: user.email, name: user.name }, JWT_SECRET, {
-    expiresIn: JWT_EXPIRES_IN,
-  });
+  return jwt.sign(
+    {
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      // Lets the proxy lock the session to /change-password without a DB lookup
+      mustChangePassword: !!user.mustChangePassword,
+      sessionVersion: user.sessionVersion ?? 0,
+    },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRES_IN }
+  );
 }
 
 /**
  * Generate a refresh token (long-lived)
  */
 export function generateRefreshToken(user: SessionUser): string {
-  return jwt.sign({ userId: user.id, email: user.email, name: user.name }, JWT_REFRESH_SECRET, {
-    expiresIn: JWT_REFRESH_EXPIRES_IN,
-  });
+  return jwt.sign(
+    {
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      sessionVersion: user.sessionVersion ?? 0,
+    },
+    JWT_REFRESH_SECRET,
+    {
+      expiresIn: JWT_REFRESH_EXPIRES_IN,
+      // Unique ID so two tokens issued in the same second don't collide on tokenHash
+      jwtid: randomUUID(),
+    }
+  );
 }
 
 /**
@@ -203,6 +226,8 @@ export async function getSession(): Promise<SessionUser | null> {
     id: payload.userId,
     email: payload.email,
     name: payload.name,
+    mustChangePassword: !!payload.mustChangePassword,
+    sessionVersion: payload.sessionVersion ?? 0,
   };
 }
 
@@ -226,17 +251,7 @@ export async function getSessionFromRequest(request: NextRequest): Promise<Sessi
     id: payload.userId,
     email: payload.email,
     name: payload.name,
+    mustChangePassword: !!payload.mustChangePassword,
+    sessionVersion: payload.sessionVersion ?? 0,
   };
-}
-
-/**
- * Require authentication — throws if not authenticated.
- * Use in API route handlers and server actions.
- */
-export async function requireAuth(): Promise<SessionUser> {
-  const session = await getSession();
-  if (!session) {
-    throw new AppError("Authentication required", 401);
-  }
-  return session;
 }
