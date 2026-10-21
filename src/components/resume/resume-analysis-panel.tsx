@@ -15,7 +15,7 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Meter, TONE_VAR } from "@/components/analysis/charts";
-import { PRIORITY_ORDER } from "@/components/analysis/suggestion-card";
+import { PRIORITY_ORDER } from "@/components/analysis/utils";
 import { Notice } from "@/components/analysis/notice";
 import { scoreBand, useResumeAnalysis } from "@/components/analysis/use-resume-analysis";
 

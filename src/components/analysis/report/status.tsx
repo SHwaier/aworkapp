@@ -5,12 +5,44 @@ import { cn } from "@/lib/utils";
 
 export const BENCHMARK_STATUS: Record<
   BenchmarkStatus,
-  { label: string; color: string; Icon: typeof CircleCheck; order: number }
+  {
+    label: string;
+    /** Icon color */
+    color: string;
+    /** Fill in the status strip; "adequate" uses a lighter neutral so problems stand out */
+    bar: string;
+    Icon: typeof CircleCheck;
+    order: number;
+  }
 > = {
-  missing: { label: "Missing", color: TONE_VAR.critical, Icon: CircleX, order: 0 },
-  weak: { label: "Needs work", color: TONE_VAR.warning, Icon: CircleDashed, order: 1 },
-  adequate: { label: "Adequate", color: "var(--muted-foreground)", Icon: CircleMinus, order: 2 },
-  strong: { label: "Strong", color: TONE_VAR.good, Icon: CircleCheck, order: 3 },
+  missing: {
+    label: "Missing",
+    color: TONE_VAR.critical,
+    bar: TONE_VAR.critical,
+    Icon: CircleX,
+    order: 0,
+  },
+  weak: {
+    label: "Needs work",
+    color: TONE_VAR.warning,
+    bar: TONE_VAR.warning,
+    Icon: CircleDashed,
+    order: 1,
+  },
+  adequate: {
+    label: "Adequate",
+    color: "var(--muted-foreground)",
+    bar: "var(--viz-axis)",
+    Icon: CircleMinus,
+    order: 2,
+  },
+  strong: {
+    label: "Strong",
+    color: TONE_VAR.good,
+    bar: TONE_VAR.good,
+    Icon: CircleCheck,
+    order: 3,
+  },
 };
 
 /** Status with icon + label, never color alone. */

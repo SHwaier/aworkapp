@@ -2,7 +2,7 @@
 
 import { Copy, Info } from "lucide-react";
 import type { Benchmark, BenchmarkStatus } from "@/lib/ai/analysis/types";
-import { copyText } from "../suggestion-card";
+import { copyText } from "../utils";
 import { Disclosure } from "./disclosure";
 import { BENCHMARK_STATUS, StatusPill, Template } from "./status";
 
@@ -58,7 +58,7 @@ export function CompareTab({
                 style={{
                   flexGrow: c.count,
                   flexBasis: 0,
-                  background: BENCHMARK_STATUS[c.status].color,
+                  background: BENCHMARK_STATUS[c.status].bar,
                 }}
               />
             ))}

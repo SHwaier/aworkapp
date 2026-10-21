@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import type { CoverageRow } from "@/components/analysis/charts";
 import { Notice } from "@/components/analysis/notice";
-import { PRIORITY_ORDER } from "@/components/analysis/suggestion-card";
+import { PRIORITY_ORDER } from "@/components/analysis/utils";
 import { useResumeAnalysis } from "@/components/analysis/use-resume-analysis";
 import type { Analysis } from "@/components/analysis/types";
 import { ReportHero } from "@/components/analysis/report/report-hero";
@@ -16,6 +16,7 @@ import { OverviewTab, type NextStep } from "@/components/analysis/report/overvie
 import { FixTab } from "@/components/analysis/report/fix-tab";
 import { CompareTab } from "@/components/analysis/report/compare-tab";
 import { DetailsTab } from "@/components/analysis/report/details-tab";
+import { ExportMenu } from "@/components/analysis/report/export-menu";
 import { potentialScore, scoreOpportunities } from "@/lib/ai/analysis/scoring";
 
 interface RouteParams {
@@ -48,7 +49,9 @@ export default function AnalysisReportPage({ params }: RouteParams) {
     reload,
     setSuggestionStatus,
   } = useResumeAnalysis(applicationId);
-  const [job, setJob] = useState<{ title: string; company: string } | null>(null);
+  const [job, setJob] = useState<{ title: string; company: string; description: string } | null>(
+    null
+  );
 
   useEffect(() => {
     fetch(`/api/applications/${applicationId}`)
@@ -56,7 +59,11 @@ export default function AnalysisReportPage({ params }: RouteParams) {
       .then((data) => {
         if (!data.success) return;
         const app = data.data.application;
-        setJob({ title: app.jobTitle, company: app.companyId?.name || "" });
+        setJob({
+          title: app.jobTitle,
+          company: app.companyId?.name || "",
+          description: app.jobDescription || "",
+        });
       })
       .catch(() => {});
   }, [applicationId]);
@@ -80,18 +87,23 @@ export default function AnalysisReportPage({ params }: RouteParams) {
           </p>
         </div>
         <div className="flex flex-col gap-1 sm:items-end">
-          <Button
-            onClick={analyze}
-            disabled={!canRun || isStarting}
-            className="w-full gap-1.5 sm:w-auto"
-          >
-            {isStarting || inProgress ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Sparkles className="h-4 w-4" />
+          <div className="flex flex-col-reverse gap-2 sm:flex-row">
+            {complete && job && (
+              <ExportMenu analysis={complete} job={job} applicationId={applicationId} />
             )}
-            {inProgress ? "Analyzing" : complete ? "Re-analyze" : "Analyze match"}
-          </Button>
+            <Button
+              onClick={analyze}
+              disabled={!canRun || isStarting}
+              className="w-full gap-1.5 sm:w-auto"
+            >
+              {isStarting || inProgress ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              {inProgress ? "Analyzing" : complete ? "Re-analyze" : "Analyze match"}
+            </Button>
+          </div>
           {overview && (
             <span className="text-xs text-muted-foreground">
               {overview.quota.limit === null

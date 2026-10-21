@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { ActionStep } from "@/lib/ai/analysis/types";
 import { PriorityMatrix } from "../charts";
-import { copyText, PRIORITY_ORDER } from "../suggestion-card";
+import { copyText, PRIORITY_ORDER } from "../utils";
 import type { Suggestion, SuggestionStatus } from "../types";
 import { Disclosure } from "./disclosure";
 import { Panel } from "./overview-tab";
@@ -90,7 +90,7 @@ export function FixTab({
                 </li>
               ))}
             </ol>
-            <div className="hidden lg:block">
+            <div className="hidden self-start lg:sticky lg:top-16 lg:block">
               <p className="mb-2 text-sm font-medium">Impact vs. effort</p>
               <PriorityMatrix steps={numbered} />
             </div>
@@ -187,7 +187,7 @@ function EditRow({
               style={{ background: PRIORITY_DOT[s.priority] }}
               aria-hidden
             />
-            <span className="capitalize">{s.priority} priority</span>
+            <span>{s.priority[0].toUpperCase() + s.priority.slice(1)} priority</span>
             <span aria-hidden>/</span>
             <span>{TYPE_LABEL[s.type] ?? s.type}</span>
             {resolved && (

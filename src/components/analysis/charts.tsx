@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { CircleCheck, CircleDashed, CircleX } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -296,9 +296,18 @@ export interface LinePoint {
 export function ScoreLineChart({ points }: { points: LinePoint[] }) {
   const { attach, showAt, hide, node: tooltipNode } = useTooltip();
   const [active, setActive] = useState<number | null>(null);
+  // Draw at the container's real width so text stays readable (no scaling down on phones)
+  const [box, setBox] = useState<HTMLDivElement | null>(null);
+  const [width, setWidth] = useState(640);
+  useEffect(() => {
+    if (!box) return;
+    const observer = new ResizeObserver(([entry]) => setWidth(Math.round(entry.contentRect.width)));
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, [box]);
 
-  const W = 640;
-  const H = 200;
+  const W = Math.max(280, width);
+  const H = W < 480 ? 180 : 200;
   const pad = { top: 16, right: 40, bottom: 28, left: 32 };
   const innerW = W - pad.left - pad.right;
   const innerH = H - pad.top - pad.bottom;
@@ -335,109 +344,111 @@ export function ScoreLineChart({ points }: { points: LinePoint[] }) {
 
   return (
     <div ref={attach} className="relative">
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        className="h-auto w-full overflow-visible outline-none"
-        role="img"
-        aria-label={`Match score over ${points.length} analyses, from ${points[0].value} to ${points[last].value}`}
-        tabIndex={0}
-        onPointerMove={(e) => show(nearest(e.clientX, e.currentTarget), e.currentTarget)}
-        onPointerLeave={() => {
-          setActive(null);
-          hide();
-        }}
-        onFocus={(e) => show(last, e.currentTarget)}
-        onBlur={() => {
-          setActive(null);
-          hide();
-        }}
-        onKeyDown={(e) => {
-          if (active === null) return;
-          if (e.key === "ArrowLeft") show(Math.max(0, active - 1), e.currentTarget);
-          if (e.key === "ArrowRight") show(Math.min(last, active + 1), e.currentTarget);
-        }}
-      >
-        {[0, 25, 50, 75, 100].map((t) => (
-          <g key={t}>
+      <div ref={setBox}>
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          className="h-auto w-full overflow-visible outline-none"
+          role="img"
+          aria-label={`Match score over ${points.length} analyses, from ${points[0].value} to ${points[last].value}`}
+          tabIndex={0}
+          onPointerMove={(e) => show(nearest(e.clientX, e.currentTarget), e.currentTarget)}
+          onPointerLeave={() => {
+            setActive(null);
+            hide();
+          }}
+          onFocus={(e) => show(last, e.currentTarget)}
+          onBlur={() => {
+            setActive(null);
+            hide();
+          }}
+          onKeyDown={(e) => {
+            if (active === null) return;
+            if (e.key === "ArrowLeft") show(Math.max(0, active - 1), e.currentTarget);
+            if (e.key === "ArrowRight") show(Math.min(last, active + 1), e.currentTarget);
+          }}
+        >
+          {[0, 25, 50, 75, 100].map((t) => (
+            <g key={t}>
+              <line
+                x1={pad.left}
+                x2={W - pad.right}
+                y1={y(t)}
+                y2={y(t)}
+                stroke={t === 0 ? "var(--viz-axis)" : "var(--viz-grid)"}
+                strokeWidth={1}
+                vectorEffect="non-scaling-stroke"
+              />
+              <text
+                x={pad.left - 8}
+                y={y(t)}
+                dy="0.32em"
+                textAnchor="end"
+                className="fill-muted-foreground text-[11px] tabular-nums"
+              >
+                {t}
+              </text>
+            </g>
+          ))}
+          {points.map((p, i) => (
+            <text
+              key={i}
+              x={x(i)}
+              y={H - 8}
+              textAnchor={
+                points.length > 1 && i === 0
+                  ? "start"
+                  : points.length > 1 && i === last
+                    ? "end"
+                    : "middle"
+              }
+              className="fill-muted-foreground text-[11px]"
+            >
+              {p.label}
+            </text>
+          ))}
+          <path d={area} fill="var(--viz-series-1-wash)" />
+          <path
+            d={path}
+            fill="none"
+            stroke="var(--viz-series-1)"
+            strokeWidth={2}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+          />
+          {active !== null && (
             <line
-              x1={pad.left}
-              x2={W - pad.right}
-              y1={y(t)}
-              y2={y(t)}
-              stroke={t === 0 ? "var(--viz-axis)" : "var(--viz-grid)"}
+              x1={x(active)}
+              x2={x(active)}
+              y1={pad.top}
+              y2={y(0)}
+              stroke="var(--viz-axis)"
               strokeWidth={1}
               vectorEffect="non-scaling-stroke"
             />
-            <text
-              x={pad.left - 8}
-              y={y(t)}
-              dy="0.32em"
-              textAnchor="end"
-              className="fill-muted-foreground text-[11px] tabular-nums"
-            >
-              {t}
-            </text>
-          </g>
-        ))}
-        {points.map((p, i) => (
+          )}
+          {points.map((p, i) => (
+            <circle
+              key={i}
+              cx={x(i)}
+              cy={y(p.value)}
+              r={i === active ? 5.5 : 4}
+              fill="var(--viz-series-1)"
+              stroke="var(--viz-surface)"
+              strokeWidth={2}
+            />
+          ))}
+          {/* Direct label on the latest value only */}
           <text
-            key={i}
-            x={x(i)}
-            y={H - 8}
-            textAnchor={
-              points.length > 1 && i === 0
-                ? "start"
-                : points.length > 1 && i === last
-                  ? "end"
-                  : "middle"
-            }
-            className="fill-muted-foreground text-[11px]"
+            x={x(last) + 10}
+            y={y(points[last].value)}
+            dy="0.32em"
+            className="fill-foreground text-xs font-semibold"
           >
-            {p.label}
+            {points[last].value}
           </text>
-        ))}
-        <path d={area} fill="var(--viz-series-1-wash)" />
-        <path
-          d={path}
-          fill="none"
-          stroke="var(--viz-series-1)"
-          strokeWidth={2}
-          strokeLinejoin="round"
-          strokeLinecap="round"
-          vectorEffect="non-scaling-stroke"
-        />
-        {active !== null && (
-          <line
-            x1={x(active)}
-            x2={x(active)}
-            y1={pad.top}
-            y2={y(0)}
-            stroke="var(--viz-axis)"
-            strokeWidth={1}
-            vectorEffect="non-scaling-stroke"
-          />
-        )}
-        {points.map((p, i) => (
-          <circle
-            key={i}
-            cx={x(i)}
-            cy={y(p.value)}
-            r={i === active ? 5.5 : 4}
-            fill="var(--viz-series-1)"
-            stroke="var(--viz-surface)"
-            strokeWidth={2}
-          />
-        ))}
-        {/* Direct label on the latest value only */}
-        <text
-          x={x(last) + 10}
-          y={y(points[last].value)}
-          dy="0.32em"
-          className="fill-foreground text-xs font-semibold"
-        >
-          {points[last].value}
-        </text>
-      </svg>
+        </svg>
+      </div>
       {tooltipNode}
     </div>
   );
