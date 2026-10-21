@@ -110,6 +110,15 @@ export async function DELETE(request: Request, { params }: RouteParams): Promise
     await dbConnect();
 
     // Call service to delete file from storage and database
+    // Resume versions are deleted from their resume, which protects versions applications use
+    const isVersion = await File.exists({ _id: id, userId: session.id, resumeId: { $ne: null } });
+    if (isVersion) {
+      return errorResponse(
+        "This file is a resume version. Delete it from the resume's version history.",
+        409
+      );
+    }
+
     const success = await deleteFile(id, session.id);
     if (!success) {
       return errorResponse("Not found", 404);

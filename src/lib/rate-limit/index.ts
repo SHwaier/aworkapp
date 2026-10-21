@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 /**
  * In-memory rate limiter for API routes.
  * Uses a sliding window counter pattern.
@@ -158,4 +159,17 @@ export function rateLimitHeaders(result: RateLimitResult, config?: RateLimitConf
       "Retry-After": Math.ceil(result.retryAfterMs / 1000).toString(),
     }),
   };
+}
+
+/**
+ * Check a rate limit and return a ready-made 429 response when it's exceeded,
+ * or null when the request may continue.
+ */
+export function rateLimitResponse(identifier: string, config: RateLimitConfig) {
+  const result = checkRateLimit(identifier, config);
+  if (result.allowed) return null;
+  return NextResponse.json(
+    { success: false, error: "Too many requests. Please try again later." },
+    { status: 429, headers: rateLimitHeaders(result, config) }
+  );
 }

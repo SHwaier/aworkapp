@@ -1,132 +1,58 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db/mongoose";
-import ResumeVersion from "@/models/ResumeVersion";
-import File from "@/models/File";
 import { requireAuth } from "@/lib/auth/guard";
-import { createResumeVersionSchema, paginationSchema } from "@/lib/validators/schemas";
+import { resumeUploadFieldsSchema } from "@/lib/validators/schemas";
 import { successResponse, handleApiError } from "@/lib/api/response";
-import { createAuditLog } from "@/models/AuditLog";
-import { escapeRegex } from "@/lib/utils/escape-regex";
-import { checkRateLimit, getClientIp, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
+import { readUpload } from "@/lib/api/multipart";
+import { RATE_LIMITS, rateLimitResponse } from "@/lib/rate-limit";
+import { createResume } from "@/lib/services/resume";
+import { listResumes } from "@/lib/services/resume-queries";
 
 /**
- * GET /api/resumes
- * List resume versions for the authenticated user.
+ * GET /api/resumes?archived=true&search=...
+ * The user's resumes with their current version, version count, usage, and best match score.
  */
 export async function GET(request: Request): Promise<NextResponse> {
   try {
     const session = await requireAuth();
-
-    // Rate limit check
-    const ip = getClientIp(request);
-    const rateLimit = checkRateLimit(`api-resumes:${session.id || ip}`, RATE_LIMITS.api);
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        { success: false, error: "Too many requests. Please try again later." },
-        { status: 429, headers: rateLimitHeaders(rateLimit, RATE_LIMITS.api) }
-      );
-    }
+    const limited = rateLimitResponse(`api-resumes:${session.id}`, RATE_LIMITS.api);
+    if (limited) return limited;
 
     await dbConnect();
-
     const url = new URL(request.url);
-    const params = paginationSchema.parse({
-      page: url.searchParams.get("page"),
-      limit: url.searchParams.get("limit"),
-      sortBy: url.searchParams.get("sortBy"),
-      sortOrder: url.searchParams.get("sortOrder"),
+    const resumes = await listResumes(session.id, {
+      includeArchived: url.searchParams.get("archived") === "true",
+      search: url.searchParams.get("search") ?? "",
     });
-
-    const query: Record<string, unknown> = { userId: session.id };
-
-    const activeOnly = url.searchParams.get("active");
-    if (activeOnly === "true") {
-      query.isActive = true;
-    }
-
-    const search = url.searchParams.get("search");
-    if (search) {
-      const escaped = escapeRegex(search);
-      query.$or = [
-        { name: { $regex: escaped, $options: "i" } },
-        { targetRole: { $regex: escaped, $options: "i" } },
-      ];
-    }
-
-    const skip = (params.page - 1) * params.limit;
-    const sortDirection = params.sortOrder === "asc" ? 1 : -1;
-
-    const [resumes, total] = await Promise.all([
-      ResumeVersion.find(query)
-        .populate("fileId", "displayName fileType mimeType")
-        .sort({ [params.sortBy]: sortDirection })
-        .skip(skip)
-        .limit(params.limit)
-        .lean(),
-      ResumeVersion.countDocuments(query),
-    ]);
-
-    return successResponse({
-      resumes,
-      pagination: {
-        page: params.page,
-        limit: params.limit,
-        total,
-        totalPages: Math.ceil(total / params.limit),
-      },
-    });
+    return successResponse({ resumes, total: resumes.length });
   } catch (error) {
     return handleApiError(error);
   }
 }
 
 /**
- * POST /api/resumes
- * Create a new resume version.
+ * POST /api/resumes (multipart: file, name?, targetRole?)
+ * Create a resume from an uploaded file, which becomes v1.
  */
 export async function POST(request: Request): Promise<NextResponse> {
   try {
     const session = await requireAuth();
+    const limited = rateLimitResponse(`create-resume:${session.id}`, RATE_LIMITS.upload);
+    if (limited) return limited;
 
-    // Rate limit check
-    const ip = getClientIp(request);
-    const rateLimit = checkRateLimit(`create-resume:${session.id || ip}`, RATE_LIMITS.api);
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        { success: false, error: "Too many requests. Please try again later." },
-        { status: 429, headers: rateLimitHeaders(rateLimit, RATE_LIMITS.api) }
-      );
-    }
+    const { file, originalFileName, fields } = await readUpload(request);
+    const meta = resumeUploadFieldsSchema.parse(fields);
 
     await dbConnect();
-
-    const body = await request.json();
-    const validated = createResumeVersionSchema.parse(body);
-
-    // Auto-calculate version number if not provided
-    if (!validated.versionNumber) {
-      const lastVersion = await ResumeVersion.findOne({ userId: session.id })
-        .sort({ versionNumber: -1 })
-        .select("versionNumber")
-        .lean();
-      validated.versionNumber = (lastVersion?.versionNumber || 0) + 1;
-    }
-
-    const resume = await ResumeVersion.create({
-      ...validated,
+    const { resume, version } = await createResume({
       userId: session.id,
-    });
-
-    await createAuditLog({
-      userId: session.id,
-      action: "resume.created",
-      entityType: "resume",
-      entityId: resume._id.toString(),
-      metadata: { name: validated.name, version: validated.versionNumber },
+      file,
+      originalFileName,
+      name: meta.name,
+      targetRole: meta.targetRole,
       request,
     });
-
-    return successResponse({ resume }, 201);
+    return successResponse({ resume, version }, 201);
   } catch (error) {
     return handleApiError(error);
   }

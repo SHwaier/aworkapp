@@ -5,7 +5,7 @@ import Application from "@/models/Application";
 import Company from "@/models/Company";
 import Note from "@/models/Note";
 import TimelineEvent from "@/models/TimelineEvent";
-import ResumeVersion from "@/models/ResumeVersion";
+import Resume from "@/models/Resume";
 import ResumeSnapshot from "@/models/ResumeSnapshot";
 import ResumeAnalysis from "@/models/ResumeAnalysis";
 import AiUsage from "@/models/AiUsage";
@@ -44,7 +44,7 @@ export async function deleteUserAndData(user: {
     Company.deleteMany({ userId: user._id }),
     Note.deleteMany({ userId: user._id }),
     TimelineEvent.deleteMany({ userId: user._id }),
-    ResumeVersion.deleteMany({ userId: user._id }),
+    Resume.deleteMany({ userId: user._id }),
     ResumeSnapshot.deleteMany({ userId: user._id }),
     ResumeAnalysis.deleteMany({ userId: user._id }),
     AiUsage.deleteMany({ userId: user._id }),

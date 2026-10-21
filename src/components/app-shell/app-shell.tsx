@@ -23,7 +23,6 @@ import {
   Briefcase,
   Building2,
   FileText,
-  FolderOpen,
   BarChart3,
   Settings,
   ShieldCheck,
@@ -53,14 +52,9 @@ const NAV_ITEMS = [
     icon: Building2,
   },
   {
-    label: "Resumes",
-    href: "/resumes",
+    label: "Documents",
+    href: "/documents",
     icon: FileText,
-  },
-  {
-    label: "Files",
-    href: "/files",
-    icon: FolderOpen,
   },
   {
     label: "Analytics",
@@ -306,7 +300,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Main Content */}
       <main
         className={cn(
-          "flex-1 flex flex-col",
+          "flex-1 flex flex-col min-w-0",
           usePathname().endsWith("/resume/customize") ? "overflow-hidden" : "overflow-auto"
         )}
       >

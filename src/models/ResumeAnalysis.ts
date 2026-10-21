@@ -23,9 +23,9 @@ export interface IResumeAnalysis extends Document {
   _id: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;
   applicationId: mongoose.Types.ObjectId;
-  resumeVersionId: mongoose.Types.ObjectId;
+  resumeId: mongoose.Types.ObjectId;
   fileId: mongoose.Types.ObjectId;
-  /** Snapshot of the resume version's name at analysis time, for the history list */
+  /** Label of the analyzed version at analysis time, e.g. "Backend Resume v2" */
   resumeVersionName: string;
   /** Hash of everything that determines the result; equal hash = nothing changed */
   inputHash: string;
@@ -154,7 +154,7 @@ const ResumeAnalysisSchema = new Schema<IResumeAnalysis>(
   {
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     applicationId: { type: Schema.Types.ObjectId, ref: "Application", required: true },
-    resumeVersionId: { type: Schema.Types.ObjectId, ref: "ResumeVersion", required: true },
+    resumeId: { type: Schema.Types.ObjectId, ref: "Resume", required: true },
     fileId: { type: Schema.Types.ObjectId, ref: "File", required: true },
     resumeVersionName: { type: String, default: "" },
     inputHash: { type: String, required: true },

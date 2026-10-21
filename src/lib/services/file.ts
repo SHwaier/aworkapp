@@ -111,8 +111,9 @@ export async function uploadFile({
 }
 
 /**
- * Delete a file from disk/S3 and remove its File document.
- * Also cleans up any references in ResumeVersion and ResumeSnapshot.
+ * Delete a File document, and its stored bytes once nothing else uses them.
+ * Resume versions are deleted through the resume service, which checks that
+ * no application is pinned to them first.
  */
 export async function deleteFile(
   fileId: string | mongoose.Types.ObjectId,
@@ -123,16 +124,10 @@ export async function deleteFile(
 
   await File.deleteOne({ _id: fileDoc._id });
 
-  // Cascade: null out any ResumeVersion that references this file
-  const ResumeVersion = (await import("@/models/ResumeVersion")).default;
-  await ResumeVersion.updateMany({ userId, fileId: fileDoc._id }, { $set: { fileId: null } });
-
-  // Cascade: null out any ResumeSnapshot that references this file as finalSubmittedFileId
-  const ResumeSnapshot = (await import("@/models/ResumeSnapshot")).default;
-  await ResumeSnapshot.updateMany(
-    { userId, finalSubmittedFileId: fileDoc._id },
-    { $set: { finalSubmittedFileId: null, manuallyEdited: false } }
-  );
+  // Restored resume versions share stored bytes with the version they came
+  // from; only remove storage once no other file record points at it.
+  const stillUsed = await File.exists({ storageKey: fileDoc.storageKey });
+  if (stillUsed) return true;
 
   try {
     if (fileDoc.storageProvider === "r2" || fileDoc.storageProvider === "s3") {
