@@ -13,6 +13,13 @@ export interface IFile extends Document {
   storageKey: string;
   fileHash: string;
   category: string;
+  /** Plain text extracted from PDF/DOCX for AI analysis (null until extracted) */
+  extractedText: string | null;
+  /** SHA-256 of extractedText, used to detect when an analysis is stale */
+  textHash: string | null;
+  textPageCount: number | null;
+  textExtractedAt: Date | null;
+  textExtractionError: string | null;
   uploadedAt: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -58,17 +65,25 @@ const FileSchema = new Schema<IFile>(
       enum: FILE_CATEGORIES,
       default: "other",
     },
+    // Text extraction for AI analysis. Large, so not selected by default.
+    extractedText: { type: String, default: null, select: false },
+    textHash: { type: String, default: null },
+    textPageCount: { type: Number, default: null },
+    textExtractedAt: { type: Date, default: null },
+    textExtractionError: { type: String, default: null, maxlength: 500 },
     uploadedAt: { type: Date, default: Date.now },
   },
   {
     timestamps: true,
     toJSON: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       transform(_doc, ret: any) {
         ret.id = ret._id.toString();
         delete ret._id;
         delete ret.__v;
         // Security: never expose storage key to client
         delete ret.storageKey;
+        delete ret.extractedText;
         return ret;
       },
     },
@@ -80,7 +95,6 @@ FileSchema.index({ userId: 1, fileHash: 1 });
 FileSchema.index({ userId: 1, category: 1 });
 FileSchema.index({ userId: 1, uploadedAt: -1 });
 
-const File: Model<IFile> =
-  mongoose.models.File || mongoose.model<IFile>("File", FileSchema);
+const File: Model<IFile> = mongoose.models.File || mongoose.model<IFile>("File", FileSchema);
 
 export default File;

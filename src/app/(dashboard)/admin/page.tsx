@@ -44,7 +44,10 @@ import {
   Ellipsis,
   UserX,
   UserCheck,
+  Gauge,
+  RotateCcw,
 } from "lucide-react";
+import { AiLimitsCard, type AiSettings } from "@/components/admin/ai-limits-card";
 
 type Role = "user" | "admin";
 
@@ -56,6 +59,9 @@ interface Member {
   hasGoogle: boolean;
   mustChangePassword: boolean;
   disabled: boolean;
+  /** Member's own daily AI limit; null = app default */
+  aiDailyLimit: number | null;
+  aiUsedToday: number;
   createdAt: string;
 }
 
@@ -96,6 +102,20 @@ export default function AdminPage() {
   const [resetPassword, setResetPassword] = useState("");
   const [resetError, setResetError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  const [aiSettings, setAiSettings] = useState<AiSettings | null>(null);
+  const [pendingLimit, setPendingLimit] = useState<Member | null>(null);
+  const [limitInput, setLimitInput] = useState("");
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    fetch("/api/admin/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) setAiSettings(data.data.settings);
+      })
+      .catch(() => toast.error("Failed to load AI settings"));
+  }, [isAdmin]);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -198,6 +218,63 @@ export default function AdminPage() {
     }
   }
 
+  /** "3 / 20", "3 / ∞" etc. for the AI usage column */
+  function effectiveAiLimit(member: Member): number | null {
+    if (!aiSettings) return null;
+    if (member.role === "admin" && aiSettings.aiExemptAdmins) return null;
+    return member.aiDailyLimit ?? aiSettings.aiDailyLimit;
+  }
+
+  function openLimit(member: Member) {
+    setLimitInput(member.aiDailyLimit === null ? "" : String(member.aiDailyLimit));
+    setPendingLimit(member);
+  }
+
+  async function saveLimit(member: Member, aiDailyLimit: number | null) {
+    setBusyId(member.id);
+    try {
+      const res = await fetch(`/api/admin/members/${member.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aiDailyLimit }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(
+          data.errors?.map((e: { message: string }) => e.message).join(", ") ||
+            data.error ||
+            "Failed to update limit"
+        );
+      }
+      setMembers((prev) => prev.map((m) => (m.id === member.id ? { ...m, aiDailyLimit } : m)));
+      toast.success(
+        aiDailyLimit === null
+          ? `${member.email} now uses the default AI limit`
+          : `${member.email} can run ${aiDailyLimit} AI analyses per day`
+      );
+      setPendingLimit(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update limit");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleResetAiUsage(member: Member) {
+    setBusyId(member.id);
+    try {
+      const res = await fetch(`/api/admin/members/${member.id}/reset-ai-usage`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to reset usage");
+      setMembers((prev) => prev.map((m) => (m.id === member.id ? { ...m, aiUsedToday: 0 } : m)));
+      toast.success(`Reset today's AI usage for ${member.email}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to reset usage");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function handleSetDisabled(member: Member, disabled: boolean) {
     setBusyId(member.id);
     try {
@@ -276,6 +353,8 @@ export default function AdminPage() {
         </Button>
       </div>
 
+      {aiSettings && <AiLimitsCard settings={aiSettings} onSaved={setAiSettings} />}
+
       {/* Members */}
       <Card className="border-border/60">
         <CardHeader>
@@ -300,6 +379,7 @@ export default function AdminPage() {
                     <TableHead>Email</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Sign-in</TableHead>
+                    <TableHead className="whitespace-nowrap">AI today</TableHead>
                     <TableHead>Added</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -336,11 +416,33 @@ export default function AdminPage() {
                             )}
                           </div>
                         </TableCell>
+                        <TableCell className="text-xs whitespace-nowrap">
+                          {(() => {
+                            const limit = effectiveAiLimit(member);
+                            const atLimit = limit !== null && member.aiUsedToday >= limit;
+                            return (
+                              <span className="inline-flex items-center gap-1.5">
+                                <span
+                                  className={
+                                    atLimit ? "font-semibold text-destructive" : "tabular-nums"
+                                  }
+                                >
+                                  {member.aiUsedToday} / {limit === null ? "∞" : limit}
+                                </span>
+                                {member.aiDailyLimit !== null && (
+                                  <Badge variant="outline" className="text-[10px]">
+                                    custom
+                                  </Badge>
+                                )}
+                              </span>
+                            );
+                          })()}
+                        </TableCell>
                         <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                           {format(new Date(member.createdAt), "MMM d, yyyy")}
                         </TableCell>
                         <TableCell className="text-right">
-                          {!isSelf && (
+                          {
                             <DropdownMenu>
                               <DropdownMenuTrigger
                                 render={
@@ -359,38 +461,54 @@ export default function AdminPage() {
                                 )}
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-52">
-                                <DropdownMenuItem onClick={() => handleRoleChange(member)}>
-                                  {member.role === "admin" ? <ShieldOff /> : <ShieldCheck />}
-                                  {member.role === "admin" ? "Remove admin" : "Make admin"}
+                                <DropdownMenuItem onClick={() => openLimit(member)}>
+                                  <Gauge />
+                                  Set AI limit
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => openReset(member)}>
-                                  <KeyRound />
-                                  Reset password
-                                </DropdownMenuItem>
-                                {member.disabled ? (
-                                  <DropdownMenuItem
-                                    onClick={() => handleSetDisabled(member, false)}
-                                  >
-                                    <UserCheck />
-                                    Re-enable
-                                  </DropdownMenuItem>
-                                ) : (
-                                  <DropdownMenuItem onClick={() => setPendingDisable(member)}>
-                                    <UserX />
-                                    Disable
-                                  </DropdownMenuItem>
-                                )}
-                                <DropdownMenuSeparator />
                                 <DropdownMenuItem
-                                  variant="destructive"
-                                  onClick={() => openDelete(member)}
+                                  onClick={() => handleResetAiUsage(member)}
+                                  disabled={member.aiUsedToday === 0}
                                 >
-                                  <Trash2 />
-                                  Delete permanently
+                                  <RotateCcw />
+                                  Reset AI usage
                                 </DropdownMenuItem>
+                                {!isSelf && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onClick={() => handleRoleChange(member)}>
+                                      {member.role === "admin" ? <ShieldOff /> : <ShieldCheck />}
+                                      {member.role === "admin" ? "Remove admin" : "Make admin"}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => openReset(member)}>
+                                      <KeyRound />
+                                      Reset password
+                                    </DropdownMenuItem>
+                                    {member.disabled ? (
+                                      <DropdownMenuItem
+                                        onClick={() => handleSetDisabled(member, false)}
+                                      >
+                                        <UserCheck />
+                                        Re-enable
+                                      </DropdownMenuItem>
+                                    ) : (
+                                      <DropdownMenuItem onClick={() => setPendingDisable(member)}>
+                                        <UserX />
+                                        Disable
+                                      </DropdownMenuItem>
+                                    )}
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      variant="destructive"
+                                      onClick={() => openDelete(member)}
+                                    >
+                                      <Trash2 />
+                                      Delete permanently
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
-                          )}
+                          }
                         </TableCell>
                       </TableRow>
                     );
@@ -401,6 +519,60 @@ export default function AdminPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* AI limit dialog */}
+      <Dialog open={!!pendingLimit} onOpenChange={(open) => !open && setPendingLimit(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>AI limit for {pendingLimit?.name}</DialogTitle>
+            <DialogDescription>
+              Daily resume analyses for {pendingLimit?.email}. Leave empty to use the default
+              {aiSettings ? ` (${aiSettings.aiDailyLimit} per day)` : ""}. 0 turns AI off for them.
+              {pendingLimit?.role === "admin" && aiSettings?.aiExemptAdmins
+                ? " Admins are currently exempt, so this only applies if that changes."
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!pendingLimit) return;
+              const trimmed = limitInput.trim();
+              const value = trimmed === "" ? null : Number(trimmed);
+              if (value !== null && (!Number.isInteger(value) || value < 0 || value > 1000)) {
+                toast.error("Enter a whole number from 0 to 1000, or leave it empty");
+                return;
+              }
+              saveLimit(pendingLimit, value);
+            }}
+          >
+            <div className="space-y-2">
+              <Label htmlFor="member-ai-limit">Analyses per day</Label>
+              <Input
+                id="member-ai-limit"
+                type="number"
+                min={0}
+                max={1000}
+                step={1}
+                placeholder={aiSettings ? `Default (${aiSettings.aiDailyLimit})` : "Default"}
+                value={limitInput}
+                onChange={(e) => setLimitInput(e.target.value)}
+                className="w-40"
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setPendingLimit(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={busyId === pendingLimit?.id}>
+                {busyId === pendingLimit?.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Add member dialog */}
       <Dialog
