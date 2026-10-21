@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useTheme } from "@/components/providers/theme-provider";
 import { Button } from "@/components/ui/button";
@@ -37,25 +37,19 @@ export default function SettingsPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  const fetchLogs = useCallback(async () => {
-    setIsLoadingLogs(true);
-    try {
-      const res = await fetch(`/api/audit-logs?page=${page}&limit=10`);
-      const data = await res.json();
-      if (data.success) {
-        setLogs(data.data.logs);
-        setTotalPages(data.data.pagination.totalPages);
-      }
-    } catch {
-      toast.error("Failed to load audit logs");
-    } finally {
-      setIsLoadingLogs(false);
-    }
-  }, [page]);
-
+  // isLoadingLogs starts true; the spinner only shows before the first page arrives
   useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs]);
+    fetch(`/api/audit-logs?page=${page}&limit=10`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setLogs(data.data.logs);
+          setTotalPages(data.data.pagination.totalPages);
+        }
+      })
+      .catch(() => toast.error("Failed to load audit logs"))
+      .finally(() => setIsLoadingLogs(false));
+  }, [page]);
 
   // Parse user agent to a cleaner form
   function cleanUserAgent(ua: string) {
@@ -104,11 +98,15 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-1">
-                <span className="text-xs text-muted-foreground font-semibold uppercase">Full Name</span>
+                <span className="text-xs text-muted-foreground font-semibold uppercase">
+                  Full Name
+                </span>
                 <span className="text-sm font-medium">{user?.name}</span>
               </div>
               <div className="grid gap-1">
-                <span className="text-xs text-muted-foreground font-semibold uppercase">Email Address</span>
+                <span className="text-xs text-muted-foreground font-semibold uppercase">
+                  Email Address
+                </span>
                 <span className="text-sm font-medium">{user?.email}</span>
               </div>
             </CardContent>
@@ -196,7 +194,10 @@ export default function SettingsPage() {
                             <TableCell className="text-xs text-muted-foreground font-mono">
                               {log.ipAddress || "Unknown IP"}
                             </TableCell>
-                            <TableCell className="text-xs text-muted-foreground truncate max-w-[200px]" title={log.userAgent}>
+                            <TableCell
+                              className="text-xs text-muted-foreground truncate max-w-[200px]"
+                              title={log.userAgent}
+                            >
                               {cleanUserAgent(log.userAgent)}
                             </TableCell>
                             <TableCell className="text-right text-xs text-muted-foreground">

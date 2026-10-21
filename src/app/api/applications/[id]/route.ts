@@ -10,18 +10,9 @@ import {
   mongoIdSchema,
   APPLICATION_STATUSES,
 } from "@/lib/validators/schemas";
-import {
-  successResponse,
-  errorResponse,
-  handleApiError,
-} from "@/lib/api/response";
+import { successResponse, errorResponse, handleApiError } from "@/lib/api/response";
 import { createAuditLog } from "@/models/AuditLog";
-import {
-  checkRateLimit,
-  getClientIp,
-  RATE_LIMITS,
-  rateLimitHeaders,
-} from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -31,10 +22,7 @@ interface RouteParams {
  * GET /api/applications/:id
  * Get a single application with its timeline, notes, and related data.
  */
-export async function GET(
-  request: Request,
-  { params }: RouteParams
-): Promise<NextResponse> {
+export async function GET(request: Request, { params }: RouteParams): Promise<NextResponse> {
   try {
     const session = await requireAuth();
     const { id } = await params;
@@ -90,10 +78,7 @@ export async function GET(
  * PATCH /api/applications/:id
  * Update an application. Tracks status changes via timeline.
  */
-export async function PATCH(
-  request: Request,
-  { params }: RouteParams
-): Promise<NextResponse> {
+export async function PATCH(request: Request, { params }: RouteParams): Promise<NextResponse> {
   try {
     const session = await requireAuth();
     const { id } = await params;
@@ -126,8 +111,7 @@ export async function PATCH(
 
     // Track status change
     const statusChanged =
-      validated.currentStatus &&
-      validated.currentStatus !== current.currentStatus;
+      validated.currentStatus && validated.currentStatus !== current.currentStatus;
 
     // Update application
     const application = await Application.findOneAndUpdate(
@@ -145,14 +129,15 @@ export async function PATCH(
         title: `Status changed to ${validated.currentStatus}`,
         description: `Changed from "${current.currentStatus}" to "${validated.currentStatus}"`,
         statusAfterEvent: validated.currentStatus,
-        lifecycleStageAfterEvent:
-          validated.lifecycleStage || current.lifecycleStage,
+        lifecycleStageAfterEvent: validated.lifecycleStage || current.lifecycleStage,
         eventDate: new Date(),
         source: "system",
       });
 
       // Lock resume snapshot if submitted
-      const statusIndex = APPLICATION_STATUSES.indexOf(validated.currentStatus as any);
+      const statusIndex = APPLICATION_STATUSES.indexOf(
+        validated.currentStatus as (typeof APPLICATION_STATUSES)[number]
+      );
       const appliedIndex = APPLICATION_STATUSES.indexOf("Applied");
       if (statusIndex >= appliedIndex) {
         await ResumeSnapshot.updateMany(
@@ -193,10 +178,7 @@ export async function PATCH(
  * DELETE /api/applications/:id
  * Delete an application and all related data.
  */
-export async function DELETE(
-  request: Request,
-  { params }: RouteParams
-): Promise<NextResponse> {
+export async function DELETE(request: Request, { params }: RouteParams): Promise<NextResponse> {
   try {
     const session = await requireAuth();
     const { id } = await params;

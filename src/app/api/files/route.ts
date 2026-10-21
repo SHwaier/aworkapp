@@ -5,12 +5,7 @@ import { requireAuth } from "@/lib/auth/session";
 import { paginationSchema } from "@/lib/validators/schemas";
 import { successResponse, errorResponse, handleApiError } from "@/lib/api/response";
 import { escapeRegex } from "@/lib/utils/escape-regex";
-import {
-  checkRateLimit,
-  getClientIp,
-  RATE_LIMITS,
-  rateLimitHeaders,
-} from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
 import { uploadFile } from "@/lib/services/file";
 
 /**
@@ -100,13 +95,14 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     const formData = await request.formData();
     const file = formData.get("file") as Blob | null;
-    const category = formData.get("category") as string || "other";
+    const category = (formData.get("category") as string) || "other";
 
     if (!file || !(file instanceof Blob)) {
       return errorResponse("No file uploaded", 400);
     }
 
-    const originalFileName = (file as any).name || "file";
+    const originalFileName =
+      ("name" in file && typeof file.name === "string" && file.name) || "file";
 
     const { file: fileDoc, duplicate } = await uploadFile({
       file,
