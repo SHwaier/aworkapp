@@ -56,6 +56,7 @@ export interface ResumeListItem {
   targetRole: string;
   isActive: boolean;
   updatedAt: Date;
+  latestVersionNumber: number;
   current: VersionSummary | null;
   versionCount: number;
   applicationCount: number;
@@ -111,6 +112,7 @@ export async function listResumes(
       targetRole: r.targetRole,
       isActive: r.isActive,
       updatedAt: r.updatedAt,
+      latestVersionNumber: r.latestVersionNumber,
       current: current ? toVersion(current) : null,
       versionCount: counts.get(id)?.n ?? 0,
       applicationCount: apps.get(id)?.n ?? 0,
@@ -137,6 +139,7 @@ export interface ResumeDetail {
   createdAt: Date;
   updatedAt: Date;
   currentFileId: string;
+  latestVersionNumber: number;
   basedOn: { resumeId: string; name: string; versionNumber: number } | null;
   tailoredInto: { id: string; name: string }[];
   versions: (VersionSummary & {
@@ -202,6 +205,7 @@ export async function getResumeDetail(resumeId: string, userId: string): Promise
     createdAt: resume.createdAt,
     updatedAt: resume.updatedAt,
     currentFileId: resume.currentFileId.toString(),
+    latestVersionNumber: resume.latestVersionNumber,
     basedOn:
       resume.basedOn && basedOn
         ? {

@@ -51,7 +51,7 @@ export default function DashboardPage() {
         fetch("/api/analytics"),
         fetch("/api/applications?limit=5&sortBy=createdAt&sortOrder=desc"),
         fetch("/api/companies?limit=1"),
-        fetch("/api/resumes?limit=1"),
+        fetch("/api/resumes"),
       ]);
 
       const [analyticsData, appsData, companiesData, resumesData] = await Promise.all([
@@ -87,7 +87,7 @@ export default function DashboardPage() {
         totalApplications,
         activeApplications: activeCount,
         totalCompanies: companiesData.data?.pagination?.total || 0,
-        totalResumes: resumesData.data?.pagination?.total || 0,
+        totalResumes: resumesData.data?.total || 0,
         statusBreakdown,
         recentApplications: appsData.data?.applications || [],
       });
@@ -390,7 +390,7 @@ export default function DashboardPage() {
               </Link>
 
               <Link
-                href="/resumes"
+                href="/documents"
                 className="flex items-center justify-between p-3 border border-border/60 rounded-xl hover:border-emerald-500/20 hover:bg-emerald-500/2 transition-all group"
               >
                 <div className="flex items-center gap-3">
@@ -398,8 +398,10 @@ export default function DashboardPage() {
                     <FileText className="h-4 w-4" />
                   </div>
                   <div className="text-left">
-                    <p className="text-xs font-bold text-foreground">Resume Snapshots</p>
-                    <p className="text-[10px] text-muted-foreground">Manage files and variations</p>
+                    <p className="text-xs font-bold text-foreground">Resumes</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      Upload versions and keep files
+                    </p>
                   </div>
                 </div>
                 <ChevronRight className="h-4 w-4 text-muted-foreground/60 group-hover:translate-x-0.5 transition-transform" />

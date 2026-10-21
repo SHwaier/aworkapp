@@ -1,6 +1,25 @@
 import { z } from "zod";
 import { sanitizeText, sanitizeUrl } from "@/lib/security/sanitize";
 
+/**
+ * An update schema from a create schema's partial: keeps only the fields the request sent.
+ * A plain .partial() still fills in the create defaults (status "Saved", salary 0, ...),
+ * which would silently overwrite stored values on every partial update.
+ */
+function onlyProvided<S extends z.ZodObject>(schema: S) {
+  return z.record(z.string(), z.unknown()).transform((input, ctx): Partial<z.output<S>> => {
+    const result = schema.safeParse(input);
+    if (!result.success) {
+      for (const issue of result.error.issues)
+        ctx.addIssue({ ...issue, input: undefined } as never);
+      return z.NEVER;
+    }
+    return Object.fromEntries(
+      Object.entries(result.data as Record<string, unknown>).filter(([key]) => key in input)
+    ) as Partial<z.output<S>>;
+  });
+}
+
 // ============================================
 // Authentication Schemas
 // ============================================
@@ -155,7 +174,7 @@ export const createCompanySchema = z.object({
   doNotApplyAgain: z.boolean().optional().default(false),
 });
 
-export const updateCompanySchema = createCompanySchema.partial();
+export const updateCompanySchema = onlyProvided(createCompanySchema.partial());
 
 export type CreateCompanyInput = z.infer<typeof createCompanySchema>;
 export type UpdateCompanyInput = z.infer<typeof updateCompanySchema>;
@@ -224,10 +243,10 @@ export const JOB_SOURCES = [
   "Other",
 ] as const;
 
+/** Empty values become null so an update can clear a date */
 const preprocessDate = (val: unknown) => {
-  if (val === "" || val === null || val === undefined || val === "null" || val === "undefined") {
-    return undefined;
-  }
+  if (val === "" || val === null || val === "null") return null;
+  if (val === undefined || val === "undefined") return undefined;
   const date = new Date(val as string | number | Date);
   return isNaN(date.getTime()) ? undefined : date;
 };
@@ -290,9 +309,9 @@ export const createApplicationSchema = z.object({
   salaryMin: z.preprocess(preprocessSalary, z.number().min(0).optional()).default(0),
   salaryMax: z.preprocess(preprocessSalary, z.number().min(0).optional()).default(0),
   currency: z.string().max(3).optional().default("USD"),
-  datePosted: z.preprocess(preprocessDate, z.date().optional()),
-  applicationDeadline: z.preprocess(preprocessDate, z.date().optional()),
-  appliedAt: z.preprocess(preprocessDate, z.date().optional()),
+  datePosted: z.preprocess(preprocessDate, z.date().nullable().optional()),
+  applicationDeadline: z.preprocess(preprocessDate, z.date().nullable().optional()),
+  appliedAt: z.preprocess(preprocessDate, z.date().nullable().optional()),
   currentStatus: z.enum(APPLICATION_STATUSES).optional().default("Saved"),
   lifecycleStage: z.enum(LIFECYCLE_STAGES).optional().default("Saved"),
   nextAction: z
@@ -301,12 +320,12 @@ export const createApplicationSchema = z.object({
     .optional()
     .default("")
     .transform((val) => sanitizeText(val, 500)),
-  nextActionDueAt: z.preprocess(preprocessDate, z.date().optional()),
+  nextActionDueAt: z.preprocess(preprocessDate, z.date().nullable().optional()),
   priority: z.number().min(0).max(5).optional().default(0),
   tags: z.array(z.string().max(50)).max(20).optional().default([]),
 });
 
-export const updateApplicationSchema = createApplicationSchema.partial();
+export const updateApplicationSchema = onlyProvided(createApplicationSchema.partial());
 
 export type CreateApplicationInput = z.infer<typeof createApplicationSchema>;
 export type UpdateApplicationInput = z.infer<typeof updateApplicationSchema>;
@@ -355,9 +374,9 @@ export const createTimelineEventSchema = z.object({
 
 export type CreateTimelineEventInput = z.infer<typeof createTimelineEventSchema>;
 
-export const updateTimelineEventSchema = createTimelineEventSchema.partial().omit({
-  applicationId: true,
-});
+export const updateTimelineEventSchema = onlyProvided(
+  createTimelineEventSchema.partial().omit({ applicationId: true })
+);
 
 export type UpdateTimelineEventInput = z.infer<typeof updateTimelineEventSchema>;
 
@@ -393,9 +412,9 @@ export const createNoteSchema = z.object({
   pinned: z.boolean().optional().default(false),
 });
 
-export const updateNoteSchema = createNoteSchema.partial().omit({
-  applicationId: true,
-});
+export const updateNoteSchema = onlyProvided(
+  createNoteSchema.partial().omit({ applicationId: true })
+);
 
 export type CreateNoteInput = z.infer<typeof createNoteSchema>;
 export type UpdateNoteInput = z.infer<typeof updateNoteSchema>;

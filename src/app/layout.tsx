@@ -59,7 +59,7 @@ export default function RootLayout({
             <TooltipProvider>
               <PwaProvider>
                 {children}
-                <Toaster position="top-right" richColors />
+                <Toaster position="bottom-right" richColors />
               </PwaProvider>
             </TooltipProvider>
           </AuthProvider>

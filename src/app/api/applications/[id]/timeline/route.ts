@@ -2,8 +2,13 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db/mongoose";
 import TimelineEvent from "@/models/TimelineEvent";
 import Application from "@/models/Application";
+import ResumeSnapshot from "@/models/ResumeSnapshot";
 import { requireAuth } from "@/lib/auth/guard";
-import { createTimelineEventSchema, mongoIdSchema } from "@/lib/validators/schemas";
+import {
+  APPLICATION_STATUSES,
+  createTimelineEventSchema,
+  mongoIdSchema,
+} from "@/lib/validators/schemas";
 import { successResponse, errorResponse, handleApiError } from "@/lib/api/response";
 import { createAuditLog } from "@/models/AuditLog";
 
@@ -104,6 +109,18 @@ export async function POST(request: Request, { params }: RouteParams): Promise<N
 
     if (Object.keys(updates).length > 0) {
       await Application.findOneAndUpdate({ _id: id, userId: session.id }, { $set: updates });
+    }
+
+    // Same rule as a status change on the application: once applied, the resume version is kept as sent
+    if (
+      validated.statusAfterEvent &&
+      APPLICATION_STATUSES.indexOf(validated.statusAfterEvent) >=
+        APPLICATION_STATUSES.indexOf("Applied")
+    ) {
+      await ResumeSnapshot.updateMany(
+        { applicationId: id, userId: session.id, isLocked: false },
+        { $set: { isLocked: true } }
+      );
     }
 
     await createAuditLog({

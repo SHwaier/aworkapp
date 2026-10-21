@@ -23,6 +23,7 @@ const PROTECTED_PREFIXES = [
   "/dashboard",
   "/applications",
   "/companies",
+  "/documents",
   "/resumes",
   "/cover-letters",
   "/files",
