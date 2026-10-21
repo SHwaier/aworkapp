@@ -9,6 +9,7 @@ import { mongoIdSchema } from "@/lib/validators/schemas";
 import { successResponse, errorResponse, handleApiError } from "@/lib/api/response";
 import { checkRateLimit, getClientIp, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
 import { uploadFile } from "@/lib/services/file";
+import { escapeRegex } from "@/lib/utils/escape-regex";
 import { assignResumeToApplication } from "@/lib/services/resume";
 
 interface PopulatedCompany {
@@ -76,13 +77,20 @@ export async function POST(request: Request, { params }: RouteParams): Promise<N
     // 4. Create Targeted ResumeVersion
     const company = app.companyId as unknown as PopulatedCompany | null;
     const companyName = company?.name || "Target Company";
-    const resumeName = `${companyName} Resume - v1`;
     const targetIndustry = company?.industry || "";
+
+    // Each upload for the same company is the next version (v1, v2, ...)
+    const namePrefix = `${companyName} Resume - v`;
+    const previousVersions = await ResumeVersion.countDocuments({
+      userId: session.id,
+      name: { $regex: `^${escapeRegex(namePrefix)}\\d+$` },
+    });
+    const versionNumber = previousVersions + 1;
 
     const resumeVersion = await ResumeVersion.create({
       userId: session.id,
-      name: resumeName,
-      versionNumber: 1,
+      name: `${namePrefix}${versionNumber}`,
+      versionNumber,
       targetRole: app.jobTitle || "Software Engineer",
       targetIndustry,
       skillsEmphasized: [],

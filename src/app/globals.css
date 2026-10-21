@@ -69,7 +69,7 @@
   --secondary: oklch(0.96 0.008 260);
   --secondary-foreground: oklch(0.22 0.02 260);
   --muted: oklch(0.96 0.006 260);
-  --muted-foreground: oklch(0.50 0.02 260);
+  --muted-foreground: oklch(0.5 0.02 260);
   --accent: oklch(0.95 0.015 260);
   --accent-foreground: oklch(0.22 0.02 260);
   --destructive: oklch(0.577 0.245 27.325);
@@ -82,8 +82,8 @@
   --success: oklch(0.55 0.17 145);
   --success-foreground: oklch(0.99 0 0);
   --warning: oklch(0.75 0.16 75);
-  --warning-foreground: oklch(0.20 0.04 75);
-  --info: oklch(0.60 0.15 240);
+  --warning-foreground: oklch(0.2 0.04 75);
+  --info: oklch(0.6 0.15 240);
   --info-foreground: oklch(0.99 0 0);
 
   /* Chart colors — muted professional palette */
@@ -91,7 +91,7 @@
   --chart-2: oklch(0.55 0.17 145);
   --chart-3: oklch(0.75 0.16 75);
   --chart-4: oklch(0.577 0.245 27.325);
-  --chart-5: oklch(0.60 0.14 310);
+  --chart-5: oklch(0.6 0.14 310);
 
   /* Sidebar */
   --sidebar: oklch(0.985 0.003 260);
@@ -111,7 +111,7 @@
   --card-foreground: oklch(0.95 0.005 260);
   --popover: oklch(0.16 0.018 260);
   --popover-foreground: oklch(0.95 0.005 260);
-  --primary: oklch(0.65 0.20 264);
+  --primary: oklch(0.65 0.2 264);
   --primary-foreground: oklch(0.12 0.015 260);
   --secondary: oklch(0.22 0.02 260);
   --secondary-foreground: oklch(0.95 0.005 260);
@@ -122,29 +122,29 @@
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.65 0.20 264);
+  --ring: oklch(0.65 0.2 264);
 
   --success: oklch(0.65 0.19 145);
   --success-foreground: oklch(0.12 0 0);
-  --warning: oklch(0.80 0.16 75);
-  --warning-foreground: oklch(0.20 0.04 75);
+  --warning: oklch(0.8 0.16 75);
+  --warning-foreground: oklch(0.2 0.04 75);
   --info: oklch(0.65 0.17 240);
   --info-foreground: oklch(0.12 0 0);
 
-  --chart-1: oklch(0.65 0.20 264);
+  --chart-1: oklch(0.65 0.2 264);
   --chart-2: oklch(0.65 0.19 145);
-  --chart-3: oklch(0.80 0.16 75);
+  --chart-3: oklch(0.8 0.16 75);
   --chart-4: oklch(0.704 0.191 22.216);
   --chart-5: oklch(0.65 0.16 310);
 
   --sidebar: oklch(0.14 0.018 260);
   --sidebar-foreground: oklch(0.95 0.005 260);
-  --sidebar-primary: oklch(0.65 0.20 264);
+  --sidebar-primary: oklch(0.65 0.2 264);
   --sidebar-primary-foreground: oklch(0.12 0.015 260);
   --sidebar-accent: oklch(0.22 0.025 264);
   --sidebar-accent-foreground: oklch(0.95 0.005 260);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.65 0.20 264);
+  --sidebar-ring: oklch(0.65 0.2 264);
 }
 
 @layer base {
@@ -162,4 +162,25 @@
 /* Hide duplicate sonner Toaster injected by third-party libraries at the bottom right */
 [data-sonner-toaster="true"][data-y-position="bottom"] {
   display: none !important;
+}
+/* ─── Data visualization tokens (analysis report) ───
+   Status steps are fixed across modes; they always ship with an icon + label.
+   Series/chrome steps are re-stepped for the dark surface, not flipped. */
+.viz-root {
+  --viz-series-1: #2a78d6;
+  --viz-series-1-wash: rgba(42, 120, 214, 0.1);
+  --viz-good: #0ca30c;
+  --viz-warning: #fab219;
+  --viz-critical: #d03b3b;
+  --viz-grid: #e1e0d9;
+  --viz-axis: #c3c2b7;
+  --viz-track: #ecebe7;
+  --viz-surface: var(--card);
+}
+.dark .viz-root {
+  --viz-series-1: #3987e5;
+  --viz-series-1-wash: rgba(57, 135, 229, 0.12);
+  --viz-grid: #23262d;
+  --viz-axis: #383b42;
+  --viz-track: #1e2229;
 }

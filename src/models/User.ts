@@ -13,6 +13,8 @@ export interface IUser extends Document {
   mustChangePassword: boolean;
   sessionVersion: number;
   disabledAt: Date | null;
+  /** Per-member daily AI analysis limit; null uses the app-wide default */
+  aiDailyLimit: number | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -66,6 +68,12 @@ const UserSchema = new Schema<IUser>(
     disabledAt: {
       type: Date,
       default: null,
+    },
+    aiDailyLimit: {
+      type: Number,
+      default: null,
+      min: 0,
+      max: 1000,
     },
   },
   {

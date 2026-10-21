@@ -7,7 +7,6 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DocxViewer } from "@/components/ui/docx-viewer";
 import {
   Dialog,
   DialogContent,
@@ -114,6 +113,8 @@ export default function ResumesPage() {
   }, []);
 
   useEffect(() => {
+    // These loaders are also reused after create/update/delete
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchResumes();
     fetchFiles();
   }, [fetchResumes, fetchFiles]);
@@ -245,14 +246,18 @@ export default function ResumesPage() {
             <FileText className="mb-4 h-12 w-12 text-muted-foreground/30" />
             <h3 className="text-lg font-medium">No resume versions found</h3>
             <p className="mt-1 text-sm text-muted-foreground max-w-sm">
-              Create resume versions to associate specific templates or tailored keywords with your job search.
+              Create resume versions to associate specific templates or tailored keywords with your
+              job search.
             </p>
           </CardContent>
         </Card>
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {resumes.map((resume) => (
-            <Card key={resume.id || resume._id} className="flex flex-col h-full border-border/60 hover:border-primary/20 transition-all">
+            <Card
+              key={resume.id || resume._id}
+              className="flex flex-col h-full border-border/60 hover:border-primary/20 transition-all"
+            >
               <CardHeader className="pb-3 flex flex-row items-start justify-between space-y-0">
                 <div>
                   <div className="flex items-center gap-2">
@@ -278,7 +283,10 @@ export default function ResumesPage() {
                         targetIndustry: resume.targetIndustry || "",
                         skillsRaw: resume.skillsEmphasized?.join(", ") || "",
                         notes: resume.notes || "",
-                        fileId: typeof resume.fileId === "object" ? (resume.fileId?._id || resume.fileId?.id || "") : (resume.fileId || ""),
+                        fileId:
+                          typeof resume.fileId === "object"
+                            ? resume.fileId?._id || resume.fileId?.id || ""
+                            : resume.fileId || "",
                       });
                       setShowEditDialog(true);
                     }}
@@ -339,7 +347,11 @@ export default function ResumesPage() {
                 <div className="pt-2 border-t border-border/50 flex gap-2">
                   <Link
                     href={`/resumes/${resume.id || resume._id}/preview`}
-                    className={buttonVariants({ variant: "outline", size: "sm", className: "flex-1 h-8 text-xs justify-center" })}
+                    className={buttonVariants({
+                      variant: "outline",
+                      size: "sm",
+                      className: "flex-1 h-8 text-xs justify-center",
+                    })}
                   >
                     <Eye className="mr-1.5 h-3.5 w-3.5" />
                     Preview
@@ -348,12 +360,16 @@ export default function ResumesPage() {
                     <a
                       href={`/api/files/${
                         typeof resume.fileId === "object"
-                          ? (resume.fileId?._id || resume.fileId?.id)
+                          ? resume.fileId?._id || resume.fileId?.id
                           : resume.fileId
                       }`}
                       download
                       title="Download attached document"
-                      className={buttonVariants({ variant: "outline", size: "icon", className: "h-8 w-8 shrink-0 justify-center" })}
+                      className={buttonVariants({
+                        variant: "outline",
+                        size: "icon",
+                        className: "h-8 w-8 shrink-0 justify-center",
+                      })}
                     >
                       <FileDown className="h-3.5 w-3.5" />
                     </a>
@@ -383,9 +399,7 @@ export default function ResumesPage() {
                 id="resume-name"
                 placeholder="e.g. Master Resume, Web Dev focus"
                 value={newResume.name}
-                onChange={(e) =>
-                  setNewResume((p) => ({ ...p, name: e.target.value }))
-                }
+                onChange={(e) => setNewResume((p) => ({ ...p, name: e.target.value }))}
                 required
               />
             </div>
@@ -393,60 +407,62 @@ export default function ResumesPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <div className="flex justify-between items-baseline">
-                  <Label htmlFor="target-role" className="text-sm font-semibold">Target Role</Label>
+                  <Label htmlFor="target-role" className="text-sm font-semibold">
+                    Target Role
+                  </Label>
                   <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
                 </div>
                 <Input
                   id="target-role"
                   placeholder="e.g. Fullstack Engineer"
                   value={newResume.targetRole}
-                  onChange={(e) =>
-                    setNewResume((p) => ({ ...p, targetRole: e.target.value }))
-                  }
+                  onChange={(e) => setNewResume((p) => ({ ...p, targetRole: e.target.value }))}
                 />
               </div>
               <div className="space-y-1.5">
                 <div className="flex justify-between items-baseline">
-                  <Label htmlFor="target-industry" className="text-sm font-semibold">Industry</Label>
+                  <Label htmlFor="target-industry" className="text-sm font-semibold">
+                    Industry
+                  </Label>
                   <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
                 </div>
                 <Input
                   id="target-industry"
                   placeholder="e.g. SaaS / Fintech"
                   value={newResume.targetIndustry}
-                  onChange={(e) =>
-                    setNewResume((p) => ({ ...p, targetIndustry: e.target.value }))
-                  }
+                  onChange={(e) => setNewResume((p) => ({ ...p, targetIndustry: e.target.value }))}
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
               <div className="flex justify-between items-baseline">
-                <Label htmlFor="skills-raw" className="text-sm font-semibold">Emphasized Skills</Label>
-                <span className="text-[10px] text-muted-foreground font-medium">Comma-separated</span>
+                <Label htmlFor="skills-raw" className="text-sm font-semibold">
+                  Emphasized Skills
+                </Label>
+                <span className="text-[10px] text-muted-foreground font-medium">
+                  Comma-separated
+                </span>
               </div>
               <Input
                 id="skills-raw"
                 placeholder="e.g. React, TypeScript, Node.js"
                 value={newResume.skillsRaw}
-                onChange={(e) =>
-                  setNewResume((p) => ({ ...p, skillsRaw: e.target.value }))
-                }
+                onChange={(e) => setNewResume((p) => ({ ...p, skillsRaw: e.target.value }))}
               />
             </div>
 
             <div className="space-y-1.5">
               <div className="flex justify-between items-baseline">
-                <Label htmlFor="attached-file" className="text-sm font-semibold">Attach Document</Label>
+                <Label htmlFor="attached-file" className="text-sm font-semibold">
+                  Attach Document
+                </Label>
                 <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
               </div>
               <select
                 id="attached-file"
                 value={newResume.fileId}
-                onChange={(e) =>
-                  setNewResume((p) => ({ ...p, fileId: e.target.value }))
-                }
+                onChange={(e) => setNewResume((p) => ({ ...p, fileId: e.target.value }))}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="">-- Choose Document --</option>
@@ -460,26 +476,22 @@ export default function ResumesPage() {
 
             <div className="space-y-1.5">
               <div className="flex justify-between items-baseline">
-                <Label htmlFor="resume-notes" className="text-sm font-semibold">Version Notes</Label>
+                <Label htmlFor="resume-notes" className="text-sm font-semibold">
+                  Version Notes
+                </Label>
                 <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
               </div>
               <Textarea
                 id="resume-notes"
                 placeholder="What changes did you make in this version?"
                 value={newResume.notes}
-                onChange={(e) =>
-                  setNewResume((p) => ({ ...p, notes: e.target.value }))
-                }
+                onChange={(e) => setNewResume((p) => ({ ...p, notes: e.target.value }))}
                 rows={3}
               />
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowNewDialog(false)}
-              >
+              <Button type="button" variant="outline" onClick={() => setShowNewDialog(false)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={isCreating}>
@@ -509,9 +521,7 @@ export default function ResumesPage() {
                 id="edit-resume-name"
                 placeholder="e.g. Master Resume, Web Dev focus"
                 value={editResume.name}
-                onChange={(e) =>
-                  setEditResume((p) => ({ ...p, name: e.target.value }))
-                }
+                onChange={(e) => setEditResume((p) => ({ ...p, name: e.target.value }))}
                 required
               />
             </div>
@@ -519,60 +529,62 @@ export default function ResumesPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <div className="flex justify-between items-baseline">
-                  <Label htmlFor="edit-target-role" className="text-sm font-semibold">Target Role</Label>
+                  <Label htmlFor="edit-target-role" className="text-sm font-semibold">
+                    Target Role
+                  </Label>
                   <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
                 </div>
                 <Input
                   id="edit-target-role"
                   placeholder="e.g. Fullstack Engineer"
                   value={editResume.targetRole}
-                  onChange={(e) =>
-                    setEditResume((p) => ({ ...p, targetRole: e.target.value }))
-                  }
+                  onChange={(e) => setEditResume((p) => ({ ...p, targetRole: e.target.value }))}
                 />
               </div>
               <div className="space-y-1.5">
                 <div className="flex justify-between items-baseline">
-                  <Label htmlFor="edit-target-industry" className="text-sm font-semibold">Industry</Label>
+                  <Label htmlFor="edit-target-industry" className="text-sm font-semibold">
+                    Industry
+                  </Label>
                   <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
                 </div>
                 <Input
                   id="edit-target-industry"
                   placeholder="e.g. SaaS / Fintech"
                   value={editResume.targetIndustry}
-                  onChange={(e) =>
-                    setEditResume((p) => ({ ...p, targetIndustry: e.target.value }))
-                  }
+                  onChange={(e) => setEditResume((p) => ({ ...p, targetIndustry: e.target.value }))}
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
               <div className="flex justify-between items-baseline">
-                <Label htmlFor="edit-skills-raw" className="text-sm font-semibold">Emphasized Skills</Label>
-                <span className="text-[10px] text-muted-foreground font-medium">Comma-separated</span>
+                <Label htmlFor="edit-skills-raw" className="text-sm font-semibold">
+                  Emphasized Skills
+                </Label>
+                <span className="text-[10px] text-muted-foreground font-medium">
+                  Comma-separated
+                </span>
               </div>
               <Input
                 id="edit-skills-raw"
                 placeholder="e.g. React, TypeScript, Node.js"
                 value={editResume.skillsRaw}
-                onChange={(e) =>
-                  setEditResume((p) => ({ ...p, skillsRaw: e.target.value }))
-                }
+                onChange={(e) => setEditResume((p) => ({ ...p, skillsRaw: e.target.value }))}
               />
             </div>
 
             <div className="space-y-1.5">
               <div className="flex justify-between items-baseline">
-                <Label htmlFor="edit-attached-file" className="text-sm font-semibold">Attach Document</Label>
+                <Label htmlFor="edit-attached-file" className="text-sm font-semibold">
+                  Attach Document
+                </Label>
                 <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
               </div>
               <select
                 id="edit-attached-file"
                 value={editResume.fileId}
-                onChange={(e) =>
-                  setEditResume((p) => ({ ...p, fileId: e.target.value }))
-                }
+                onChange={(e) => setEditResume((p) => ({ ...p, fileId: e.target.value }))}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="">-- Choose Document --</option>
@@ -586,26 +598,22 @@ export default function ResumesPage() {
 
             <div className="space-y-1.5">
               <div className="flex justify-between items-baseline">
-                <Label htmlFor="edit-resume-notes" className="text-sm font-semibold">Version Notes</Label>
+                <Label htmlFor="edit-resume-notes" className="text-sm font-semibold">
+                  Version Notes
+                </Label>
                 <span className="text-[10px] text-muted-foreground font-medium">Optional</span>
               </div>
               <Textarea
                 id="edit-resume-notes"
                 placeholder="What changes did you make in this version?"
                 value={editResume.notes}
-                onChange={(e) =>
-                  setEditResume((p) => ({ ...p, notes: e.target.value }))
-                }
+                onChange={(e) => setEditResume((p) => ({ ...p, notes: e.target.value }))}
                 rows={3}
               />
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowEditDialog(false)}
-              >
+              <Button type="button" variant="outline" onClick={() => setShowEditDialog(false)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={isCreating}>
@@ -633,16 +641,10 @@ export default function ResumesPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-4 flex items-center justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setDeleteConfirm({ isOpen: false, id: "" })}
-            >
+            <Button variant="outline" onClick={() => setDeleteConfirm({ isOpen: false, id: "" })}>
               Cancel
             </Button>
-            <Button
-              variant="destructive"
-              onClick={() => executeDeleteResume(deleteConfirm.id)}
-            >
+            <Button variant="destructive" onClick={() => executeDeleteResume(deleteConfirm.id)}>
               Delete
             </Button>
           </DialogFooter>

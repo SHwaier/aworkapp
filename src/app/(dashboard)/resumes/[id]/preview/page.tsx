@@ -4,18 +4,45 @@ import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, ArrowLeft, Download, Loader2, AlertCircle, Target, ExternalLink } from "lucide-react";
-import { DocxViewer } from "@/components/ui/docx-viewer";
+import {
+  FileText,
+  ArrowLeft,
+  Download,
+  Loader2,
+  AlertCircle,
+  Target,
+  ExternalLink,
+} from "lucide-react";
+import { ResumePreview } from "@/components/resume/resume-preview";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
+}
+
+interface ResumeFileRef {
+  _id?: string;
+  id?: string;
+  displayName?: string;
+  fileType?: string;
+  mimeType?: string;
+  fileSize?: number;
+}
+
+interface ResumeDetail {
+  name: string;
+  versionNumber: number;
+  targetRole: string;
+  targetIndustry: string;
+  notes: string;
+  skillsEmphasized: string[];
+  fileId: ResumeFileRef | string | null;
 }
 
 export default function ResumePreviewPage({ params }: RouteParams) {
   const router = useRouter();
   const { id } = use(params);
 
-  const [resume, setResume] = useState<any>(null);
+  const [resume, setResume] = useState<ResumeDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -73,10 +100,13 @@ export default function ResumePreviewPage({ params }: RouteParams) {
   }
 
   const file = typeof resume.fileId === "object" ? resume.fileId : null;
-  const fileId = file?._id || file?.id || (typeof resume.fileId === "string" ? resume.fileId : null);
+  const fileId =
+    file?._id || file?.id || (typeof resume.fileId === "string" ? resume.fileId : null);
   const fileType = file?.fileType?.toLowerCase();
   const isPdf = fileType === ".pdf" || file?.mimeType === "application/pdf";
-  const isDocx = fileType === ".docx" || file?.mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  const isDocx =
+    fileType === ".docx" ||
+    file?.mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
   return (
     <div className="flex flex-col h-[calc(100dvh-4rem)] md:h-[calc(100vh-6rem)] border border-border/60 rounded-md overflow-hidden bg-background">
@@ -120,8 +150,14 @@ export default function ResumePreviewPage({ params }: RouteParams) {
               <span className="text-xs font-semibold uppercase tracking-wider">Target Profile</span>
             </div>
             <div className="text-xs space-y-1.5 bg-background p-3 rounded border border-border/40">
-              <p><span className="font-semibold text-foreground">Role:</span> {resume.targetRole || "Not specified"}</p>
-              <p><span className="font-semibold text-foreground">Industry:</span> {resume.targetIndustry || "Not specified"}</p>
+              <p>
+                <span className="font-semibold text-foreground">Role:</span>{" "}
+                {resume.targetRole || "Not specified"}
+              </p>
+              <p>
+                <span className="font-semibold text-foreground">Industry:</span>{" "}
+                {resume.targetIndustry || "Not specified"}
+              </p>
             </div>
           </div>
 
@@ -157,8 +193,13 @@ export default function ResumePreviewPage({ params }: RouteParams) {
                 Attached Document
               </span>
               <div className="text-xs text-muted-foreground space-y-1 bg-background p-3 rounded border border-border/40">
-                <p className="truncate"><span className="font-semibold text-foreground">File:</span> {file.displayName}</p>
-                <p><span className="font-semibold text-foreground">Type:</span> {file.fileType?.toUpperCase() || "Unknown"}</p>
+                <p className="truncate">
+                  <span className="font-semibold text-foreground">File:</span> {file.displayName}
+                </p>
+                <p>
+                  <span className="font-semibold text-foreground">Type:</span>{" "}
+                  {file.fileType?.toUpperCase() || "Unknown"}
+                </p>
               </div>
             </div>
           )}
@@ -187,14 +228,19 @@ export default function ResumePreviewPage({ params }: RouteParams) {
                   </p>
                 </div>
                 <p className="text-xs text-muted-foreground max-w-xs leading-relaxed px-4">
-                  Interactive PDF previews are optimized for desktop screens. Open it in a new window or download to view.
+                  Interactive PDF previews are optimized for desktop screens. Open it in a new
+                  window or download to view.
                 </p>
                 <div className="flex flex-col w-full max-w-[200px] gap-2 pt-2">
                   <a
                     href={`/api/files/${fileId}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={buttonVariants({ variant: "default", size: "sm", className: "w-full" })}
+                    className={buttonVariants({
+                      variant: "default",
+                      size: "sm",
+                      className: "w-full",
+                    })}
                   >
                     <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
                     Open Viewport
@@ -202,7 +248,11 @@ export default function ResumePreviewPage({ params }: RouteParams) {
                   <a
                     href={`/api/files/${fileId}`}
                     download
-                    className={buttonVariants({ variant: "outline", size: "sm", className: "w-full" })}
+                    className={buttonVariants({
+                      variant: "outline",
+                      size: "sm",
+                      className: "w-full",
+                    })}
                   >
                     <Download className="mr-1.5 h-3.5 w-3.5" />
                     Download File
@@ -210,20 +260,17 @@ export default function ResumePreviewPage({ params }: RouteParams) {
                 </div>
               </div>
             ) : (
-              <iframe
-                src={`/api/files/${fileId}`}
-                className="w-full h-full border-0 bg-background"
-                title={`Document Preview`}
-              />
+              <ResumePreview fileId={fileId} title="Document Preview" />
             )
           ) : isDocx ? (
-            <DocxViewer fileId={fileId} />
+            <ResumePreview fileId={fileId} />
           ) : (
             <div className="grow flex flex-col items-center justify-center p-8 text-center bg-background">
               <FileText className="h-12 w-12 text-primary/40 mb-2" />
               <p className="text-sm font-medium">Preview Not Supported</p>
               <p className="text-xs text-muted-foreground max-w-xs mt-1">
-                This document format cannot be rendered inline. Please use the download option in the top bar.
+                This document format cannot be rendered inline. Please use the download option in
+                the top bar.
               </p>
             </div>
           )}

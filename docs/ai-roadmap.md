@@ -1,27 +1,73 @@
-# AWorkApp AI Integration Roadmap (Gemini 2.0 Flash)
+# AWorkApp AI
 
-Gemini 2.0 Flash is exceptionally fast and has a massive context window, making it perfect for processing dense text like resumes and job descriptions with minimal latency. Given the current architecture of AWorkApp, here is a map of high-impact areas for AI integration:
+## Resume match analysis (shipped)
 
-## 1. AI-Powered Resume Checklist (Priority 1)
-* **Current State:** The `ChecklistGenerationService` uses regex and static dictionaries to detect keywords and bullet quality.
-* **AI Integration:** Swap or augment the static analyzers with a Gemini service. By feeding Gemini the `resumeText` and the `jobDescription`, it can provide deep, contextual feedback (e.g., "Your bullet point mentions *team leadership*, but the job specifically asks for *cross-functional agile leadership*. Consider rewriting it to emphasize agile methodologies.")
+Compares the resume assigned to an application with that application's job description.
+Lives on the application page's **Resume** tab.
 
-## 2. Job Description Parsing & Auto-Fill (Wizard UX)
-* **Current State:** Users manually type out application details (Job Title, Work Mode, Employment Type, etc.) in the New Application Wizard.
-* **AI Integration:** Allow the user to just paste a URL or the raw text of a job posting. Gemini can instantly extract the Job Title, Company, Location, Work Mode, Salary Range, and summarize the core responsibilities, auto-filling the entire form for them.
+**How it works**
 
-## 3. The "Auto-Tailor" DOCX Copilot
-* **Current State:** The user manually edits the resume in the `@eigenpal/docx-editor-react` viewer while looking at the checklist.
-* **AI Integration:** The `@eigenpal` library has built-in support for an AI `agentPanel`. We can mount a Gemini chat interface directly inside the document editor. Users could highlight a specific paragraph and click "Rewrite to match job description," and Gemini would generate the text, which we can directly inject back into the DOCX buffer.
+1. **Text extraction at upload** (`src/lib/resume-text`): PDF via `unpdf`, DOCX via `mammoth`,
+   one line per paragraph/bullet. Stored on the `File` (`extractedText`, `textHash`). Older files
+   are extracted on first analysis. Scanned/image-only files are reported as unreadable.
+2. **One structured Gemini call** (`src/lib/ai/analysis`): the resume is sent with numbered lines;
+   the model returns requirements (with evidence line numbers + a quote), keywords, and suggestions.
+   Job description and resume are wrapped in tags and treated as untrusted data.
+3. **Deterministic verification** (`verify.ts`):
+   - a requirement only counts as met/partial if its quoted evidence is actually in the resume,
+     otherwise it is downgraded one level;
+   - "keyword in resume" is computed with whole-term matching, not taken from the model;
+   - bullet rewrites get their original text from the resume line, never from the model.
+4. **Score** = verified requirement coverage; required counts double, partial counts half.
+5. **Formatting checks** without AI (contact info, links, standard sections, length).
 
-## 4. Automated Cover Letter Generation
-* **Current State:** Users track their applications, but have to write cover letters manually outside the app.
-* **AI Integration:** With one click on the Application Details page, we can pass the user's `ResumeSnapshot` and the `jobDescription` to Gemini to instantly draft a highly personalized cover letter tailored to that specific company.
+**Reference material** (`src/lib/ai/analysis/reference.ts`): verbatim guidance from Indeed,
+InterviewPal, Harvard, MIT, AI ResumeGuru, and Enhancv on ATS parsing, contextual keywords,
+PAR/XYZ bullets, and AI-writing red flags. Both AI calls start with it (stable prefix, so Gemini's
+implicit caching can reuse it), followed by writing rules distilled from it: results-first bullets,
+no invented numbers (use `[placeholders]`), keywords shown in context, no AI buzzwords, seniority-
+appropriate verbs. Coverage follows its context rule: a skill only listed in a skills section is
+"partial". Deterministic writing checks implement the measurable parts: first-person pronouns,
+duty phrasing ("responsible for"), share of bullets with results, AI buzzwords
+(`buzzwords.ts`), em-dash overuse, and bullet length. Edit the reference, then bump
+`PROMPT_VERSION`.
 
-## 5. Custom Interview Prep Kits
-* **Current State:** Applications transition to the "Interview" stage on the Kanban board.
-* **AI Integration:** When an application enters the Interview stage, Gemini can analyze the user's resume against the company's industry and the specific job description to generate 5-10 highly probable interview questions, along with suggested talking points drawn directly from the user's past experience.
+**Report page** (`/applications/:id/analysis`): hero score, stat tiles, requirement coverage by
+category, "biggest score opportunities" (deterministic what-if: points gained if each unmet
+requirement were met), an action plan with an impact × effort matrix, role benchmarks, suggested
+edits, the requirements table, keywords, formatting, and score history across resume versions.
+Charts are dependency-free SVG/HTML in `src/components/analysis/charts.tsx`, using the
+`.viz-root` color tokens in `globals.css`.
 
-## 6. Email Communication Drafter
-* **Current State:** The `nextAction` field tracks what the user needs to do next.
-* **AI Integration:** Generate context-aware email templates on the fly. Whether it's a "Thank you for the interview" email, a "Following up on my application" email, or a "Salary negotiation" email, Gemini can draft it using the exact company name and job title.
+**Role insights** (`insights.ts`): a second, parallel Gemini call for benchmarks ("what strong
+candidates for this kind of role typically include") and the action plan. It uses only the
+model's general hiring knowledge — never other members' data. Example phrasing is a template:
+anything the resume doesn't show must be a `[placeholder]`, and missing job keywords are bracketed
+in code as a backstop. Insights are best-effort: if that call fails, the core analysis still
+completes. `GEMINI_INSIGHTS_MODEL` can point it at a different model (free-tier quotas are per model).
+
+**Runs, caching, and limits**
+
+- `POST /api/applications/:id/analysis` returns the existing result when nothing changed
+  (resume text, job title/company/description, prompt version, model) — not charged.
+- New runs execute in the background (`after()`); the client polls `GET`.
+- One active run per application (partial unique index). Runs stuck > 5 min are failed and refunded.
+- A Gemini daily/plan quota error fails fast with a clear message; short rate limits are waited
+  out using the API's own retry hint.
+- Daily per-user limit (UTC). Admins set the default and per-member overrides, can exempt admins,
+  and can reset a member's usage (`/admin`). Failed runs are refunded.
+
+**Changing the prompt**: edit `prompt.ts`/`schema.ts` and bump `PROMPT_VERSION`. Gemini rejects
+schemas with many length/count bounds, so limits live in the prompt and `clampOutput`.
+
+**Tests**: `npm test` (unit, no network). `npm run test:live` runs one real Gemini call with a
+fictional resume (needs `GEMINI_API_KEY` in `.env.local`).
+
+## Ideas for later
+
+- **Job import fallback**: when a job URL has no JobPosting structured data, extract fields with Gemini.
+- **Cover letter drafts** from the stored resume text and job description.
+- **Interview prep**: likely questions and talking points when an application reaches Interview.
+- **Email drafts** for follow-ups, thank-yous, and negotiation.
+
+All can reuse `generateStructured` (`src/lib/ai/client.ts`), stored resume text, and the AI quota.

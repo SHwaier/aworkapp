@@ -48,14 +48,37 @@ export const createMemberSchema = z.object({
   role: z.enum(["user", "admin"]).optional().default("user"),
 });
 
+const aiDailyLimitSchema = z
+  .number()
+  .int("Must be a whole number")
+  .min(0, "Must be 0 or more")
+  .max(1000, "Must be 1000 or less");
+
 export const updateMemberSchema = z
   .object({
     role: z.enum(["user", "admin"]).optional(),
     disabled: z.boolean().optional(),
+    // null clears the override so the member uses the app-wide default
+    aiDailyLimit: aiDailyLimitSchema.nullable().optional(),
   })
-  .refine((data) => data.role !== undefined || data.disabled !== undefined, {
+  .refine(
+    (data) =>
+      data.role !== undefined || data.disabled !== undefined || data.aiDailyLimit !== undefined,
+    { message: "Nothing to update" }
+  );
+
+export const updateAiSettingsSchema = z
+  .object({
+    aiDailyLimit: aiDailyLimitSchema.optional(),
+    aiExemptAdmins: z.boolean().optional(),
+  })
+  .refine((data) => data.aiDailyLimit !== undefined || data.aiExemptAdmins !== undefined, {
     message: "Nothing to update",
   });
+
+export const updateSuggestionSchema = z.object({
+  status: z.enum(["open", "done", "dismissed"]),
+});
 
 export const deleteMemberSchema = z.object({
   // Typed by the admin to confirm a permanent delete
@@ -474,37 +497,3 @@ export type PaginationInput = z.infer<typeof paginationSchema>;
 // ============================================
 
 export const mongoIdSchema = z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid ID format");
-
-// ============================================
-// Resume Checklist Schemas
-// ============================================
-
-export const CHECKLIST_CATEGORIES = [
-  "job_match",
-  "ats_formatting",
-  "header",
-  "education",
-  "skills",
-  "projects",
-  "experience",
-  "bullet_quality",
-  "action_verbs",
-  "final_review",
-] as const;
-
-export const CHECKLIST_STATUSES = [
-  "not_started",
-  "in_progress",
-  "complete",
-  "needs_review",
-  "ignored",
-  "not_applicable",
-] as const;
-
-export const CHECKLIST_SEVERITIES = ["info", "suggestion", "warning", "critical"] as const;
-
-export const updateChecklistItemSchema = z.object({
-  status: z.enum(CHECKLIST_STATUSES),
-});
-
-export type UpdateChecklistItemInput = z.infer<typeof updateChecklistItemSchema>;

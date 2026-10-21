@@ -16,8 +16,9 @@ interface RouteParams {
 
 /**
  * PATCH /api/admin/members/:id
- * Change a member's role and/or disable or re-enable their account. Admin only.
- * Disabling ends the member's sessions immediately. Admins cannot change themselves.
+ * Change a member's role, disable or re-enable their account, and/or set their
+ * daily AI limit (null = use the app default). Admin only. Disabling ends the
+ * member's sessions immediately. Admins cannot change their own role or disable themselves.
  */
 export async function PATCH(request: Request, { params }: RouteParams): Promise<NextResponse> {
   try {
@@ -34,12 +35,12 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
       );
     }
 
-    if (id === session.id) {
-      throw new AppError("You cannot change your own account here", 400);
-    }
-
     const body = await request.json();
     const validated = updateMemberSchema.parse(body);
+
+    if (id === session.id && (validated.role !== undefined || validated.disabled !== undefined)) {
+      throw new AppError("You cannot change your own role or disable yourself", 400);
+    }
 
     await dbConnect();
 
@@ -85,8 +86,28 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
       });
     }
 
+    if (validated.aiDailyLimit !== undefined && validated.aiDailyLimit !== user.aiDailyLimit) {
+      const previousLimit = user.aiDailyLimit ?? null;
+      user.aiDailyLimit = validated.aiDailyLimit;
+      await user.save();
+
+      await createAuditLog({
+        userId: session.id,
+        action: "admin.member_ai_limit_changed",
+        entityType: "user",
+        entityId: id,
+        metadata: { email: user.email, from: previousLimit, to: user.aiDailyLimit },
+        request,
+      });
+    }
+
     return successResponse({
-      member: { id, role: user.role, disabled: !!user.disabledAt },
+      member: {
+        id,
+        role: user.role,
+        disabled: !!user.disabledAt,
+        aiDailyLimit: user.aiDailyLimit ?? null,
+      },
     });
   } catch (error) {
     return handleApiError(error);

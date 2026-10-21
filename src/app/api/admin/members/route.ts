@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db/mongoose";
 import User from "@/models/User";
+import AiUsage from "@/models/AiUsage";
+import { utcDay } from "@/lib/ai/quota";
 import { requireAdmin } from "@/lib/auth/guard";
 import { hashPassword } from "@/lib/auth/password";
 import { createMemberSchema } from "@/lib/validators/schemas";
@@ -26,7 +28,11 @@ export async function GET(request: Request): Promise<NextResponse> {
       );
     }
 
-    const users = await User.find({}).sort({ createdAt: -1 }).lean();
+    const [users, usage] = await Promise.all([
+      User.find({}).sort({ createdAt: -1 }).lean(),
+      AiUsage.find({ day: utcDay() }).select("userId count").lean(),
+    ]);
+    const usedToday = new Map(usage.map((u) => [u.userId.toString(), u.count]));
 
     const members = users.map((u) => ({
       id: u._id.toString(),
@@ -36,6 +42,8 @@ export async function GET(request: Request): Promise<NextResponse> {
       hasGoogle: !!u.googleId,
       mustChangePassword: !!u.mustChangePassword,
       disabled: !!u.disabledAt,
+      aiDailyLimit: u.aiDailyLimit ?? null,
+      aiUsedToday: usedToday.get(u._id.toString()) ?? 0,
       createdAt: u.createdAt,
     }));
 
@@ -101,6 +109,8 @@ export async function POST(request: Request): Promise<NextResponse> {
           hasGoogle: false,
           mustChangePassword: true,
           disabled: false,
+          aiDailyLimit: null,
+          aiUsedToday: 0,
           createdAt: user.createdAt,
         },
       },

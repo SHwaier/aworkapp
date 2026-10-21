@@ -14,6 +14,8 @@ function getCSPHeader(): string {
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: blob: https:",
     "connect-src 'self'",
+    // PDF previews render from same-origin blob: URLs (see ResumePreview)
+    "frame-src 'self' blob:",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

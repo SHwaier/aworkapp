@@ -7,7 +7,6 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { DocxViewer } from "@/components/ui/docx-viewer";
 import {
   Table,
   TableBody,
@@ -34,16 +33,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Download,
-  File,
-  Loader2,
-  Plus,
-  Search,
-  Trash2,
-  Upload,
-  Eye,
-} from "lucide-react";
+import { Download, File, Loader2, Plus, Search, Trash2, Upload, Eye } from "lucide-react";
 import { FILE_CATEGORIES } from "@/lib/validators/schemas";
 
 interface FileItem {
@@ -111,6 +101,8 @@ export default function FilesPage() {
   }, [page, debouncedSearch, categoryFilter]);
 
   useEffect(() => {
+    // fetchFiles is also reused after uploads and deletes
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchFiles();
   }, [fetchFiles]);
 
@@ -246,8 +238,8 @@ export default function FilesPage() {
         <CardContent className="p-4">
           <form onSubmit={handleUpload} className="flex flex-col gap-5">
             <div className="flex-1">
-              <Label 
-                htmlFor="file-input-el" 
+              <Label
+                htmlFor="file-input-el"
                 className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all text-center"
               >
                 <Upload className="h-8 w-8 text-muted-foreground mb-3" />
@@ -270,12 +262,16 @@ export default function FilesPage() {
             </div>
             <div className="flex flex-row items-end gap-4">
               <div className="w-[180px] space-y-1.5">
-                <Label htmlFor="upload-category" className="text-xs font-semibold">Category</Label>
-                <Select value={uploadCategory} onValueChange={(v) => setUploadCategory(v || "resume")} disabled={isUploading}>
+                <Label htmlFor="upload-category" className="text-xs font-semibold">
+                  Category
+                </Label>
+                <Select
+                  value={uploadCategory}
+                  onValueChange={(v) => setUploadCategory(v || "resume")}
+                  disabled={isUploading}
+                >
                   <SelectTrigger id="upload-category" className="h-10 bg-card">
-                    <SelectValue>
-                      {uploadCategory.toUpperCase()}
-                    </SelectValue>
+                    <SelectValue>{uploadCategory.toUpperCase()}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {FILE_CATEGORIES.map((c) => (
@@ -286,7 +282,11 @@ export default function FilesPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button type="submit" disabled={isUploading || !selectedFile} className="h-10 shrink-0">
+              <Button
+                type="submit"
+                disabled={isUploading || !selectedFile}
+                className="h-10 shrink-0"
+              >
                 {isUploading ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
@@ -347,8 +347,17 @@ export default function FilesPage() {
               <Download className="mr-2 h-4 w-4" />
               Download Selected
             </Button>
-            <Button variant="destructive" size="sm" onClick={handleBulkDelete} disabled={isBulkDeleting}>
-              {isBulkDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleBulkDelete}
+              disabled={isBulkDeleting}
+            >
+              {isBulkDeleting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="mr-2 h-4 w-4" />
+              )}
               Delete Selected
             </Button>
           </div>
@@ -395,58 +404,69 @@ export default function FilesPage() {
               {files.map((file) => {
                 const fileId = file.id || file._id || "";
                 return (
-                <TableRow key={fileId} className={selectedFileIds.has(fileId) ? "bg-primary/5" : ""}>
-                  <TableCell>
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-border text-primary cursor-pointer accent-primary"
-                      checked={selectedFileIds.has(fileId)}
-                      onChange={() => toggleFileSelection(fileId)}
-                      title="Select File"
-                    />
-                  </TableCell>
-                  <TableCell className="font-medium truncate max-w-[300px]">
-                    <div className="flex items-center gap-2">
-                      <File className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <span title={file.displayName}>{file.displayName}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className="text-[10px] uppercase">
-                      {file.category}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{formatBytes(file.fileSize)}</TableCell>
-                  <TableCell>{new Date(file.uploadedAt).toLocaleDateString()}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <Link
-                        href={`/files/${fileId}/preview`}
-                        className={buttonVariants({ variant: "ghost", size: "icon", className: "h-8 w-8 text-muted-foreground justify-center" })}
-                        title="Preview file"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Link>
-                      <a
-                        href={`/api/files/${fileId}`}
-                        download
-                        title="Download file"
-                        className={buttonVariants({ variant: "ghost", size: "icon", className: "h-8 w-8 justify-center" })}
-                      >
-                        <Download className="h-4 w-4" />
-                      </a>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        onClick={() => requestDelete(fileId)}
-                        title="Delete file"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                  <TableRow
+                    key={fileId}
+                    className={selectedFileIds.has(fileId) ? "bg-primary/5" : ""}
+                  >
+                    <TableCell>
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-border text-primary cursor-pointer accent-primary"
+                        checked={selectedFileIds.has(fileId)}
+                        onChange={() => toggleFileSelection(fileId)}
+                        title="Select File"
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium truncate max-w-[300px]">
+                      <div className="flex items-center gap-2">
+                        <File className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <span title={file.displayName}>{file.displayName}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="text-[10px] uppercase">
+                        {file.category}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{formatBytes(file.fileSize)}</TableCell>
+                    <TableCell>{new Date(file.uploadedAt).toLocaleDateString()}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Link
+                          href={`/files/${fileId}/preview`}
+                          className={buttonVariants({
+                            variant: "ghost",
+                            size: "icon",
+                            className: "h-8 w-8 text-muted-foreground justify-center",
+                          })}
+                          title="Preview file"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Link>
+                        <a
+                          href={`/api/files/${fileId}`}
+                          download
+                          title="Download file"
+                          className={buttonVariants({
+                            variant: "ghost",
+                            size: "icon",
+                            className: "h-8 w-8 justify-center",
+                          })}
+                        >
+                          <Download className="h-4 w-4" />
+                        </a>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={() => requestDelete(fileId)}
+                          title="Delete file"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
             </TableBody>
@@ -491,20 +511,15 @@ export default function FilesPage() {
               Confirm Deletion
             </DialogTitle>
             <DialogDescription className="pt-2">
-              Are you sure you want to delete this file? This action is permanent and cannot be undone.
+              Are you sure you want to delete this file? This action is permanent and cannot be
+              undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-4 flex items-center justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setDeleteConfirm({ isOpen: false, id: "" })}
-            >
+            <Button variant="outline" onClick={() => setDeleteConfirm({ isOpen: false, id: "" })}>
               Cancel
             </Button>
-            <Button
-              variant="destructive"
-              onClick={() => executeDelete(deleteConfirm.id)}
-            >
+            <Button variant="destructive" onClick={() => executeDelete(deleteConfirm.id)}>
               Delete
             </Button>
           </DialogFooter>
@@ -513,4 +528,3 @@ export default function FilesPage() {
     </div>
   );
 }
-
