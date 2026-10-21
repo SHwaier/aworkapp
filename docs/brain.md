@@ -26,7 +26,9 @@ AWorkApp is a modern, premium SaaS platform built on **Next.js** (using App Rout
 - **Key Abstractions**:
   - `src/components/app-shell/app-shell.tsx` — Global layout wrapper with theme providers and navigation sidebar.
   - `src/lib/api/response.ts` — Centralized API response format helpers (`successResponse`, `errorResponse`, `handleApiError`).
-  - `src/lib/auth/session.ts` — Authentication session and route protection middleware helpers (`requireAuth`).
+  - `src/lib/auth/session.ts` — Reads and verifies the session token.
+  - `src/lib/auth/guard.ts` — `requireAuth()` for API routes: checks the user still exists, isn't disabled, and that the token's `sessionVersion` matches the database.
+  - `src/proxy.ts` — Route protection (Next.js 16 renamed middleware to proxy).
 
 ---
 
@@ -82,21 +84,23 @@ AWorkApp is a modern, premium SaaS platform built on **Next.js** (using App Rout
 - **DOCX Mobile Page Wrapping**: Appended stylesheet overrides inside `DocxViewer` to force `.docx-rendered section.docx` page outputs to stretch and wrap to `100%` viewport width on small viewports, completely avoiding horizontal overflow and scrolling.
 - **Compact Dialog & Wizard Inputs**: Overhauled the form layout in the "Add Resume Version" dialog and "New Application" step wizard. Substituted cluttered descriptive text labels with concise names and moved helper/instruction text into right-aligned metadata elements (`flex justify-between items-baseline mb-1`), producing a clean, premium, and self-documenting interface.
 
-### N. Architectural Refactoring & Security Hardening (Current Session)
+### N. Architectural Refactoring & Security Hardening
 
 - **Centralized Service Layer**: Extracted core business logic out of API controller routes into modular service files in `src/lib/services/`.
   - `src/lib/services/file.ts`: Manages file checksum hashing, MIME validation, storage persistence (S3/local), and duplicate prevention.
   - `src/lib/services/resume.ts`: Manages assignment, snapshot binding, and cleaning up unused customized documents.
-- **Composite Upload-Assign Flow**: Implemented `POST /api/applications/[id]/resume/upload-assign` to ingest, store, deduplicate, and bind customized resumes atomically.
+- **Composite Upload-Assign Flow** (replaced by `/resume/upload` in section T): Implemented `POST /api/applications/[id]/resume/upload-assign` to ingest, store, deduplicate, and bind customized resumes atomically.
 - **Percent-Encoding database URI**: Resolved Mongoose authentication errors caused by special characters (like `@`) in connection string passwords by percent-encoding them.
 - **Pre-Commit Secret Hook**: Implemented a local security validator script (`scripts/check-secrets.js`) running on git hooks to block any commits containing plaintext database credentials.
 - **Tailwind v4 Styling Compliance**: Cleaned up multiple build warnings by replacing legacy styles (e.g. `break-words` with `wrap-break-word`, `flex-grow` with `grow`, `flex-shrink` with `shrink`, `bg-gradient-to-br` with `bg-linear-to-br`, `bg-gradient-to-r` with `bg-linear-to-r`), formatting radial gradients properly, and updating arbitrary opacity fraction modifiers (`/[0.02]`, `/[0.03]`) to standardized Tailwind v4 percentage indicators (`/2`, `/3`). Removed conflicting padding instructions.
 - **ESLint Compliance**: Replaced ambient global `var` declarations in `/src/lib/db/mongoose.ts` with typed global typecasts, allowing us to drop ESLint disable comments completely.
 - **Mongoose Index Warning Fix**: Removed redundant `UserSchema.index({ email: 1 })` configuration in `src/models/User.ts` since the field is already declared as `unique: true` inline, resolving duplicate schema index warning.
 - **Mongoose MissingSchemaError Resolution**: Imported core models (`User`, `Company`, `Application`, `File`, and `ResumeVersion`) directly inside `src/lib/db/mongoose.ts` to ensure Mongoose pre-registers all relations, preventing lazy-loading schema compilation failures.
-- **Google OAuth Integration**: Built production-grade Google Sign-In support via `/api/auth/google` and `/api/auth/google/callback`. Redirects the user directly to the Google Consent screen and exchanges the authorization code for token profiles to log in or register users based on their verified emails. Added premium "Sign in with Google" buttons to login and registration cards.
+- **Google OAuth Integration**: Built production-grade Google Sign-In support via `/api/auth/google` and `/api/auth/google/callback`. Redirects the user directly to the Google Consent screen and exchanges the authorization code for token profiles to log in or register users based on their verified emails. Added premium "Sign in with Google" buttons to login and registration cards. (Since section P, Google sign-in only signs in existing members, and registration is removed.)
 
 ### H. Full-Screen Document Previews
+
+> Replaced in section T: previews now live at `/documents/files/[id]` and on the resume page, and the old routes redirect.
 
 - **Route-based Previews**: Added `/files/[id]/preview` and `/resumes/[id]/preview` full-screen routes to preview PDFs (using native browser iframe) and Word documents (rendering client-side via `docx-preview`).
 - **Metadata Fetching**: Refactored `/api/files/[id]?metadata=true` to let the viewer load details first without downloading large binary streams upfront.
@@ -124,12 +128,62 @@ AWorkApp is a modern, premium SaaS platform built on **Next.js** (using App Rout
 
 ### O. Resume Checklist Modularization & DOCX Live Analysis
 
+> Removed in section Q: the checklist and the DOCX editor were replaced by the AI match analysis.
+
 - **Modular Architecture**: Replaced the monolithic checklist logic with a modular `ChecklistGenerationService` containing specialized analyzer classes (`ATSAnalyzer`, `BulletQualityAnalyzer`, etc.) for scalable resume evaluation.
 - **DOCX Extraction Fixes**: Resolved text extraction failures in the backend and frontend by implementing `jszip` to properly unzip DOCX binaries and parse `word/document.xml`.
 - **Live Version Analysis**: Updated the frontend `ResumeChecklist` component to accept a `getResumeText` callback. The checklist now accurately extracts and analyzes the current, live contents of the `@eigenpal/docx-editor-react` instead of analyzing the stale initial document load.
 - **Keyword Matching Upgrades**: Improved keyword detection heuristics (`wordBoundaryMatch`) to support complex multi-word keywords separated by spaces, hyphens, or underscores (e.g., "problem solving").
 - **Audit Logging Fixed**: Synchronized `AuditLog` enums with Mongoose schemas and resolved validation errors for new actions (`resume_snapshot.customized`, `checklist.generated`).
-- **Notification Deduplication**: Fixed an issue where the native DOCX editor silently mounted its own duplicate `<Toaster />` container. A global CSS override now visually hides any third-party injected bottom-right `sonner` notifications, unifying all alerts to the application's global top-right toaster.
+- **Notification Deduplication**: Fixed an issue where the native DOCX editor silently mounted its own duplicate `<Toaster />` container. A global CSS override now visually hides any third-party injected bottom-right `sonner` notifications, unifying all alerts to the application's global top-right toaster. (That CSS rule was removed in section T, once the editor was gone; toasts now show bottom-right.)
+
+### P. Admin Dashboard & Invite-Only Sign-In
+
+- **Signup removed**: The register page and API are gone. Admins add members at `/admin`; `npm run create-admin` creates the first admin.
+- **Roles**: `User.role` is `user` or `admin`. Admins can add members, change roles, reset passwords, disable or re-enable members, and permanently delete a member with all their data and stored files (typing the email to confirm).
+- **Temporary passwords**: Accounts created or reset by an admin must choose a new password at `/change-password` before using the app (`mustChangePassword`).
+- **Session control**: Tokens carry a `sessionVersion` that `requireAuth()` checks against the database on every API request. Password changes, admin resets, and disables bump it, which ends existing sessions immediately; role changes apply without signing in again.
+- **Client token refresh**: A fetch interceptor refreshes once on a 401 and retries; a "password change required" 403 goes to `/change-password`.
+- **Google sign-in**: Only signs in existing members, never creates accounts.
+- **Fix**: Proxy JSON error responses used to copy `x-middleware-next`, so Next.js ignored them and API auth checks in the proxy never blocked anything.
+
+### Q. AI Resume Match Analysis (replaces the checklist and the DOCX editor)
+
+- **Design**: See `docs/ai-roadmap.md`. One structured Gemini call (`@google/genai`) compares the attached resume with the job description. Every claim is verified in code: evidence quotes must exist in the resume, keyword presence uses whole-term matching, and the score comes from verified requirement coverage (required counts double, partial counts half).
+- **Text extraction**: Resume text is extracted at upload (PDF via `unpdf`, DOCX via `mammoth`) and stored on the File, so files in R2 are analyzed correctly.
+- **Runs and limits**: `POST/GET /api/applications/:id/analysis`. Unchanged inputs reuse the last result for free; new runs execute in the background with `after()` and the UI polls. Failed runs never count. A per-user daily limit is stored in MongoDB; admins set the default, per-member overrides, the admin exemption, and can reset a member's usage.
+- **Report page**: `/applications/:id/analysis` shows the score, requirement coverage by category, score opportunities, an impact-by-effort action plan, role benchmarks, suggestions, keywords, formatting and writing checks, and score history. Charts are dependency-free SVG with tooltips, table equivalents, and light/dark tokens (`.viz-root`).
+- **Insights call**: A second, best-effort Gemini call produces benchmarks and an action plan from general hiring knowledge only (never other members' data). `GEMINI_INSIGHTS_MODEL` can route it to a different model.
+- **Writing reference**: Both prompts start with a resume-writing reference (ATS parsing, contextual keywords, PAR/XYZ bullets, AI-writing red flags); `PROMPT_VERSION` is `resume-match.v5`.
+- **Export**: Copy or download the report as Markdown, or save it as a PDF (`/print/analysis/:id`), written as a brief for the user's own AI assistant.
+- **Removed**: The resume editor (`@eigenpal/docx-editor-react`), the customize page, the checklist services, and the `ResumeChecklist` model. `scripts/migrate-ai-redesign.mjs` converts editor-customized resumes and drops checklist data.
+
+### R. Gemini Model & Thinking Settings
+
+- `GEMINI_MODEL` (default `gemini-2.5-flash`) and `GEMINI_INSIGHTS_MODEL` choose the models.
+- `GEMINI_THINKING` and `GEMINI_INSIGHTS_THINKING` (`minimal`, `low`, `medium`, `high`) set how much each call thinks. Gemini 3.x accepts a `thinkingLevel`; Gemini 2.5 rejects levels with a 400, so it gets a `thinkingBudget` instead (medium 8K, high 24K tokens). Thinking tokens are recorded on each analysis.
+- Results: `docs/experiments/gemini-thinking-effort.md`. The main-analysis comparison is incomplete because the free daily quota for `gemini-2.5-flash` (20 requests) ran out. Re-run with `npm run test:thinking`.
+
+### S. Versioned Resumes (resumes and files merged)
+
+- **Model**: A `Resume` (`src/models/Resume.ts`) owns its versions. Each version is a `File` with `resumeId`, `versionNumber`, an optional `versionNote`, and `restoredFromVersion`. A partial unique index on `{resumeId, versionNumber}` prevents duplicate numbers. The `ResumeVersion` model is gone.
+- **Rules** (`src/lib/services/resume.ts`):
+  - Uploading on top of a resume adds the next version; an identical file is refused (409).
+  - Restoring copies an old version forward as a new version, so history only grows. Copies share stored bytes; storage is deleted only when no File still references the `storageKey`.
+  - The current version, and versions any application uses, can't be deleted.
+  - `ResumeSnapshot` pins an application to `{resumeId, fileId}`. It's locked (`isLocked`) once the status reaches Applied or later, set either on the application or through a logged event. A locked application can't switch, unassign, or delete its resume.
+  - Uploading from an application: the next version of the attached resume, or a new resume that records `basedOn`.
+- **Read models**: `src/lib/services/resume-queries.ts` (`listResumes`, `getResumeDetail`, `getApplicationResume`).
+- **APIs**: `/api/resumes` (list, create by upload), `/api/resumes/:id` (detail, edit, delete), `/api/resumes/:id/versions` (add), `/versions/:n` (delete), `/versions/:n/restore`; `/api/applications/:id/resume` (get, assign or switch, unassign) and `/api/applications/:id/resume/upload`. The files API hides resume versions and refuses to delete them.
+- **Migration**: `npm run migrate:resume-versioning` (dry run; `-- --apply` to write). Run it after `migrate:ai-redesign`. It keeps the old collection as `resumeversions_backup_YYYYMMDD`.
+
+### T. Documents Section & Application Page Redesign
+
+- **Documents** (`/documents`, components in `src/components/documents/`): Resumes and Other files tabs. Each resume has a detail page (`/documents/resumes/[id]`) with its version history, the applications using each version, make-current, guarded deletes, and a preview. `/resumes` and `/files` redirect here (`next.config.ts`).
+- **Application page** (`src/components/application/`, data from `use-application.ts`): a header with a status picker that saves on change, a clickable stage track (a compact progress menu on phones), and tabs for Overview, Resume, Job description, Notes, and Activity. The separate edit dialog was removed; "Edit details" goes to `/applications/[id]/edit`.
+- **Fix: partial updates**: `createXSchema.partial()` still applied the create defaults, so every partial `PATCH` reset fields such as status, salary, currency, source, tags, and company rating. Update schemas are now wrapped in `onlyProvided()` (in `schemas.ts`), which keeps only the fields the request sent. Empty dates parse to `null`, so dates can be cleared.
+- **Fix: phone layout**: `<main>` in the app shell needed `min-w-0`, and page containers with `mx-auto` need `w-full`; otherwise wide content stretched pages past the screen.
+- **Fix: toasts**: Toasts moved to the bottom right, and the old CSS rule that hid bottom toasters (for the removed editor) was deleted.
 
 ---
 
@@ -157,6 +211,24 @@ AWorkApp is a modern, premium SaaS platform built on **Next.js** (using App Rout
 - `priority` (Number, 0-5)
 - `nextAction` (String)
 
+### Resume Model (`src/models/Resume.ts`)
+
+- `userId` (ObjectId, Ref: User)
+- `name`, `targetRole`, `targetIndustry`, `notes` (Strings), `skillsEmphasized` (String[])
+- `isActive` (Boolean; false means archived)
+- `currentFileId` (ObjectId, Ref: File) and `latestVersionNumber` (Number)
+- `basedOn` (`{ resumeId, versionNumber }` or null): the resume it was tailored from
+
+### File Model (`src/models/File.ts`)
+
+- Any uploaded file. `category` is `resume`, `cover-letter`, `transcript`, `portfolio`, `certificate`, `reference`, or `other`.
+- Resume versions also have `resumeId`, `versionNumber`, `versionNote`, and `restoredFromVersion`. Files without a `resumeId` are the "Other files" in Documents.
+- `storageKey` (hidden by default) can be shared by restored copies.
+
+### ResumeSnapshot Model (`src/models/ResumeSnapshot.ts`)
+
+- One per application: `applicationId`, `resumeId`, `fileId` (the pinned version), `isLocked`, plus `matchScore` and `keywordsMissing`.
+
 ---
 
 ## 4. Work State & Handoff Notes
@@ -169,6 +241,7 @@ AWorkApp is a modern, premium SaaS platform built on **Next.js** (using App Rout
 
 ### Suggested Next Steps
 
-1. **Analytics Customization**: Build detailed analytics graphs and report summaries in `src/app/(dashboard)/analytics/page.tsx`.
-2. **Resume Matching**: Add AI-based or tag-based resume matching tools on the individual application detail page.
-3. **Files Space Enhancement**: Build folder organizers or category tagging for uploaded transcripts, cover letters, and references.
+1. **Production migrations**: Run `migrate:ai-redesign`, then `migrate:resume-versioning` (dry run, then `-- --apply`) on the production database.
+2. **Thinking comparison**: Finish the main-analysis measurement in `docs/experiments/gemini-thinking-effort.md` once Gemini quota allows.
+3. **Analytics Customization**: Build detailed analytics graphs and report summaries in `src/app/(dashboard)/analytics/page.tsx`, including which resume versions lead to interviews.
+4. **Other files on applications**: Let an application record which cover letter or other files were sent with it.

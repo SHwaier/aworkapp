@@ -159,10 +159,6 @@
   }
 }
 
-/* Hide duplicate sonner Toaster injected by third-party libraries at the bottom right */
-[data-sonner-toaster="true"][data-y-position="bottom"] {
-  display: none !important;
-}
 /* ─── Data visualization tokens (analysis report) ───
    Status steps are fixed across modes; they always ship with an icon + label.
    Series/chrome steps are re-stepped for the dark surface, not flipped. */

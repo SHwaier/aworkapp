@@ -1,75 +1,130 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AWorkApp
 
-## Getting Started
+A private job search tracker. Track applications through each stage, keep every resume with its full version history, record exactly which version you sent where, and check how well a resume matches a job with an AI analysis.
 
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Sign-in is invite-only: an admin adds members from the admin dashboard.
 
 ## Features
-- **Application Tracking**: Manage application lifecycle stages in List or interactive Kanban Board views.
-- **Native DOCX Editor**: Edit tailored resumes directly in the browser with full Microsoft Word formatting preservation (via `@eigenpal/docx-editor-react`).
-- **Live Resume Analysis**: Modular checklist analyzer evaluates your live resume against the job description for ATS formatting, action verbs, and keyword matching.
-- **Analytics Dashboard**: Automatic calculations of interview success rates, active applications, and lifecycle conversions.
-- **Company Tracking**: Rate and track companies with "Do Not Apply" list integration.
 
-## Google OAuth Setup
+- **Applications.** Track each application in a list or a Kanban board. The application page has the status, a clickable stage track (Saved, Applied, Screening, Interviews, Final round, Offer, or closed as Rejected/Withdrawn), the next step with a due date, notes, an activity log, and the job description.
+- **Documents.** One place for resumes and other files (cover letters, transcripts, certificates, references).
+  - Each resume keeps every version (v1, v2, ...). Uploading on top of a resume adds the next version, and restoring an old version copies it forward as the newest one, so history only grows.
+  - Each application pins the exact version it uses. When a newer version exists, the application offers to switch. Once an application is marked Applied, its version is locked as a record of what you sent.
+  - Uploading from an application asks whether the file is the next version of the attached resume or a new resume tailored from it.
+- **Resume match analysis.** Compares the attached resume with the job description using Gemini. Every claim is checked against the resume text, and the score comes from verified requirement coverage. A full report page shows requirement coverage, keywords, formatting and writing checks, an action plan, benchmarks for the role, and score history. The report can be exported as Markdown or PDF to use with any AI assistant.
+- **Companies.** Rate companies and keep a do-not-apply list.
+- **Analytics.** Interview rates, active applications, and stage conversions.
+- **Admin dashboard** (`/admin`, admins only). Add members, change roles, reset passwords, disable or delete members, and set the daily AI analysis limit (globally or per member, with an option to exempt admins).
 
-This application supports production-grade Google Authentication. To enable "Sign in with Google" on the login and registration pages, configure the following credentials in your `.env.local` file:
+## Tech stack
 
-1. **Create a Google Cloud Project**:
-   - Visit the [Google Cloud Console](https://console.cloud.google.com).
-   - Create a new project (e.g., `aworkapp`).
+Next.js 16 (App Router, `src/proxy.ts` for route protection), React 19, MongoDB with Mongoose, Zod, Tailwind CSS with base-ui components, Google Gemini via `@google/genai`, and local disk or S3-compatible storage (such as Cloudflare R2) for files. Tests use Vitest.
 
-2. **Configure OAuth Consent Screen**:
-   - Navigate to **API & Services > OAuth consent screen**.
-   - Set user type to **External** (or Internal if testing inside an organization).
-   - Complete the required app name and developer contact email details.
-   - Add the `openid`, `../auth/userinfo.email`, and `../auth/userinfo.profile` scopes.
+> This Next.js version has breaking changes from older releases. Read the guides in `node_modules/next/dist/docs/` before changing framework code.
 
-3. **Generate Credentials**:
-   - Go to **API & Services > Credentials**.
-   - Click **+ CREATE CREDENTIALS** and select **OAuth client ID**.
-   - Choose **Web application** as the application type.
-   - Under **Authorized JavaScript origins**, add:
-     - `http://localhost:3000` (for local development)
-   - Under **Authorized redirect URIs**, add:
-     - `http://localhost:3000/api/auth/google/callback` (for local development)
-     - `https://yourdomain.com/api/auth/google/callback` (for your production domain)
-   - Save to obtain your **Client ID** and **Client Secret**.
+## Getting started
 
-4. **Update Environment Variables**:
-   Add the copied credentials to your `.env.local` file:
-   ```env
-   GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
-   GOOGLE_CLIENT_SECRET=your-google-client-secret
+1. Install dependencies:
+
+   ```bash
+   npm install
    ```
 
-## Learn More
+2. Copy `.env.local.example` to `.env.local` and fill in the values (see [Environment variables](#environment-variables)).
 
-To learn more about Next.js, take a look at the following resources:
+3. Create the first admin:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+   ```bash
+   npm run create-admin -- you@example.com "Your Name" 'a-strong-password'
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+4. Start the dev server and sign in at [http://localhost:3000](http://localhost:3000):
 
-## Deploy on Vercel
+   ```bash
+   npm run dev
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Add other members from `/admin`. Members created or reset by an admin must choose their own password the first time they sign in.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Environment variables
+
+| Variable                                                                                                                             | Required          | What it does                                                                                                                                        |
+| ------------------------------------------------------------------------------------------------------------------------------------ | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MONGODB_URI`                                                                                                                        | Yes               | MongoDB connection string.                                                                                                                          |
+| `JWT_SECRET`, `JWT_REFRESH_SECRET`                                                                                                   | Yes               | Signing secrets for access and refresh tokens. Generate each with `openssl rand -base64 64`.                                                        |
+| `JWT_EXPIRES_IN`, `JWT_REFRESH_EXPIRES_IN`                                                                                           | No                | Token lifetimes (defaults `15m` and `7d`).                                                                                                          |
+| `NEXT_PUBLIC_APP_URL`                                                                                                                | Yes in production | The app's public URL, used for redirects and Google sign-in.                                                                                        |
+| `GEMINI_API_KEY`                                                                                                                     | For AI analysis   | Gemini API key. Without it, the analysis is unavailable.                                                                                            |
+| `GEMINI_MODEL`                                                                                                                       | No                | Model for the main match analysis (default `gemini-2.5-flash`).                                                                                     |
+| `GEMINI_INSIGHTS_MODEL`                                                                                                              | No                | Model for role benchmarks and action plans (default: `GEMINI_MODEL`). Free-tier quotas are per model, so a separate model doubles the headroom.     |
+| `GEMINI_THINKING`, `GEMINI_INSIGHTS_THINKING`                                                                                        | No                | How much each call thinks: `minimal`, `low`, `medium`, or `high`. Unset uses the model's default. See `docs/experiments/gemini-thinking-effort.md`. |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`                                                                                           | No                | Enables "Sign in with Google" for existing members (see below).                                                                                     |
+| `FILE_STORAGE_PROVIDER`                                                                                                              | No                | `local` (default), or `s3`/`r2` for S3-compatible storage.                                                                                          |
+| `FILE_STORAGE_PATH`                                                                                                                  | With `local`      | Folder for uploaded files (default `./uploads`).                                                                                                    |
+| `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_REGION`                                                  | With `s3`/`r2`    | Bucket settings. `S3_REGION` defaults to `auto`.                                                                                                    |
+| `MAX_FILE_SIZE`                                                                                                                      | No                | Upload limit in bytes (default 10 MB).                                                                                                              |
+| `SECURITY_MAX_IP_FAILURES`, `SECURITY_IP_BAN_DURATION_MINUTES`, `SECURITY_MAX_EMAIL_FAILURES`, `SECURITY_EMAIL_BAN_DURATION_MINUTES` | No                | Sign-in lockout thresholds (defaults 10 failures per IP for 15 minutes, 5 per email for 15 minutes).                                                |
+
+Never commit `.env.local` or any secret. A pre-commit hook (`scripts/check-secrets.js`) blocks commits that contain secrets.
+
+### Google sign-in (optional)
+
+Google sign-in only signs in people who are already members; it never creates accounts.
+
+1. In the [Google Cloud Console](https://console.cloud.google.com), create a project and configure the OAuth consent screen with the `openid`, `userinfo.email`, and `userinfo.profile` scopes.
+2. Under **APIs & Services > Credentials**, create an **OAuth client ID** of type **Web application**.
+3. Add `http://localhost:3000` (and your production URL) as authorized JavaScript origins.
+4. Add `http://localhost:3000/api/auth/google/callback` and `https://yourdomain.com/api/auth/google/callback` as authorized redirect URIs.
+5. Put the client ID and secret in `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+
+## Scripts
+
+| Command                                                 | What it does                                                                                                          |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `npm run dev`                                           | Start the dev server.                                                                                                 |
+| `npm run build`, `npm start`                            | Production build and server.                                                                                          |
+| `npm run lint`                                          | ESLint.                                                                                                               |
+| `npm run format:check`, `npm run format:write`          | Prettier.                                                                                                             |
+| `npm test`                                              | Unit tests (no network or database needed).                                                                           |
+| `npm run test:live`                                     | A real Gemini call against sample data. Uses your API key and quota.                                                  |
+| `npm run test:thinking`                                 | Compares thinking settings with real Gemini calls (default `THINKING_SETTINGS=default,medium,high`). Uses your quota. |
+| `npm run create-admin -- <email> ["<name>" <password>]` | With a name and password, create an admin. With only an email, promote (and re-enable) an existing member.            |
+| `npm run migrate:ai-redesign`                           | One-time data migration (see below).                                                                                  |
+| `npm run migrate:resume-versioning`                     | One-time data migration (see below).                                                                                  |
+
+## Deploying and migrating existing data
+
+Databases created before these changes need two one-time migrations, in this order. Both are dry runs by default: they print what they would change and change nothing. Add `-- --apply` to make the changes. Both are safe to run again.
+
+1. **`npm run migrate:ai-redesign`.** Converts resumes customized in the old in-app editor into their own versions and removes the old checklist data.
+2. **`npm run migrate:resume-versioning`.** Moves resumes to the versioned model:
+   - Old "Company Resume - vN" records become one resume with versions v1 to vN.
+   - Each application is pinned to the version it used.
+   - Analyses are pointed at the new resumes.
+   - Loose files in the "resume" category become resumes.
+   - The old collection is kept as `resumeversions_backup_YYYYMMDD`, not deleted.
+
+```bash
+npm run migrate:resume-versioning            # review the output
+npm run migrate:resume-versioning -- --apply # then apply
+```
+
+The scripts read `MONGODB_URI` from `.env.local`. Back up the database first, and run them right after deploying the new code. Until the resume migration runs, the Documents pages don't show existing resumes.
+
+Old `/resumes` and `/files` links redirect to `/documents`.
+
+## Project layout
+
+- `src/app/(dashboard)/`: pages (applications, documents, companies, analytics, admin, settings).
+- `src/app/api/`: route handlers. Partial updates (`PATCH`) only change the fields sent.
+- `src/components/application/`, `src/components/documents/`, `src/components/analysis/`: the application page, Documents, and the AI report.
+- `src/lib/services/`: business logic (resumes and versions, files, analysis, user data).
+- `src/lib/ai/`: Gemini client, prompts, and analysis verification.
+- `src/models/`: Mongoose models.
+- `src/lib/validators/schemas.ts`: Zod schemas for every API input.
+- `scripts/`: admin bootstrap, migrations, and the secrets check.
+- `docs/`: the product spec (`prd.md`), the AI design (`ai-roadmap.md`), the change log (`brain.md`), and experiments.
+
+## Contributing
+
+Work on `feature/*` branches. Commits run a pre-commit hook (secrets check, ESLint, Prettier). Fix what it reports rather than skipping it with `--no-verify`.
