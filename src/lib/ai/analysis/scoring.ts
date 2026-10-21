@@ -54,3 +54,21 @@ export function scoreOpportunities(
     .filter((o): o is ScoreOpportunity => o !== null && o.gain > 0)
     .sort((a, b) => b.gain - a.gain);
 }
+
+/**
+ * Score if the `count` biggest opportunities were fully met — the reachable
+ * target shown next to the current score.
+ */
+export function potentialScore(
+  requirements: Pick<AnalysisRequirement, "text" | "importance" | "coverage">[],
+  count: number
+): number {
+  const targets = new Set(
+    scoreOpportunities(requirements)
+      .slice(0, count)
+      .map((o) => o.requirement)
+  );
+  return computeScore(
+    requirements.map((r) => (targets.has(r.text) ? { ...r, coverage: "met" as const } : r))
+  );
+}

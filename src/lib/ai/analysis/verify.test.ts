@@ -10,7 +10,7 @@ import {
   verifySuggestions,
 } from "./verify";
 import { clampOutput, type AiAnalysisOutput } from "./schema";
-import { scoreOpportunities } from "./scoring";
+import { potentialScore, scoreOpportunities } from "./scoring";
 
 const LINES = [
   "Jordan Rivera",
@@ -253,5 +253,18 @@ describe("resolveLineRefs", () => {
       "Tuned L2 cache as an L5 engineer."
     );
     expect(resolveLineRefs("See (L99) here.", LINES)).toBe("See (L99) here.");
+  });
+});
+
+describe("potentialScore", () => {
+  const reqs = [
+    { text: "A", importance: "required" as const, coverage: "met" as const },
+    { text: "B", importance: "required" as const, coverage: "missing" as const },
+    { text: "C", importance: "preferred" as const, coverage: "partial" as const },
+  ];
+  it("adds up the biggest opportunities", () => {
+    expect(potentialScore(reqs, 0)).toBe(50);
+    expect(potentialScore(reqs, 1)).toBe(90);
+    expect(potentialScore(reqs, 3)).toBe(100);
   });
 });
