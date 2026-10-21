@@ -1,4 +1,9 @@
-import { AiError, generateStructured, type AiUsageStats } from "@/lib/ai/client";
+import {
+  AiError,
+  generateStructured,
+  thinkingEffortFromEnv,
+  type AiUsageStats,
+} from "@/lib/ai/client";
 import { aiAnalysisSchema, clampOutput } from "./schema";
 import { buildUserPrompt, MAX_RESUME_CHARS, SYSTEM_PROMPT, truncateLines } from "./prompt";
 import {
@@ -51,6 +56,8 @@ export async function analyzeResumeMatch(input: AnalyzeInput): Promise<{
       system: SYSTEM_PROMPT,
       prompt: buildUserPrompt(promptInput),
       schema: aiAnalysisSchema,
+      // Unset = model default. GEMINI_THINKING=minimal|low|medium|high
+      thinking: thinkingEffortFromEnv("GEMINI_THINKING"),
     }),
     generateInsights(promptInput),
   ]);
@@ -89,6 +96,7 @@ export async function analyzeResumeMatch(input: AnalyzeInput): Promise<{
     usage: {
       inputTokens: usage.inputTokens + (insightsUsage?.inputTokens ?? 0),
       outputTokens: usage.outputTokens + (insightsUsage?.outputTokens ?? 0),
+      thoughtTokens: usage.thoughtTokens + (insightsUsage?.thoughtTokens ?? 0),
     },
     result: {
       score: computeScore(requirements),

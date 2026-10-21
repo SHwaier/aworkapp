@@ -46,7 +46,7 @@ export interface IResumeAnalysis extends Document {
   /** Role benchmarks and action plan; null for older analyses or if generation failed */
   insights: AnalysisInsights | null;
   insightsError: string | null;
-  usage: { inputTokens: number; outputTokens: number };
+  usage: { inputTokens: number; outputTokens: number; thoughtTokens?: number };
   startedAt: Date | null;
   completedAt: Date | null;
   createdAt: Date;
@@ -175,6 +175,7 @@ const ResumeAnalysisSchema = new Schema<IResumeAnalysis>(
     usage: {
       inputTokens: { type: Number, default: 0 },
       outputTokens: { type: Number, default: 0 },
+      thoughtTokens: { type: Number, default: 0 },
     },
     startedAt: { type: Date, default: null },
     completedAt: { type: Date, default: null },

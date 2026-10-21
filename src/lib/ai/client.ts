@@ -1,4 +1,4 @@
-import { ApiError, GoogleGenAI } from "@google/genai";
+import { ApiError, GoogleGenAI, type ThinkingConfig, type ThinkingLevel } from "@google/genai";
 import { z } from "zod";
 
 /** Model used for all AI features; override with GEMINI_MODEL. */
@@ -26,7 +26,40 @@ export class AiError extends Error {
 
 export interface AiUsageStats {
   inputTokens: number;
+  /** Includes thinking tokens, which are billed as output */
   outputTokens: number;
+  thoughtTokens: number;
+}
+
+export const THINKING_EFFORTS = ["minimal", "low", "medium", "high"] as const;
+export type ThinkingEffort = (typeof THINKING_EFFORTS)[number];
+
+/** Gemini 2.5 models take a token budget instead of a level. */
+const BUDGET_FOR_EFFORT: Record<ThinkingEffort, number> = {
+  minimal: 512,
+  low: 2048,
+  medium: 8192,
+  high: 24576,
+};
+
+/**
+ * Translate an effort setting into the thinking config the model understands:
+ * Gemini 3.x accepts thinkingLevel; Gemini 2.5 only accepts thinkingBudget.
+ * undefined = the model's default (dynamic) thinking.
+ */
+export function thinkingConfigFor(
+  model: string,
+  effort: ThinkingEffort | undefined
+): ThinkingConfig | undefined {
+  if (!effort) return undefined;
+  if (/^gemini-2\./.test(model)) return { thinkingBudget: BUDGET_FOR_EFFORT[effort] };
+  return { thinkingLevel: effort.toUpperCase() as ThinkingLevel };
+}
+
+/** Read a thinking effort from an env var; unset or invalid = model default. */
+export function thinkingEffortFromEnv(name: string): ThinkingEffort | undefined {
+  const value = process.env[name]?.trim().toLowerCase();
+  return THINKING_EFFORTS.find((e) => e === value);
 }
 
 export interface StructuredResult<T> {
@@ -90,6 +123,7 @@ export async function generateStructured<T>({
   schema,
   temperature = 0,
   model = AI_MODEL,
+  thinking,
 }: {
   system: string;
   prompt: string;
@@ -97,7 +131,10 @@ export async function generateStructured<T>({
   temperature?: number;
   /** Defaults to GEMINI_MODEL */
   model?: string;
+  /** How much the model thinks before answering; undefined = model default */
+  thinking?: ThinkingEffort;
 }): Promise<StructuredResult<T>> {
+  const thinkingConfig = thinkingConfigFor(model, thinking);
   const ai = getClient();
   let lastError: unknown;
 
@@ -114,6 +151,7 @@ export async function generateStructured<T>({
           responseMimeType: "application/json",
           responseJsonSchema: toGeminiSchema(schema),
           abortSignal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+          ...(thinkingConfig ? { thinkingConfig } : {}),
         },
       });
 
@@ -142,6 +180,7 @@ export async function generateStructured<T>({
           outputTokens:
             (response.usageMetadata?.candidatesTokenCount ?? 0) +
             (response.usageMetadata?.thoughtsTokenCount ?? 0),
+          thoughtTokens: response.usageMetadata?.thoughtsTokenCount ?? 0,
         },
       };
     } catch (err) {
