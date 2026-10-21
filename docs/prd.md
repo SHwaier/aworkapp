@@ -16,15 +16,15 @@ The platform helps users track job applications by company, resume version, cove
 
 The main differentiator is not simply tracking applications. The platform should preserve the full historical record of each application:
 
-* What job the user applied to
-* Which company it belonged to
-* Which resume was submitted
-* Which cover letter was submitted
-* Which additional files were submitted
-* What application questions and answers were used
-* What status changes happened over time
-* What interviews, screenings, follow-ups, and outcomes occurred
-* What notes and reminders were attached
+- What job the user applied to
+- Which company it belonged to
+- Which resume was submitted
+- Which cover letter was submitted
+- Which additional files were submitted
+- What application questions and answers were used
+- What status changes happened over time
+- What interviews, screenings, follow-ups, and outcomes occurred
+- What notes and reminders were attached
 
 The system should answer:
 
@@ -50,7 +50,7 @@ The system should answer:
 ### Secondary Goals
 
 1. Help users tailor resumes per job application while preserving resume version history.
-2. Store application-specific resume snapshots connected to reusable base resume versions.
+2. Record the exact resume version sent with each application.
 3. Create a reusable answer bank from application questions and answers.
 4. Provide future AI features such as resume-to-job matching, tailored cover letter drafts, missing keyword detection, and follow-up email suggestions.
 5. Support future browser extension capture for job portals that are hard to scrape server-side.
@@ -61,14 +61,14 @@ The system should answer:
 
 The MVP should avoid overbuilding. Do not start with:
 
-* Auto-applying to jobs
-* Full LinkedIn automation
-* Aggressive scraping of protected job platforms
-* Full email inbox integration
-* Full browser automation
-* Team/collaboration features
-* Public sharing/social features
-* Complex AI resume rewriting before the core tracking workflow is stable
+- Auto-applying to jobs
+- Full LinkedIn automation
+- Aggressive scraping of protected job platforms
+- Full email inbox integration
+- Full browser automation
+- Team/collaboration features
+- Public sharing/social features
+- Complex AI resume rewriting before the core tracking workflow is stable
 
 The MVP must focus on excellent tracking, file organization, status history, notes, and document lineage.
 
@@ -84,14 +84,14 @@ A job seeker applying to many roles who wants to stay organized and know exactly
 
 The user needs to:
 
-* Track many applications without relying on spreadsheets.
-* Know which resume and cover letter were used for each job.
-* Understand which resume versions perform best.
-* Keep notes about companies, recruiters, interviews, and follow-ups.
-* Avoid forgetting important dates and next actions.
-* Save job descriptions before postings disappear.
-* Tailor resumes without creating chaotic file names.
-* Search and filter applications quickly.
+- Track many applications without relying on spreadsheets.
+- Know which resume and cover letter were used for each job.
+- Understand which resume versions perform best.
+- Keep notes about companies, recruiters, interviews, and follow-ups.
+- Avoid forgetting important dates and next actions.
+- Save job descriptions before postings disappear.
+- Tailor resumes without creating chaotic file names.
+- Search and filter applications quickly.
 
 ---
 
@@ -103,18 +103,18 @@ Applications are not just rows in a table. Each application is a complete histor
 
 Each application should include:
 
-* Job details
-* Company relationship
-* Resume snapshot used
-* Cover letter snapshot used
-* Other files submitted
-* Status timeline
-* Notes
-* Contacts
-* Interviews
-* Reminders
-* Application questions and answers
-* Outcome data
+- Job details
+- Company relationship
+- Resume snapshot used
+- Cover letter snapshot used
+- Other files submitted
+- Status timeline
+- Notes
+- Contacts
+- Interviews
+- Reminders
+- Application questions and answers
+- Outcome data
 
 ---
 
@@ -122,54 +122,53 @@ Each application should include:
 
 ### Frontend and Backend
 
-* **Next.js 16+**
-* **App Router**
-* **Route Handlers** for backend endpoints
-* **Server Components** where appropriate
-* **Client Components** only for interactive UI
+- **Next.js 16+**
+- **App Router**
+- **Route Handlers** for backend endpoints
+- **Server Components** where appropriate
+- **Client Components** only for interactive UI
 
 ### Request Boundary
 
-* Use **`proxy.ts`** following the Next.js 16+ Proxy convention.
-* Do not use the older `middleware.ts` convention.
+- Use **`proxy.ts`** following the Next.js 16+ Proxy convention.
+- Do not use the older `middleware.ts` convention.
 
 ### Database
 
-* **MongoDB**, preferably MongoDB Atlas.
-* Use MongoDB for application data, metadata, version records, notes, statuses, timelines, and references to files.
+- **MongoDB**, preferably MongoDB Atlas.
+- Use MongoDB for application data, metadata, version records, notes, statuses, timelines, and references to files.
 
 ### File Storage
 
-* Do not store large files directly in MongoDB.
-* Store uploaded resumes, cover letters, transcripts, portfolios, certificates, and other files in object storage.
-* Recommended options:
-
-  * Cloudflare R2
-  * AWS S3
-  * Other S3-compatible object storage
+- Do not store large files directly in MongoDB.
+- Store uploaded resumes, cover letters, transcripts, portfolios, certificates, and other files in object storage.
+- Recommended options:
+  - Cloudflare R2
+  - AWS S3
+  - Other S3-compatible object storage
 
 ### Styling and UI
 
-* **TailwindCSS**
-* **shadcn/ui**
-* No glassmorphism
-* Clean, professional SaaS-style interface
+- **TailwindCSS**
+- **shadcn/ui**
+- No glassmorphism
+- Clean, professional SaaS-style interface
 
 ### Validation
 
-* Use **Zod** or equivalent schema validation.
-* Validate both client-side and server-side.
+- Use **Zod** or equivalent schema validation.
+- Validate both client-side and server-side.
 
 ### Authentication
 
-* Use secure session-based authentication or a trusted auth provider.
-* Prefer HTTP-only cookies.
-* Do not store auth tokens in localStorage.
+- Use secure session-based authentication or a trusted auth provider.
+- Prefer HTTP-only cookies.
+- Do not store auth tokens in localStorage.
 
 ### Deployment
 
-* Vercel is acceptable if the app design fits serverless constraints.
-* Self-hosted Node runtime is also acceptable.
+- Vercel is acceptable if the app design fits serverless constraints.
+- Self-hosted Node runtime is also acceptable.
 
 ---
 
@@ -180,13 +179,13 @@ The app should be divided into these main modules:
 1. Dashboard
 2. Applications
 3. Companies
-4. Resume Library
+4. Documents (resumes with version history, and other files)
 5. Cover Letter Library
-6. Files
-7. Contacts
-8. Timeline / Reminders
-9. Analytics
-10. Settings
+6. Contacts
+7. Timeline / Reminders
+8. Analytics
+9. Settings
+10. Admin (admins only: members and AI limits)
 
 ---
 
@@ -197,7 +196,7 @@ src/
   app/
     (auth)/
       login/
-      register/
+      change-password/
 
     (dashboard)/
       dashboard/
@@ -253,8 +252,9 @@ src/
     Application.ts
     Company.ts
     TimelineEvent.ts
-    ResumeVersion.ts
+    Resume.ts
     ResumeSnapshot.ts
+    ResumeAnalysis.ts
     CoverLetterVersion.ts
     CoverLetterSnapshot.ts
     File.ts
@@ -272,13 +272,16 @@ src/
 
 ### Authentication Requirements
 
-* Users must be authenticated to access dashboard routes.
-* Unauthenticated users should be redirected away from private routes.
-* Authenticated users should not be able to access login/register pages unless they log out.
-* Use HTTP-only cookies for session/token storage.
-* Use `Secure` cookies in production.
-* Use `SameSite=Lax` or stricter where appropriate.
-* Support optional 2FA in a future release.
+- Users must be authenticated to access dashboard routes.
+- Unauthenticated users should be redirected away from private routes.
+- Authenticated users should not be able to access the login page unless they log out.
+- Sign-in is invite-only. There is no public signup: admins add members, and Google sign-in only signs in existing members.
+- Accounts created or reset by an admin must choose a new password before using the app.
+- Changing a password, an admin reset, or disabling a member ends that member's existing sessions immediately.
+- Use HTTP-only cookies for session/token storage.
+- Use `Secure` cookies in production.
+- Use `SameSite=Lax` or stricter where appropriate.
+- Support optional 2FA in a future release.
 
 ### Authorization Requirements
 
@@ -287,29 +290,29 @@ Every user-owned query must be scoped by `userId`.
 Bad pattern:
 
 ```ts
-Application.findById(id)
+Application.findById(id);
 ```
 
 Required pattern:
 
 ```ts
-Application.findOne({ _id: id, userId: session.user.id })
+Application.findOne({ _id: id, userId: session.user.id });
 ```
 
 This applies to:
 
-* Applications
-* Companies
-* Files
-* Notes
-* Timeline events
-* Resume versions
-* Resume snapshots
-* Cover letter versions
-* Cover letter snapshots
-* Contacts
-* Reminders
-* Application questions and answers
+- Applications
+- Companies
+- Files
+- Notes
+- Timeline events
+- Resumes (and their versions, stored as files)
+- Resume snapshots
+- Cover letter versions
+- Cover letter snapshots
+- Contacts
+- Reminders
+- Application questions and answers
 
 ---
 
@@ -323,11 +326,11 @@ Use `proxy.ts` for request-boundary behavior only.
 
 `proxy.ts` should handle:
 
-* Redirecting unauthenticated users away from dashboard routes
-* Redirecting authenticated users away from login/register pages
-* Basic route protection
-* Basic request filtering where appropriate
-* Adding lightweight security headers if suitable
+- Redirecting unauthenticated users away from dashboard routes
+- Redirecting authenticated users away from the login page
+- Basic route protection
+- Basic request filtering where appropriate
+- Adding lightweight security headers if suitable
 
 ### Protected Route Examples
 
@@ -335,12 +338,12 @@ Use `proxy.ts` for request-boundary behavior only.
 /dashboard/*        requires authentication
 /applications/*    requires authentication
 /companies/*       requires authentication
-/resumes/*         requires authentication
+/documents/*       requires authentication
 /cover-letters/*   requires authentication
-/files/*           requires authentication
 /contacts/*        requires authentication
 /analytics/*       requires authentication
 /settings/*        requires authentication
+/admin/*           requires the admin role
 /api/private/*     requires authentication
 ```
 
@@ -348,12 +351,12 @@ Use `proxy.ts` for request-boundary behavior only.
 
 Do not perform:
 
-* Heavy database operations
-* Job scraping
-* File processing
-* AI processing
-* Long-running tasks
-* Complex business logic
+- Heavy database operations
+- Job scraping
+- File processing
+- AI processing
+- Long-running tasks
+- Complex business logic
 
 Proxy should be fast, boring, and focused on guarding request flow.
 
@@ -402,18 +405,18 @@ Company {
 
 ### Company Page Should Show
 
-* Company name
-* Website
-* Career page URL
-* LinkedIn/company profile URL
-* Industry
-* Location
-* Notes about the company
-* All applications to that company
-* Contacts/recruiters connected to that company
-* Previous outcomes with that company
-* Company priority/rating
-* Do-not-apply-again flag
+- Company name
+- Website
+- Career page URL
+- LinkedIn/company profile URL
+- Industry
+- Location
+- Notes about the company
+- All applications to that company
+- Contacts/recruiters connected to that company
+- Previous outcomes with that company
+- Company priority/rating
+- Do-not-apply-again flag
 
 ### Example Company Insight
 
@@ -483,9 +486,9 @@ Do not treat status as only one overwritten field.
 The app should use:
 
 ```ts
-currentStatus: "Follow-up needed"
-lifecycleStage: "Screening completed"
-nextAction: "Send follow-up email"
+currentStatus: "Follow-up needed";
+lifecycleStage: "Screening completed";
+nextAction: "Send follow-up email";
 ```
 
 This means the dashboard can show the immediate status, but the app still knows the user has already reached important milestones.
@@ -536,15 +539,15 @@ May 18 — Interview scheduled
 
 Each timeline event should store:
 
-* Event type
-* Event title
-* Event date
-* Optional time
-* Description/notes
-* Related contact
-* Related files
-* Reminder
-* Source of event
+- Event type
+- Event title
+- Event date
+- Optional time
+- Description/notes
+- Related contact
+- Related files
+- Reminder
+- Source of event
 
 ---
 
@@ -553,53 +556,51 @@ Each timeline event should store:
 ### Status Should Have Two Layers
 
 1. **Current Status**
-
-   * What the dashboard shows right now.
-   * Example: `Follow-up needed`
+   - What the dashboard shows right now.
+   - Example: `Follow-up needed`
 
 2. **Lifecycle Stage**
-
-   * The furthest meaningful progress reached.
-   * Example: `Screening completed`
+   - The furthest meaningful progress reached.
+   - Example: `Screening completed`
 
 ### Suggested Current Statuses
 
-* Saved
-* Interested
-* Preparing documents
-* Applied
-* Waiting for response
-* Follow-up needed
-* Follow-up sent
-* Recruiter contacted
-* Screening scheduled
-* Screening completed
-* Interview scheduled
-* Interview completed
-* Technical assessment pending
-* Technical assessment completed
-* Final round
-* Offer received
-* Offer accepted
-* Offer declined
-* Rejected
-* Ghosted
-* Withdrawn
-* Closed / posting removed
+- Saved
+- Interested
+- Preparing documents
+- Applied
+- Waiting for response
+- Follow-up needed
+- Follow-up sent
+- Recruiter contacted
+- Screening scheduled
+- Screening completed
+- Interview scheduled
+- Interview completed
+- Technical assessment pending
+- Technical assessment completed
+- Final round
+- Offer received
+- Offer accepted
+- Offer declined
+- Rejected
+- Ghosted
+- Withdrawn
+- Closed / posting removed
 
 ### Suggested Lifecycle Milestones
 
-* Saved
-* Applied
-* Screening received
-* Screening completed
-* Interview scheduled
-* Interview completed
-* Technical assessment completed
-* Final round completed
-* Offer received
-* Rejected
-* Withdrawn
+- Saved
+- Applied
+- Screening received
+- Screening completed
+- Interview scheduled
+- Interview completed
+- Technical assessment completed
+- Final round completed
+- Offer received
+- Rejected
+- Withdrawn
 
 ### Temporary Status Examples
 
@@ -607,11 +608,11 @@ Temporary statuses should not erase lifecycle progress.
 
 Examples:
 
-* Follow-up needed
-* Waiting for reply
-* Need to prepare
-* Need to send documents
-* Need to complete assessment
+- Follow-up needed
+- Waiting for reply
+- Need to prepare
+- Need to send documents
+- Need to complete assessment
 
 ### Dashboard Example
 
@@ -716,123 +717,119 @@ File {
 
 ### File Requirements
 
-* Store original filename.
-* Store user-friendly display name.
-* Store MIME type.
-* Store file size.
-* Store hash/fingerprint for duplicate detection.
-* Store object storage key.
-* Never expose raw storage path publicly.
-* Downloads should use signed URLs.
+- Store original filename.
+- Store user-friendly display name.
+- Store MIME type.
+- Store file size.
+- Store hash/fingerprint for duplicate detection.
+- Store object storage key.
+- Never expose raw storage path publicly.
+- Downloads should use signed URLs.
 
 ### Duplicate Detection
 
-If the user uploads a duplicate file, the app should warn:
-
-```txt
-You already uploaded this resume as Resume v3. Do you want to reuse it instead of uploading a duplicate?
-```
+Files are fingerprinted by hash. Uploading a file that's identical to an existing version of the same resume is refused with a message naming that version (for example, "This file is identical to v3"). Uploading a file that's already in the library outside any resume makes that file the new version instead of storing it twice.
 
 ---
 
 ## 11.8 Resume Versioning System
 
-Resume versioning should not be defeated by tailoring resumes per application.
+Each resume keeps its full version history, and each application records the exact version that was sent.
 
-Use three concepts:
+### Concepts
 
-1. Master Resume
-2. Base Resume Version
-3. Application Resume Snapshot
+1. **Resume**: a named resume, such as "Backend Resume", with a target role and notes. Resumes can be archived.
+2. **Version**: one uploaded file of that resume: v1, v2, v3, and so on. Uploading on top of a resume adds the next version. The newest version is the current one.
+3. **Application resume**: the link from an application to one specific version of one resume.
 
-### Concept Explanation
+A resume tailored heavily for one job can be its own resume that records which resume and version it was based on ("Tailored from Backend Resume v2"). Light edits are just the next version of the same resume.
 
-A base resume is reusable across many jobs.
-
-An application resume snapshot is the exact tailored resume submitted to one job.
-
-This allows both:
-
-* Tracking which general resume versions perform best
-* Preserving the exact tailored resume submitted to each job
-
-### Resume Version
+### Resume
 
 ```ts
-ResumeVersion {
+Resume {
   _id
   userId
 
   name
-  versionNumber
   targetRole
   targetIndustry
   skillsEmphasized[]
-  experienceEmphasized[]
-  projectEmphasized[]
-
-  fileId
   notes
-  isActive
+  isActive           // false = archived
+
+  currentFileId      // the current version
+  latestVersionNumber
+  basedOn            // { resumeId, versionNumber } or null
 
   createdAt
   updatedAt
 }
 ```
 
-### Application Resume Snapshot
+### Version
+
+A version is a `File` (section 11.7) with these extra fields:
 
 ```ts
-ApplicationResumeSnapshot {
+File {
+  ...
+  resumeId
+  versionNumber        // unique per resume
+  versionNote          // "What changed?", optional
+  restoredFromVersion  // set when an old version was restored
+}
+```
+
+### Application Resume
+
+```ts
+ResumeSnapshot {
   _id
   userId
-  applicationId
+  applicationId      // one per application
 
-  baseResumeVersionId
-  finalSubmittedFileId
+  resumeId
+  fileId             // the pinned version
 
-  tailoringNotes
-  aiGeneratedChangeSummary
-  keywordsAdded[]
+  isLocked           // true once the application is marked Applied or later
   keywordsMissing[]
   matchScore
 
-  manuallyEdited
-  promotedToBaseVersion
-
   createdAt
   updatedAt
 }
 ```
+
+### Rules
+
+- History only grows. Restoring an old version copies it forward as a new version ("v4, restored from v1") rather than rewriting history. Restored copies share the stored file.
+- The current version can't be deleted, and neither can a version any application uses.
+- An application stays on the version it pinned. When the resume has a newer version, the application shows "v4 is available" with an option to switch.
+- Once an application's status reaches Applied or later, its resume is locked as a record of what was sent: it can't be switched or removed, and the resume can't be deleted.
+- Uploading a resume from an application asks each time whether the file is the next version of the attached resume (the default) or a new resume based on it.
 
 ### Example Resume Lineage
 
 ```txt
-Software Engineer Resume v3
-│
-├── Tailored for TELUS - Software Developer
-├── Tailored for RBC - Frontend Developer
-├── Tailored for Shopify - Junior Engineer
-└── Tailored for Bell - Web Developer
+Backend Resume
+├── v1  sent to TELUS (locked)
+├── v2  "Added the Kafka migration project", sent to RBC and Shopify
+└── v3  current
+
+Backend Resume for Fintech (tailored from Backend Resume v2)
+└── v1  sent to Wealthsimple
 ```
 
 ### Resume Analytics
 
 The app should eventually show:
 
-* Base Resume v3 was used for 18 jobs
-* 11 were lightly tailored
-* 7 were heavily tailored
-* 4 led to interviews
-* Tailored resumes had a better response rate than untailored ones
+- How many applications used each resume and each version
+- Which versions led to interviews
+- Whether tailored resumes had a better response rate than their source resume
 
-### Promote Snapshot to Base Version
-
-If a tailored resume performs well, allow:
-
-```txt
-Promote this tailored resume to a new base resume version?
-```
+The resume page already shows, for each version, the applications using it and its best AI match score.
 
 ---
 
@@ -879,10 +876,10 @@ ApplicationCoverLetterSnapshot {
 
 The app should track whether a cover letter is:
 
-* General reusable
-* Company-specific
-* Job-specific
-* Application-specific snapshot
+- General reusable
+- Company-specific
+- Job-specific
+- Application-specific snapshot
 
 ---
 
@@ -909,15 +906,15 @@ ApplicationFile {
 
 ### Supported File Types
 
-* Resume
-* Cover letter
-* Transcript
-* Portfolio
-* References
-* Certificates
-* Writing sample
-* Work sample
-* Other requested files
+- Resume
+- Cover letter
+- Transcript
+- Portfolio
+- References
+- Certificates
+- Writing sample
+- Work sample
+- Other requested files
 
 The goal is to let the user prove exactly what was submitted.
 
@@ -960,10 +957,10 @@ Answer: ...
 
 Reusable answer bank:
 
-* Show all previous answers.
-* Let user reuse or adapt an answer.
-* Tag answers by topic.
-* Track which answers were used for which applications.
+- Show all previous answers.
+- Let user reuse or adapt an answer.
+- Tag answers by topic.
+- Track which answers were used for which applications.
 
 ---
 
@@ -997,11 +994,11 @@ Contact {
 
 ### Contact Use Cases
 
-* Recruiter tracking
-* Referral tracking
-* Hiring manager notes
-* Interviewer notes
-* Follow-up reminders
+- Recruiter tracking
+- Referral tracking
+- Hiring manager notes
+- Interviewer notes
+- Follow-up reminders
 
 ---
 
@@ -1036,15 +1033,15 @@ Interview {
 
 ### Interview Tracking Should Include
 
-* Interview date/time
-* Interview type
-* Interviewers
-* Meeting link
-* Notes
-* Questions asked
-* Reflections
-* Follow-up sent flag
-* Result
+- Interview date/time
+- Interview type
+- Interviewers
+- Meeting link
+- Notes
+- Questions asked
+- Reflections
+- Follow-up sent flag
+- Result
 
 ---
 
@@ -1071,13 +1068,13 @@ Reminder {
 
 ### Reminder Types
 
-* Follow-up reminder
-* Interview reminder
-* Application deadline reminder
-* Check posting again reminder
-* No response after X days reminder
-* Send thank-you message reminder
-* Complete assessment reminder
+- Follow-up reminder
+- Interview reminder
+- Application deadline reminder
+- Check posting again reminder
+- No response after X days reminder
+- Send thank-you message reminder
+- Complete assessment reminder
 
 ---
 
@@ -1091,22 +1088,22 @@ The user should be able to paste a job posting URL and have the platform extract
 
 Attempt to extract:
 
-* Job title
-* Company name
-* Job description
-* Job posting URL
-* Application URL
-* Location
-* Remote/hybrid/on-site
-* Employment type
-* Salary range
-* Currency
-* Date posted
-* Application deadline
-* Skills and requirements
-* Responsibilities
-* Benefits
-* Source platform
+- Job title
+- Company name
+- Job description
+- Job posting URL
+- Application URL
+- Location
+- Remote/hybrid/on-site
+- Employment type
+- Salary range
+- Currency
+- Date posted
+- Application deadline
+- Skills and requirements
+- Responsibilities
+- Benefits
+- Source platform
 
 ### Extraction Strategy
 
@@ -1116,11 +1113,11 @@ Use a layered approach.
 
 Where possible, detect job boards such as:
 
-* Greenhouse
-* Lever
-* Ashby
-* Workable
-* Other ATS platforms with accessible public job data
+- Greenhouse
+- Lever
+- Ashby
+- Workable
+- Other ATS platforms with accessible public job data
 
 Use official/public endpoints when available.
 
@@ -1128,11 +1125,11 @@ Use official/public endpoints when available.
 
 Try extracting:
 
-* JSON-LD
-* Schema.org JobPosting markup
-* Open Graph metadata
-* Meta tags
-* Semantic HTML
+- JSON-LD
+- Schema.org JobPosting markup
+- Open Graph metadata
+- Meta tags
+- Semantic HTML
 
 #### 3. Regular HTML Scraping
 
@@ -1154,27 +1151,27 @@ The job URL import feature must protect against SSRF and malicious inputs.
 
 Required protections:
 
-* Validate URL format.
-* Only allow `http` and `https` schemes.
-* Block localhost.
-* Block private IP ranges.
-* Block internal network ranges.
-* Block metadata service IPs.
-* Set request timeout.
-* Limit response size.
-* Do not execute remote JavaScript server-side.
-* Sanitize extracted HTML.
-* Store raw scraped HTML only if safe and necessary.
-* Rate-limit imports.
+- Validate URL format.
+- Only allow `http` and `https` schemes.
+- Block localhost.
+- Block private IP ranges.
+- Block internal network ranges.
+- Block metadata service IPs.
+- Set request timeout.
+- Limit response size.
+- Do not execute remote JavaScript server-side.
+- Sanitize extracted HTML.
+- Store raw scraped HTML only if safe and necessary.
+- Rate-limit imports.
 
 ### Scraping Legal / Safety Direction
 
 Avoid aggressive server-side scraping of protected platforms. Prefer:
 
-* Public APIs
-* Structured data
-* User-driven browser extension capture
-* Manual entry
+- Public APIs
+- Structured data
+- User-driven browser extension capture
+- Manual entry
 
 Do not build auto-apply behavior in MVP.
 
@@ -1183,6 +1180,10 @@ Do not build auto-apply behavior in MVP.
 ## 13. AI Features
 
 AI should be used in focused, practical areas. Do not make the entire product depend on AI.
+
+### Shipped
+
+The resume match analysis (item 4, plus items 3, 5, and 7) is built; see `docs/ai-roadmap.md`. It compares the application's resume version with the job description, verifies every claim against the resume text, scores verified requirement coverage, and produces a report with keywords, writing checks, an action plan, and role benchmarks. The report can be exported as Markdown or PDF for the user's own AI assistant to apply.
 
 ### MVP-Compatible AI Features
 
@@ -1199,14 +1200,14 @@ AI should be used in focused, practical areas. Do not make the entire product de
 
 ### Future AI Features
 
-* Resume-to-job match score
-* Resume tailoring assistant
-* Cover letter generator
-* Application question answer helper
-* Interview prep generator
-* Company research summary
-* Application outcome analysis
-* Suggestions based on previous successful applications
+- Resume-to-job match score
+- Resume tailoring assistant
+- Cover letter generator
+- Application question answer helper
+- Interview prep generator
+- Company research summary
+- Application outcome analysis
+- Suggestions based on previous successful applications
 
 ### Important AI Design Principle
 
@@ -1226,47 +1227,47 @@ Help the user understand how their job search is performing.
 
 Track:
 
-* Total applications
-* Applications per week
-* Applications per month
-* Response rate
-* Interview rate
-* Rejection rate
-* Ghost rate
-* Offer rate
-* Best-performing resume version
-* Best-performing cover letter version
-* Best-performing job source
-* Best-performing company type
-* Average time from applied to response
-* Average time from applied to screening
-* Average time from interview to decision
-* Roles with highest success rate
-* Most common skills in saved jobs
-* Salary range distribution
-* Follow-ups due
-* Applications stuck in waiting state
+- Total applications
+- Applications per week
+- Applications per month
+- Response rate
+- Interview rate
+- Rejection rate
+- Ghost rate
+- Offer rate
+- Best-performing resume version
+- Best-performing cover letter version
+- Best-performing job source
+- Best-performing company type
+- Average time from applied to response
+- Average time from applied to screening
+- Average time from interview to decision
+- Roles with highest success rate
+- Most common skills in saved jobs
+- Salary range distribution
+- Follow-ups due
+- Applications stuck in waiting state
 
 ### Resume Analytics
 
 For each resume version:
 
-* Number of applications used
-* Number of interviews generated
-* Number of screenings generated
-* Number of offers generated
-* Response rate
-* Interview rate
+- Number of applications used
+- Number of interviews generated
+- Number of screenings generated
+- Number of offers generated
+- Response rate
+- Interview rate
 
 ### Company Analytics
 
 For each company:
 
-* Number of applications
-* Status distribution
-* Outcome history
-* Last application date
-* Contacts
+- Number of applications
+- Status distribution
+- Outcome history
+- Last application date
+- Contacts
 
 ---
 
@@ -1276,48 +1277,48 @@ The user must be able to search and filter applications quickly.
 
 ### Search Across
 
-* Job title
-* Company name
-* Job description
-* Notes
-* Tags
-* Application questions
-* Contacts
-* Resume version name
-* Cover letter version name
+- Job title
+- Company name
+- Job description
+- Notes
+- Tags
+- Application questions
+- Contacts
+- Resume version name
+- Cover letter version name
 
 ### Filters
 
 Support filtering by:
 
-* Company
-* Resume version
-* Cover letter version
-* Status
-* Lifecycle stage
-* Date applied
-* Job source
-* Location
-* Remote/hybrid/on-site
-* Employment type
-* Salary range
-* Tags
-* Skills
-* Application outcome
-* File used
-* Recruiter/contact
-* Follow-up due date
-* Priority
+- Company
+- Resume version
+- Cover letter version
+- Status
+- Lifecycle stage
+- Date applied
+- Job source
+- Location
+- Remote/hybrid/on-site
+- Employment type
+- Salary range
+- Tags
+- Skills
+- Application outcome
+- File used
+- Recruiter/contact
+- Follow-up due date
+- Priority
 
 ### Saved Views
 
 Future feature:
 
-* “Follow-ups due this week”
-* “Applications waiting over 14 days”
-* “Interview stage”
-* “Software engineering applications”
-* “Applied with Resume v3”
+- “Follow-ups due this week”
+- “Applications waiting over 14 days”
+- “Interview stage”
+- “Software engineering applications”
+- “Applied with Resume v3”
 
 ---
 
@@ -1327,47 +1328,47 @@ Future feature:
 
 The UI should be:
 
-* Clean
-* Professional
-* Modern
-* Calm
-* Data-friendly
-* Easy to scan
-* No glassmorphism
-* No excessive gradients
-* No overly decorative effects
+- Clean
+- Professional
+- Modern
+- Calm
+- Data-friendly
+- Easy to scan
+- No glassmorphism
+- No excessive gradients
+- No overly decorative effects
 
 ### Visual Style
 
 Use:
 
-* White or neutral backgrounds
-* Strong typography
-* Subtle borders
-* Minimal shadows
-* Clear spacing
-* Clean cards
-* Tables with good filtering
-* High-contrast buttons
-* Accessible color contrast
+- White or neutral backgrounds
+- Strong typography
+- Subtle borders
+- Minimal shadows
+- Clear spacing
+- Clean cards
+- Tables with good filtering
+- High-contrast buttons
+- Accessible color contrast
 
 Design inspiration:
 
-* Notion-like organization
-* Linear-like polish
-* CRM-like clarity
+- Notion-like organization
+- Linear-like polish
+- CRM-like clarity
 
 ### Dashboard UX
 
 Dashboard should show:
 
-* Applications this month
-* Interview rate
-* Follow-ups due
-* Best-performing resume
-* Pending screenings
-* Recent company activity
-* Applications needing attention
+- Applications this month
+- Interview rate
+- Follow-ups due
+- Best-performing resume
+- Pending screenings
+- Recent company activity
+- Applications needing attention
 
 ### Application Detail Page Layout
 
@@ -1447,12 +1448,11 @@ Metadata
 
 ## 17.4 Tailor Resume for Application
 
-1. User selects a base resume version.
-2. System compares resume against job description.
-3. System suggests changes.
-4. User edits or uploads final tailored resume.
-5. System creates an Application Resume Snapshot.
-6. Snapshot is linked to application and base resume version.
+1. User attaches a resume to the application. It pins that resume's current version (or a chosen older one).
+2. User runs the match analysis, which compares the version with the job description and suggests changes.
+3. User edits the resume outside the app (alone or with an AI assistant, using the exported report).
+4. User uploads the edited file from the application, either as the next version of the same resume or as a new resume based on it. The application now points to the uploaded version.
+5. When the user marks the application Applied, the pinned version is locked as the record of what was sent.
 
 ---
 
@@ -1501,12 +1501,12 @@ Reminder: Follow up in 5 days
 
 ### General API Requirements
 
-* Use REST-like route handlers unless project later chooses RPC/server actions for specific cases.
-* Validate all input with schemas.
-* Scope all data by user ID.
-* Return safe error messages.
-* Rate-limit sensitive routes.
-* Do not expose internal IDs unnecessarily to the UI if not needed.
+- Use REST-like route handlers unless project later chooses RPC/server actions for specific cases.
+- Validate all input with schemas.
+- Scope all data by user ID.
+- Return safe error messages.
+- Rate-limit sensitive routes.
+- Do not expose internal IDs unnecessarily to the UI if not needed.
 
 ### Suggested API Routes
 
@@ -1611,79 +1611,79 @@ This platform stores sensitive personal and career information. Security is a co
 
 ### Authentication Security
 
-* Use HTTP-only cookies.
-* Use secure cookies in production.
-* Use CSRF protection where appropriate.
-* Rotate sessions where appropriate.
-* Do not store auth tokens in localStorage.
-* Support optional 2FA later.
+- Use HTTP-only cookies.
+- Use secure cookies in production.
+- Use CSRF protection where appropriate.
+- Rotate sessions where appropriate.
+- Do not store auth tokens in localStorage.
+- Support optional 2FA later.
 
 ### Authorization Security
 
-* Every database query must be scoped by user ID.
-* Never trust client-provided `userId`.
-* Derive user ID from the authenticated session.
-* Prevent IDOR vulnerabilities.
+- Every database query must be scoped by user ID.
+- Never trust client-provided `userId`.
+- Derive user ID from the authenticated session.
+- Prevent IDOR vulnerabilities.
 
 ### File Security
 
-* Store files in private object storage.
-* Use signed URLs for downloads.
-* Validate file types.
-* Limit file sizes.
-* Scan files for malware in a future release.
-* Never expose raw object storage keys publicly.
-* Prevent users from accessing files they do not own.
+- Store files in private object storage.
+- Use signed URLs for downloads.
+- Validate file types.
+- Limit file sizes.
+- Scan files for malware in a future release.
+- Never expose raw object storage keys publicly.
+- Prevent users from accessing files they do not own.
 
 ### Input Validation
 
 Validate:
 
-* Job URLs
-* Company data
-* Notes
-* Status updates
-* Timeline events
-* Resume metadata
-* File uploads
-* Scraped content
-* Contact data
-* Application questions and answers
+- Job URLs
+- Company data
+- Notes
+- Status updates
+- Timeline events
+- Resume metadata
+- File uploads
+- Scraped content
+- Contact data
+- Application questions and answers
 
 ### Rate Limiting
 
 Rate-limit:
 
-* Login attempts
-* Registration attempts
-* Job URL imports
-* File uploads
-* AI endpoints
-* Expensive analytics endpoints
+- Login attempts
+- Registration attempts
+- Job URL imports
+- File uploads
+- AI endpoints
+- Expensive analytics endpoints
 
 ### Scraping Security
 
 Required:
 
-* SSRF protection
-* Timeout limits
-* Response size limits
-* URL scheme validation
-* Private network blocking
-* HTML sanitization
+- SSRF protection
+- Timeout limits
+- Response size limits
+- URL scheme validation
+- Private network blocking
+- HTML sanitization
 
 ### Audit Logging
 
 Add audit logs for sensitive actions:
 
-* File uploaded
-* File downloaded
-* Application deleted
-* Resume snapshot created
-* Cover letter snapshot created
-* Status changed
-* Account settings changed
-* Job imported from URL
+- File uploaded
+- File downloaded
+- Application deleted
+- Resume snapshot created
+- Cover letter snapshot created
+- Status changed
+- Account settings changed
+- Job imported from URL
 
 ```ts
 AuditLog {
@@ -1707,15 +1707,15 @@ The app should be accessible from the start.
 
 Requirements:
 
-* Keyboard navigable UI
-* Visible focus states
-* Proper labels for form fields
-* Semantic HTML
-* Accessible dialogs/dropdowns
-* High contrast text
-* Screen-reader friendly status labels
-* Avoid color-only status communication
-* Support reduced motion preferences
+- Keyboard navigable UI
+- Visible focus states
+- Proper labels for form fields
+- Semantic HTML
+- Accessible dialogs/dropdowns
+- High contrast text
+- Screen-reader friendly status labels
+- Avoid color-only status communication
+- Support reduced motion preferences
 
 ---
 
@@ -1768,17 +1768,17 @@ Build first:
 
 The user can:
 
-* Create an account and log in.
-* Create companies.
-* Create applications.
-* Attach an application to a company.
-* Upload resume files.
-* Create resume versions.
-* Attach a resume snapshot to an application.
-* Add timeline events.
-* Add notes.
-* Filter applications by company/status/resume version.
-* View an application detail page with timeline, notes, files, and metadata.
+- Create an account and log in.
+- Create companies.
+- Create applications.
+- Attach an application to a company.
+- Upload resume files.
+- Create resume versions.
+- Attach a resume snapshot to an application.
+- Add timeline events.
+- Add notes.
+- Filter applications by company/status/resume version.
+- View an application detail page with timeline, notes, files, and metadata.
 
 ---
 
@@ -1799,14 +1799,14 @@ Build second:
 
 The user can:
 
-* Track cover letter versions.
-* Attach cover letter snapshots to applications.
-* Attach other submitted files.
-* Store job application questions and answers.
-* Create reminders.
-* Track contacts connected to companies/applications.
-* Track interviews.
-* View analytics for applications, resume versions, and outcomes.
+- Track cover letter versions.
+- Attach cover letter snapshots to applications.
+- Attach other submitted files.
+- Store job application questions and answers.
+- Create reminders.
+- Track contacts connected to companies/applications.
+- Track interviews.
+- View analytics for applications, resume versions, and outcomes.
 
 ---
 
@@ -1827,12 +1827,12 @@ Build third:
 
 The user can:
 
-* Paste a job URL and import available job details.
-* Paste a job description and have the system extract structured fields.
-* Compare a resume version against a job description.
-* Receive tailoring suggestions.
-* Generate draft follow-up messages.
-* Use imported data to create an application faster.
+- Paste a job URL and import available job details.
+- Paste a job description and have the system extract structured fields.
+- Compare a resume version against a job description.
+- Receive tailoring suggestions.
+- Generate draft follow-up messages.
+- Use imported data to create an application faster.
 
 ---
 
@@ -1840,17 +1840,17 @@ The user can:
 
 Possible future additions:
 
-* Browser extension for job capture
-* Calendar integration
-* Email integration
-* AI interview prep
-* AI company research summaries
-* Saved custom views
-* Advanced reporting
-* Data export
-* Account deletion / privacy controls
-* Mobile app
-* Team/career coach sharing
+- Browser extension for job capture
+- Calendar integration
+- Email integration
+- AI interview prep
+- AI company research summaries
+- Saved custom views
+- Advanced reporting
+- Data export
+- Account deletion / privacy controls
+- Mobile app
+- Team/career coach sharing
 
 ---
 
@@ -1860,13 +1860,13 @@ The app must treat user data as private and sensitive.
 
 Required:
 
-* Private-by-default applications
-* User-owned files
-* Data export feature in future release
-* Account deletion feature in future release
-* Clear data ownership model
-* No sharing without explicit user action
-* No public profile by default
+- Private-by-default applications
+- User-owned files
+- Data export feature in future release
+- Account deletion feature in future release
+- Clear data ownership model
+- No sharing without explicit user action
+- No public profile by default
 
 ---
 
@@ -1876,12 +1876,12 @@ Future feature but should be planned early.
 
 Allow users to export:
 
-* Applications as CSV/JSON
-* Companies as CSV/JSON
-* Notes as JSON/Markdown
-* Timeline history as JSON
-* Resume/cover letter metadata
-* Original files as downloadable archive
+- Applications as CSV/JSON
+- Companies as CSV/JSON
+- Notes as JSON/Markdown
+- Timeline history as JSON
+- Resume/cover letter metadata
+- Original files as downloadable archive
 
 ---
 

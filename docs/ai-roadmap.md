@@ -57,6 +57,16 @@ completes. `GEMINI_INSIGHTS_MODEL` can point it at a different model (free-tier 
 - Daily per-user limit (UTC). Admins set the default and per-member overrides, can exempt admins,
   and can reset a member's usage (`/admin`). Failed runs are refunded.
 
+**Thinking effort**: `GEMINI_THINKING` (main analysis) and `GEMINI_INSIGHTS_THINKING` set
+`minimal`, `low`, `medium`, or `high`; unset keeps the model's default. Gemini 3.x gets a
+`thinkingLevel`; Gemini 2.5 rejects levels, so it gets a `thinkingBudget` (medium 8K, high 24K
+tokens). Thinking tokens are stored in `usage.thoughtTokens`. Results so far:
+`docs/experiments/gemini-thinking-effort.md` (`npm run test:thinking` re-runs the comparison).
+
+**Which resume is analyzed**: the version the application pins (see the PRD, section 11.8).
+Each analysis records the resume and version label, such as "Backend Resume v2", so score
+history stays readable across versions.
+
 **Changing the prompt**: edit `prompt.ts`/`schema.ts` and bump `PROMPT_VERSION`. Gemini rejects
 schemas with many length/count bounds, so limits live in the prompt and `clampOutput`.
 
