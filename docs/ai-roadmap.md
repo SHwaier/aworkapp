@@ -21,6 +21,17 @@ Lives on the application page's **Resume** tab.
 4. **Score** = verified requirement coverage; required counts double, partial counts half.
 5. **Formatting checks** without AI (contact info, links, standard sections, length).
 
+**Reference material** (`src/lib/ai/analysis/reference.ts`): verbatim guidance from Indeed,
+InterviewPal, Harvard, MIT, AI ResumeGuru, and Enhancv on ATS parsing, contextual keywords,
+PAR/XYZ bullets, and AI-writing red flags. Both AI calls start with it (stable prefix, so Gemini's
+implicit caching can reuse it), followed by writing rules distilled from it: results-first bullets,
+no invented numbers (use `[placeholders]`), keywords shown in context, no AI buzzwords, seniority-
+appropriate verbs. Coverage follows its context rule: a skill only listed in a skills section is
+"partial". Deterministic writing checks implement the measurable parts: first-person pronouns,
+duty phrasing ("responsible for"), share of bullets with results, AI buzzwords
+(`buzzwords.ts`), em-dash overuse, and bullet length. Edit the reference, then bump
+`PROMPT_VERSION`.
+
 **Report page** (`/applications/:id/analysis`): hero score, stat tiles, requirement coverage by
 category, "biggest score opportunities" (deterministic what-if: points gained if each unmet
 requirement were met), an action plan with an impact × effort matrix, role benchmarks, suggested

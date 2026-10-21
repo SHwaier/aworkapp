@@ -82,7 +82,7 @@ const SECTIONS = [
   { id: "suggestions", label: "Suggestions" },
   { id: "requirements", label: "Requirements" },
   { id: "keywords", label: "Keywords" },
-  { id: "formatting", label: "Formatting" },
+  { id: "formatting", label: "Formatting & writing" },
   { id: "history", label: "History" },
 ];
 
@@ -401,7 +401,7 @@ function Report({
             meter={[stats.keywordsIn, a.keywords.length]}
           />
           <StatTile
-            label="Formatting checks"
+            label="Formatting & writing"
             value={`${stats.checksPassed} / ${a.formatChecks.length}`}
             meter={[stats.checksPassed, a.formatChecks.length]}
           />
@@ -756,9 +756,10 @@ function Report({
         <section id="formatting" className="scroll-mt-16">
           <Card className="h-full border-border/60">
             <CardHeader>
-              <CardTitle className="text-base">Formatting</CardTitle>
+              <CardTitle className="text-base">Formatting &amp; writing</CardTitle>
               <CardDescription>
-                Checks that help recruiters and applicant tracking systems read your resume.
+                Checks that help applicant tracking systems parse your resume and help it read as
+                specific, results-led, and written by you.
               </CardDescription>
             </CardHeader>
             <CardContent>

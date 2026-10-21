@@ -101,7 +101,7 @@ vi.mock("@/lib/ai/client", () => {
     AiError,
     AI_MODEL: "test-model",
     generateStructured: vi.fn(async ({ system }: { system: string }) => {
-      const isInsights = system.includes("hiring manager");
+      const isInsights = system.includes("experienced hiring manager and resume coach");
       if (isInsights && insightsFail) throw new AiError("Role insights service down");
       return {
         data: isInsights ? fakeInsights : fakeOutput,
