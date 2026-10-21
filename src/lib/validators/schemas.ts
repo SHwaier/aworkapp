@@ -404,47 +404,48 @@ export type UpdateNoteInput = z.infer<typeof updateNoteSchema>;
 // Resume Version Schemas
 // ============================================
 
-export const createResumeVersionSchema = z.object({
-  name: z
+const resumeText = (max: number) =>
+  z
     .string()
-    .min(1, "Name is required")
-    .max(200)
-    .trim()
-    .transform((val) => sanitizeText(val, 200)),
-  versionNumber: z.number().min(1).optional(),
-  targetRole: z
-    .string()
-    .max(200)
-    .optional()
-    .default("")
-    .transform((val) => sanitizeText(val, 200)),
-  targetIndustry: z
-    .string()
-    .max(200)
-    .optional()
-    .default("")
-    .transform((val) => sanitizeText(val, 200)),
-  skillsEmphasized: z.array(z.string().max(100)).max(30).optional().default([]),
-  experienceEmphasized: z.array(z.string().max(200)).max(20).optional().default([]),
-  projectEmphasized: z.array(z.string().max(200)).max(20).optional().default([]),
-  fileId: z
-    .string()
-    .regex(/^[0-9a-fA-F]{24}$/, "Invalid ID format")
-    .optional()
-    .nullable(),
-  notes: z
-    .string()
-    .max(5000)
-    .optional()
-    .default("")
-    .transform((val) => sanitizeText(val, 5000)),
-  isActive: z.boolean().optional().default(true),
+    .max(max)
+    .transform((val) => sanitizeText(val, max));
+
+/** Editable details of a resume (its versions are uploaded files). */
+export const updateResumeSchema = z
+  .object({
+    name: z
+      .string()
+      .min(1, "Name is required")
+      .max(200)
+      .trim()
+      .transform((val) => sanitizeText(val, 200)),
+    targetRole: resumeText(200),
+    targetIndustry: resumeText(200),
+    skillsEmphasized: z.array(z.string().max(100)).max(30),
+    notes: resumeText(5000),
+    isActive: z.boolean(),
+  })
+  .partial();
+
+/** Text fields sent alongside an uploaded resume file (multipart form). */
+export const resumeUploadFieldsSchema = z.object({
+  name: z.string().max(200).trim().optional(),
+  targetRole: z.string().max(200).trim().optional(),
+  note: z.string().max(300).trim().optional(),
 });
 
-export const updateResumeVersionSchema = createResumeVersionSchema.partial();
+export const applicationResumeUploadSchema = resumeUploadFieldsSchema.extend({
+  mode: z.enum(["version", "new"]),
+});
 
-export type CreateResumeVersionInput = z.infer<typeof createResumeVersionSchema>;
-export type UpdateResumeVersionInput = z.infer<typeof updateResumeVersionSchema>;
+export const assignResumeSchema = z.object({
+  resumeId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid ID format"),
+  versionNumber: z.number().int().min(1).optional(),
+});
+
+export const versionNumberSchema = z.coerce.number().int().min(1);
+
+export type UpdateResumeInput = z.infer<typeof updateResumeSchema>;
 
 // ============================================
 // File Upload Schemas

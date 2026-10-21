@@ -15,7 +15,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:live": "LIVE=1 node --env-file=.env.local node_modules/vitest/vitest.mjs run src/lib/ai/analysis/analysis.live.test.ts",
-    "migrate:ai-redesign": "node --env-file=.env.local scripts/migrate-ai-redesign.mjs"
+    "migrate:ai-redesign": "node --env-file=.env.local scripts/migrate-ai-redesign.mjs",
+    "migrate:resume-versioning": "node --env-file=.env.local scripts/migrate-resume-versioning.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1058.0",

@@ -2,7 +2,7 @@ import { createHash } from "crypto";
 import mongoose from "mongoose";
 import Application from "@/models/Application";
 import ResumeSnapshot from "@/models/ResumeSnapshot";
-import ResumeVersion from "@/models/ResumeVersion";
+import Resume from "@/models/Resume";
 import File from "@/models/File";
 import ResumeAnalysis, {
   type IResumeAnalysis,
@@ -19,6 +19,7 @@ import {
   type AiQuotaStatus,
 } from "@/lib/ai/quota";
 import { ensureFileText } from "@/lib/services/file";
+import { versionLabel } from "@/lib/services/resume";
 
 /** A queued/running analysis older than this is assumed dead (e.g. server restart). */
 const STALE_RUN_MS = 5 * 60_000;
@@ -32,7 +33,7 @@ export interface AnalysisContext {
   jobTitle: string;
   companyName: string;
   jobDescription: string;
-  resumeVersionId: mongoose.Types.ObjectId;
+  resumeId: mongoose.Types.ObjectId;
   resumeVersionName: string;
   fileId: mongoose.Types.ObjectId;
   textHash: string;
@@ -67,15 +68,14 @@ export async function loadAnalysisContext(
     return { ready: false, reason: "Assign a resume to this application first." };
   }
 
-  const version = await ResumeVersion.findOne({ _id: snapshot.baseResumeVersionId, userId }).lean();
-  const fileId = snapshot.finalSubmittedFileId ?? version?.fileId ?? null;
-  if (!version || !fileId) {
-    return { ready: false, reason: "The assigned resume has no file attached." };
-  }
-
+  const resume = await Resume.findOne({ _id: snapshot.resumeId, userId }).select("name").lean();
+  const fileId = snapshot.fileId;
   const file = await File.findOne({ _id: fileId, userId })
-    .select("textHash textExtractedAt textExtractionError")
+    .select("versionNumber textHash textExtractedAt textExtractionError")
     .lean();
+  if (!resume || !file) {
+    return { ready: false, reason: "The assigned resume's file is missing. Assign it again." };
+  }
   let textHash = file?.textHash ?? null;
   if (!file?.textExtractedAt) {
     try {
@@ -103,8 +103,8 @@ export async function loadAnalysisContext(
       jobTitle,
       companyName,
       jobDescription,
-      resumeVersionId: version._id,
-      resumeVersionName: version.name,
+      resumeId: resume._id,
+      resumeVersionName: versionLabel(resume.name, file.versionNumber ?? null),
       fileId,
       textHash,
       inputHash: sha256(
@@ -187,7 +187,7 @@ export async function startAnalysis(applicationId: string, userId: string): Prom
     analysis = await ResumeAnalysis.create({
       userId,
       applicationId,
-      resumeVersionId: ctx.resumeVersionId,
+      resumeId: ctx.resumeId,
       fileId: ctx.fileId,
       resumeVersionName: ctx.resumeVersionName,
       inputHash: ctx.inputHash,

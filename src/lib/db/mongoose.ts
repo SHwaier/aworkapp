@@ -4,7 +4,7 @@ import "@/models/User";
 import "@/models/Company";
 import "@/models/Application";
 import "@/models/File";
-import "@/models/ResumeVersion";
+import "@/models/Resume";
 import "@/models/ResumeAnalysis";
 
 const MONGODB_URI = process.env.MONGODB_URI;

@@ -37,7 +37,8 @@ export async function GET(request: Request): Promise<NextResponse> {
     });
 
     const category = url.searchParams.get("category");
-    const query: Record<string, unknown> = { userId: session.id };
+    // Resume versions live on the resume pages, not in the general file list
+    const query: Record<string, unknown> = { userId: session.id, resumeId: null };
     if (category && category !== "all") {
       query.category = category;
     }

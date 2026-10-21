@@ -69,7 +69,7 @@ export async function POST(request: Request, { params }: RouteParams): Promise<N
         action: "analysis.requested",
         entityType: "resume_analysis",
         entityId: analysis._id.toString(),
-        metadata: { applicationId: id, resumeVersionId: ctx.resumeVersionId.toString() },
+        metadata: { applicationId: id, resumeId: ctx.resumeId.toString() },
         request,
       });
     }

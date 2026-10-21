@@ -13,6 +13,13 @@ export interface IFile extends Document {
   storageKey: string;
   fileHash: string;
   category: string;
+  /** Set when this file is a version of a resume */
+  resumeId: mongoose.Types.ObjectId | null;
+  versionNumber: number | null;
+  /** Optional note on what changed in this version */
+  versionNote: string;
+  /** Set when this version was created by restoring an older one */
+  restoredFromVersion: number | null;
   /** Plain text extracted from PDF/DOCX for AI analysis (null until extracted) */
   extractedText: string | null;
   /** SHA-256 of extractedText, used to detect when an analysis is stale */
@@ -65,6 +72,11 @@ const FileSchema = new Schema<IFile>(
       enum: FILE_CATEGORIES,
       default: "other",
     },
+    // Resume versioning
+    resumeId: { type: Schema.Types.ObjectId, ref: "Resume", default: null, index: true },
+    versionNumber: { type: Number, default: null, min: 1 },
+    versionNote: { type: String, default: "", maxlength: 300 },
+    restoredFromVersion: { type: Number, default: null },
     // Text extraction for AI analysis. Large, so not selected by default.
     extractedText: { type: String, default: null, select: false },
     textHash: { type: String, default: null },
@@ -94,6 +106,11 @@ const FileSchema = new Schema<IFile>(
 FileSchema.index({ userId: 1, fileHash: 1 });
 FileSchema.index({ userId: 1, category: 1 });
 FileSchema.index({ userId: 1, uploadedAt: -1 });
+// One file per version number within a resume
+FileSchema.index(
+  { resumeId: 1, versionNumber: 1 },
+  { unique: true, partialFilterExpression: { resumeId: { $type: "objectId" } } }
+);
 
 const File: Model<IFile> = mongoose.models.File || mongoose.model<IFile>("File", FileSchema);
 
