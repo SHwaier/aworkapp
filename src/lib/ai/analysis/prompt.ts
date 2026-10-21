@@ -1,5 +1,5 @@
 /** Bump when the prompt or output schema changes; stored analyses become stale. */
-export const PROMPT_VERSION = "resume-match.v2";
+export const PROMPT_VERSION = "resume-match.v4";
 
 export const MAX_RESUME_CHARS = 14_000;
 export const MAX_JOB_DESCRIPTION_CHARS = 16_000;
@@ -12,6 +12,7 @@ The resume is given as numbered lines ("L12: ..."). Refer to resume content ONLY
 
 Produce:
 1. requirements: the 5-20 most important requirements in the job description (skills, experience, qualifications, responsibilities), ordered most important first. For each:
+   - category: "skill" (a technology, tool, or skill), "experience" (years, domain, or kind of work done), "education" (degree, certification), "responsibility" (something the role does day to day), or "other".
    - importance: "required" for must-haves, "preferred" for nice-to-haves.
    - coverage: "met" if the resume clearly demonstrates it, "partial" if related but weaker or indirect, "missing" if absent.
    - evidenceLines: line numbers that support met/partial (empty for missing).
@@ -25,7 +26,7 @@ Produce:
    - Never invent employers, titles, dates, degrees, or numbers.
 4. summary: two sentences on overall fit and the single most important gap.
 
-Be specific to this job and this resume. Avoid generic advice.`;
+Be specific to this job and this resume. Avoid generic advice. Line numbers belong only in evidenceLines and line; never mention them (like "L7") in summary, note, title, or rationale text.`;
 
 /** Number resume lines so the model can cite them and we can verify citations. */
 export function numberLines(lines: string[]): string {

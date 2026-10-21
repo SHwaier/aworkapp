@@ -21,12 +21,28 @@ Lives on the application page's **Resume** tab.
 4. **Score** = verified requirement coverage; required counts double, partial counts half.
 5. **Formatting checks** without AI (contact info, links, standard sections, length).
 
+**Report page** (`/applications/:id/analysis`): hero score, stat tiles, requirement coverage by
+category, "biggest score opportunities" (deterministic what-if: points gained if each unmet
+requirement were met), an action plan with an impact × effort matrix, role benchmarks, suggested
+edits, the requirements table, keywords, formatting, and score history across resume versions.
+Charts are dependency-free SVG/HTML in `src/components/analysis/charts.tsx`, using the
+`.viz-root` color tokens in `globals.css`.
+
+**Role insights** (`insights.ts`): a second, parallel Gemini call for benchmarks ("what strong
+candidates for this kind of role typically include") and the action plan. It uses only the
+model's general hiring knowledge — never other members' data. Example phrasing is a template:
+anything the resume doesn't show must be a `[placeholder]`, and missing job keywords are bracketed
+in code as a backstop. Insights are best-effort: if that call fails, the core analysis still
+completes. `GEMINI_INSIGHTS_MODEL` can point it at a different model (free-tier quotas are per model).
+
 **Runs, caching, and limits**
 
 - `POST /api/applications/:id/analysis` returns the existing result when nothing changed
   (resume text, job title/company/description, prompt version, model) — not charged.
 - New runs execute in the background (`after()`); the client polls `GET`.
 - One active run per application (partial unique index). Runs stuck > 5 min are failed and refunded.
+- A Gemini daily/plan quota error fails fast with a clear message; short rate limits are waited
+  out using the API's own retry hint.
 - Daily per-user limit (UTC). Admins set the default and per-member overrides, can exempt admins,
   and can reset a member's usage (`/admin`). Failed runs are refunded.
 

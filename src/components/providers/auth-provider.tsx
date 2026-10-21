@@ -31,7 +31,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, redirectTo?: string) => Promise<void>;
   changePassword: (
     currentPassword: string,
     newPassword: string,
@@ -91,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []); // Empty deps — interval set once
 
   const login = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string, redirectTo = "/dashboard") => {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -104,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setUser(data.data.user);
-      router.push(data.data.user.mustChangePassword ? "/change-password" : "/dashboard");
+      router.push(data.data.user.mustChangePassword ? "/change-password" : redirectTo);
     },
     [router]
   );

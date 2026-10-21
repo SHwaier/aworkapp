@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,9 +16,16 @@ import {
 } from "@/components/ui/card";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 
+/** Only follow in-app relative paths (never "//host" or absolute URLs). */
+function safeCallbackUrl(value: string | null): string {
+  return value && value.startsWith("/") && !value.startsWith("//") ? value : "/dashboard";
+}
+
 function LoginForm() {
-  const { login } = useAuth();
+  const { user, login } = useAuth();
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const callbackUrl = safeCallbackUrl(searchParams.get("callbackUrl"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -33,13 +40,19 @@ function LoginForm() {
     }
   }, [searchParams]);
 
+  // A valid session restored from the refresh token (e.g. after the access
+  // token expired) shouldn't leave the user stuck on the sign-in form
+  useEffect(() => {
+    if (user) router.replace(user.mustChangePassword ? "/change-password" : callbackUrl);
+  }, [user, router, callbackUrl]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setIsSubmitting(true);
 
     try {
-      await login(email, password);
+      await login(email, password, callbackUrl);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {

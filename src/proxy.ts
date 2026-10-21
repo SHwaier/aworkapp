@@ -172,9 +172,14 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     }
   }
 
-  // Authenticated user trying to access auth pages → redirect to dashboard
+  // Authenticated user trying to access auth pages → back to where they were going
   if (isAuthenticated && isAuthRoute) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    const callbackUrl = request.nextUrl.searchParams.get("callbackUrl");
+    const target =
+      callbackUrl && callbackUrl.startsWith("/") && !callbackUrl.startsWith("//")
+        ? callbackUrl
+        : "/dashboard";
+    return NextResponse.redirect(new URL(target, request.url));
   }
 
   return response;

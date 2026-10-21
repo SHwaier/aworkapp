@@ -1,5 +1,6 @@
 import mongoose, { Schema, type Document, type Model } from "mongoose";
 import type {
+  AnalysisInsights,
   AnalysisKeyword,
   AnalysisRequirement,
   AnalysisSuggestion,
@@ -42,6 +43,9 @@ export interface IResumeAnalysis extends Document {
   keywords: AnalysisKeyword[];
   suggestions: IStoredSuggestion[];
   formatChecks: FormatCheck[];
+  /** Role benchmarks and action plan; null for older analyses or if generation failed */
+  insights: AnalysisInsights | null;
+  insightsError: string | null;
   usage: { inputTokens: number; outputTokens: number };
   startedAt: Date | null;
   completedAt: Date | null;
@@ -52,6 +56,11 @@ export interface IResumeAnalysis extends Document {
 const RequirementSchema = new Schema<AnalysisRequirement>(
   {
     text: String,
+    category: {
+      type: String,
+      enum: ["skill", "experience", "education", "responsibility", "other"],
+      default: "other",
+    },
     importance: { type: String, enum: ["required", "preferred"] },
     coverage: { type: String, enum: ["met", "partial", "missing"] },
     claimedCoverage: { type: String, enum: ["met", "partial", "missing"] },
@@ -95,6 +104,52 @@ const FormatCheckSchema = new Schema<FormatCheck>(
   { _id: false }
 );
 
+const LEVELS = ["high", "medium", "low"];
+
+const InsightsSchema = new Schema<AnalysisInsights>(
+  {
+    seniority: { type: String, enum: ["entry", "mid", "senior", "lead", "unknown"] },
+    roleSummary: String,
+    benchmarks: [
+      new Schema(
+        {
+          area: {
+            type: String,
+            enum: [
+              "summary",
+              "skills",
+              "experience",
+              "projects",
+              "education",
+              "keywords",
+              "formatting",
+            ],
+          },
+          title: String,
+          typical: String,
+          yourStatus: { type: String, enum: ["strong", "adequate", "weak", "missing"] },
+          gap: String,
+          examples: [String],
+        },
+        { _id: false }
+      ),
+    ],
+    actionPlan: [
+      new Schema(
+        {
+          title: String,
+          detail: String,
+          impact: { type: String, enum: LEVELS },
+          effort: { type: String, enum: LEVELS },
+          relatedRequirement: String,
+        },
+        { _id: false }
+      ),
+    ],
+  },
+  { _id: false }
+);
+
 const ResumeAnalysisSchema = new Schema<IResumeAnalysis>(
   {
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
@@ -115,6 +170,8 @@ const ResumeAnalysisSchema = new Schema<IResumeAnalysis>(
     keywords: [KeywordSchema],
     suggestions: [SuggestionSchema],
     formatChecks: [FormatCheckSchema],
+    insights: { type: InsightsSchema, default: null },
+    insightsError: { type: String, default: null },
     usage: {
       inputTokens: { type: Number, default: 0 },
       outputTokens: { type: Number, default: 0 },

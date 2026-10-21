@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  bracketUnsupportedTerms,
+  resolveLineRefs,
   computeScore,
   containsTerm,
   normalizeForMatch,
@@ -8,6 +10,7 @@ import {
   verifySuggestions,
 } from "./verify";
 import { clampOutput, type AiAnalysisOutput } from "./schema";
+import { scoreOpportunities } from "./scoring";
 
 const LINES = [
   "Jordan Rivera",
@@ -19,6 +22,7 @@ const LINES = [
 type Req = AiAnalysisOutput["requirements"][number];
 const req = (overrides: Partial<Req>): Req => ({
   text: "Requirement",
+  category: "skill",
   importance: "required",
   coverage: "met",
   evidenceLines: [],
@@ -96,6 +100,17 @@ describe("verifyRequirements", () => {
 });
 
 describe("verifyKeywords", () => {
+  it("drops generic words that aren't real keywords", () => {
+    const out = verifyKeywords(
+      [
+        { term: "Production", importance: "required" },
+        { term: "Kubernetes", importance: "required" },
+      ],
+      ""
+    );
+    expect(out.map((k) => k.term)).toEqual(["Kubernetes"]);
+  });
+
   it("computes inResume itself and drops duplicates", () => {
     const out = verifyKeywords(
       [
@@ -175,5 +190,68 @@ describe("clampOutput", () => {
     expect(out.summary.length).toBe(600);
     expect(out.requirements).toHaveLength(25);
     expect(out.requirements[0].evidenceLines).toHaveLength(5);
+  });
+});
+
+describe("scoreOpportunities", () => {
+  it("ranks unmet requirements by how many points meeting them would add", () => {
+    const reqs = [
+      { text: "A", importance: "required" as const, coverage: "met" as const },
+      { text: "B", importance: "required" as const, coverage: "missing" as const },
+      { text: "C", importance: "preferred" as const, coverage: "partial" as const },
+    ];
+    // score now: (2 + 0 + 0.5) / 5 = 50; B met -> 4.5/5 = 90 (+40); C met -> 3/5 = 60 (+10)
+    expect(scoreOpportunities(reqs)).toEqual([
+      { requirement: "B", importance: "required", coverage: "missing", gain: 40 },
+      { requirement: "C", importance: "preferred", coverage: "partial", gain: 10 },
+    ]);
+  });
+
+  it("is empty when everything is met", () => {
+    expect(scoreOpportunities([{ text: "A", importance: "required", coverage: "met" }])).toEqual(
+      []
+    );
+  });
+});
+
+describe("bracketUnsupportedTerms", () => {
+  const missing = ["AWS", "AWS Lambda", "Kubernetes", "C++"];
+
+  it("brackets unsupported terms, preferring the longest match", () => {
+    expect(bracketUnsupportedTerms("Deployed on AWS Lambda with Kubernetes", missing)).toBe(
+      "Deployed on [AWS Lambda] with [Kubernetes]"
+    );
+  });
+
+  it("leaves already-bracketed text and supported terms alone", () => {
+    expect(bracketUnsupportedTerms("Node.js on [AWS Lambda] and AWS", missing)).toBe(
+      "Node.js on [AWS Lambda] and [AWS]"
+    );
+  });
+
+  it("doesn't touch partial words", () => {
+    expect(bracketUnsupportedTerms("Used flaws analysis", ["AWS"])).toBe("Used flaws analysis");
+    expect(bracketUnsupportedTerms("Wrote C++ code", missing)).toBe("Wrote [C++] code");
+  });
+});
+
+describe("resolveLineRefs", () => {
+  it("replaces parenthesized line references with short quotes", () => {
+    expect(resolveLineRefs("Some bullets (e.g., L2, L3) lack metrics.", LINES)).toBe(
+      "Some bullets (“Built a Node.js and TypeScript ingestion…”, “Developed REST APIs in Python (Django)…”) lack metrics."
+    );
+  });
+
+  it("replaces 'bullet L2' style references", () => {
+    expect(resolveLineRefs("Rewrite bullet L2 to add impact.", LINES)).toBe(
+      "Rewrite bullet “Built a Node.js and TypeScript ingestion…” to add impact."
+    );
+  });
+
+  it("leaves real text and unknown lines untouched", () => {
+    expect(resolveLineRefs("Tuned L2 cache as an L5 engineer.", LINES)).toBe(
+      "Tuned L2 cache as an L5 engineer."
+    );
+    expect(resolveLineRefs("See (L99) here.", LINES)).toBe("See (L99) here.");
   });
 });

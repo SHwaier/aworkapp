@@ -1,5 +1,13 @@
 import { z } from "zod";
 
+export const REQUIREMENT_CATEGORIES = [
+  "skill",
+  "experience",
+  "education",
+  "responsibility",
+  "other",
+] as const;
+
 /**
  * Shape the model must return. Gemini rejects schemas with many length/count
  * bounds ("too many states"), so this only describes the shape; limits live in
@@ -11,6 +19,7 @@ export const aiAnalysisSchema = z.object({
   requirements: z.array(
     z.object({
       text: z.string(),
+      category: z.enum(REQUIREMENT_CATEGORIES),
       importance: z.enum(["required", "preferred"]),
       coverage: z.enum(["met", "partial", "missing"]),
       evidenceLines: z.array(z.number().int()),

@@ -6,6 +6,8 @@ export const AI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
 const REQUEST_TIMEOUT_MS = 90_000;
 const MAX_ATTEMPTS = 3;
+/** Wait out a rate limit only if the API asks for at most this long */
+const MAX_RATE_LIMIT_WAIT_MS = 20_000;
 const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
 
 /** An AI call failed. `message` is safe to show to users. */
@@ -13,7 +15,9 @@ export class AiError extends Error {
   constructor(
     message: string,
     public readonly retryable: boolean,
-    public readonly cause?: unknown
+    public readonly cause?: unknown,
+    /** How long the API asked us to wait before retrying, if it said */
+    public readonly retryAfterMs?: number
   ) {
     super(message);
     this.name = "AiError";
@@ -85,11 +89,14 @@ export async function generateStructured<T>({
   prompt,
   schema,
   temperature = 0,
+  model = AI_MODEL,
 }: {
   system: string;
   prompt: string;
   schema: z.ZodType<T>;
   temperature?: number;
+  /** Defaults to GEMINI_MODEL */
+  model?: string;
 }): Promise<StructuredResult<T>> {
   const ai = getClient();
   let lastError: unknown;
@@ -97,7 +104,7 @@ export async function generateStructured<T>({
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
       const response = await ai.models.generateContent({
-        model: AI_MODEL,
+        model,
         contents: prompt,
         config: {
           systemInstruction: system,
@@ -129,7 +136,7 @@ export async function generateStructured<T>({
 
       return {
         data: result.data,
-        model: AI_MODEL,
+        model,
         usage: {
           inputTokens: response.usageMetadata?.promptTokenCount ?? 0,
           outputTokens:
@@ -143,8 +150,8 @@ export async function generateStructured<T>({
       if (!aiError.retryable || attempt === MAX_ATTEMPTS) {
         throw aiError;
       }
-      // 1s, 2s (+ jitter) between attempts
-      await sleep(1000 * 2 ** (attempt - 1) + Math.random() * 500);
+      // Honor the API's requested delay; otherwise 1s, 2s (+ jitter)
+      await sleep(aiError.retryAfterMs ?? 1000 * 2 ** (attempt - 1) + Math.random() * 500);
     }
   }
 
@@ -155,7 +162,29 @@ function toAiError(err: unknown): AiError {
   if (err instanceof AiError) return err;
   if (err instanceof ApiError) {
     if (err.status === 429) {
-      return new AiError("The AI service is busy right now. Please try again shortly.", true, err);
+      const message = String(err.message);
+      // Daily/plan quota (e.g. free tier): retrying won't help until it resets
+      if (/PerDay|per day|exceeded your current quota/i.test(message)) {
+        return new AiError(
+          "The AI service has reached its usage quota for now. Please try again later, or ask an admin to check the Gemini plan.",
+          false,
+          err
+        );
+      }
+      const retryAfterMs = parseRetryDelayMs(message);
+      if (retryAfterMs !== undefined && retryAfterMs > MAX_RATE_LIMIT_WAIT_MS) {
+        return new AiError(
+          "The AI service is busy right now. Please try again in a few minutes.",
+          false,
+          err
+        );
+      }
+      return new AiError(
+        "The AI service is busy right now. Please try again shortly.",
+        true,
+        err,
+        retryAfterMs
+      );
     }
     if (RETRYABLE_STATUSES.has(err.status)) {
       return new AiError("The AI service is temporarily unavailable. Please try again.", true, err);
@@ -166,4 +195,13 @@ function toAiError(err: unknown): AiError {
     return new AiError("The AI took too long to respond. Please try again.", true, err);
   }
   return new AiError("Something went wrong while contacting the AI service.", true, err);
+}
+
+/** Parse Gemini's "Please retry in 37.5s" / "retry in 4h19m1s" hint, in ms. */
+export function parseRetryDelayMs(message: string): number | undefined {
+  const match = /retry in ((?:\d+h)?(?:\d+m)?(?:[\d.]+s)?)/i.exec(message);
+  if (!match || !match[1]) return undefined;
+  const part = (unit: string) => Number(new RegExp(`([\\d.]+)${unit}`).exec(match[1])?.[1] ?? 0);
+  const ms = (part("h") * 3600 + part("m") * 60 + part("s")) * 1000;
+  return ms > 0 ? Math.ceil(ms) : undefined;
 }

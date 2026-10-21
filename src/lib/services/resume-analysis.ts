@@ -224,7 +224,7 @@ export async function runAnalysis(
 
   try {
     const { text, pageCount } = await ensureFileText(ctx.fileId, ctx.userId);
-    const { result, model, usage } = await analyzeResumeMatch({
+    const { result, model, usage, insightsError } = await analyzeResumeMatch({
       jobTitle: ctx.jobTitle,
       companyName: ctx.companyName,
       jobDescription: ctx.jobDescription,
@@ -243,6 +243,8 @@ export async function runAnalysis(
       keywords: result.keywords,
       suggestions: result.suggestions.map((s) => ({ ...s, status: "open" })),
       formatChecks: result.formatChecks,
+      insights: result.insights,
+      insightsError,
       completedAt: new Date(),
     });
     await analysis.save();
@@ -276,6 +278,8 @@ export async function runAnalysis(
 
 export interface AnalysisOverview {
   analysis: IResumeAnalysis | null;
+  /** Most recent complete analysis when the latest one is still running or failed */
+  lastComplete: IResumeAnalysis | null;
   history: Array<{
     id: string;
     score: number | null;
@@ -308,10 +312,16 @@ export async function getAnalysisOverview(
     getAiQuota(userId),
   ]);
 
-  const latestComplete = analysis?.status === "complete" ? analysis : null;
+  const latestComplete =
+    analysis?.status === "complete"
+      ? analysis
+      : await ResumeAnalysis.findOne({ applicationId, userId, status: "complete" }).sort({
+          createdAt: -1,
+        });
 
   return {
     analysis,
+    lastComplete: analysis?.status === "complete" ? null : latestComplete,
     history: history.map((h) => ({
       id: h._id.toString(),
       score: h.score,

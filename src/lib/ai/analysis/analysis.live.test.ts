@@ -8,7 +8,7 @@ import { SAMPLE_JOB, SAMPLE_RESUME } from "./__fixtures__/sample";
  */
 describe.skipIf(!process.env.GEMINI_API_KEY)("analyzeResumeMatch (live)", () => {
   it("returns a verified analysis for a sample resume", { timeout: 120_000 }, async () => {
-    const { result, model, usage } = await analyzeResumeMatch({
+    const { result, model, usage, insightsError } = await analyzeResumeMatch({
       jobTitle: "Senior Backend Engineer",
       companyName: "Example Co",
       jobDescription: SAMPLE_JOB,
@@ -22,6 +22,9 @@ describe.skipIf(!process.env.GEMINI_API_KEY)("analyzeResumeMatch (live)", () => 
     }
 
     expect(result.requirements.length).toBeGreaterThan(0);
+    expect(insightsError).toBeNull();
+    expect(result.insights?.benchmarks.length).toBeGreaterThan(0);
+    expect(result.insights?.actionPlan.length).toBeGreaterThan(0);
     expect(result.score).toBeGreaterThanOrEqual(0);
     expect(result.score).toBeLessThanOrEqual(100);
     // Kubernetes is nowhere in the resume, so it must not be counted as met

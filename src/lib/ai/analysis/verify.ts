@@ -1,11 +1,5 @@
 import type { AiAnalysisOutput } from "./schema";
-import type {
-  AnalysisKeyword,
-  AnalysisRequirement,
-  AnalysisSuggestion,
-  Coverage,
-  Importance,
-} from "./types";
+import type { AnalysisKeyword, AnalysisRequirement, AnalysisSuggestion, Coverage } from "./types";
 
 /** Lowercase and collapse whitespace/punctuation runs for tolerant quote matching. */
 export function normalizeForMatch(s: string): string {
@@ -77,6 +71,7 @@ export function verifyRequirements(
 
     return {
       text: req.text,
+      category: req.category,
       importance: req.importance,
       coverage,
       claimedCoverage: req.coverage,
@@ -87,6 +82,25 @@ export function verifyRequirements(
   });
 }
 
+/** Words too generic to be useful ATS keywords, even if the model suggests them. */
+const GENERIC_KEYWORDS = new Set([
+  "production",
+  "scalable",
+  "scalability",
+  "senior",
+  "junior",
+  "lead",
+  "engineer",
+  "engineering",
+  "developer",
+  "development",
+  "software",
+  "experience",
+  "years",
+  "team",
+  "teams",
+]);
+
 export function verifyKeywords(
   keywords: AiAnalysisOutput["keywords"],
   resumeText: string
@@ -95,7 +109,7 @@ export function verifyKeywords(
   const out: AnalysisKeyword[] = [];
   for (const kw of keywords) {
     const key = kw.term.trim().toLowerCase();
-    if (!key || seen.has(key)) continue;
+    if (!key || seen.has(key) || GENERIC_KEYWORDS.has(key)) continue;
     seen.add(key);
     out.push({
       term: kw.term.trim(),
@@ -135,21 +149,61 @@ export function verifySuggestions(
   return out;
 }
 
-const WEIGHT: Record<Importance, number> = { required: 2, preferred: 1 };
-const CREDIT: Record<Coverage, number> = { met: 1, partial: 0.5, missing: 0 };
+/**
+ * Wrap job keywords the resume doesn't support in [brackets] wherever they appear
+ * outside brackets, so illustrative examples can't be copied in as false claims.
+ */
+export function bracketUnsupportedTerms(text: string, missingTerms: string[]): string {
+  const terms = [...missingTerms].filter((t) => t.trim()).sort((a, b) => b.length - a.length);
+  // Split into bracketed and unbracketed segments; only touch the latter
+  return text
+    .split(/(\[[^\]]*\])/)
+    .map((segment) => {
+      if (segment.startsWith("[")) return segment;
+      let out = segment;
+      for (const term of terms) {
+        const pattern = escapeRegex(term).replace(/[\s-]+/g, "[\\s\\-_]+");
+        out = out.replace(
+          new RegExp(`(^|[^a-z0-9\\[])(${pattern})(?=$|[^a-z0-9\\]])`, "gi"),
+          (_m, pre: string, word: string) => `${pre}[${word}]`
+        );
+      }
+      return out;
+    })
+    .join("");
+}
 
 /**
- * Match score, 0-100, computed from verified requirement coverage.
- * Required requirements count double; partial coverage earns half credit.
+ * The model sees numbered resume lines ("L12") and sometimes mentions them in
+ * prose, e.g. "(e.g., L7, L12)" or "bullet L9". Replace those references with a
+ * short quote of the line so users never see internal line numbers. Only those
+ * two forms are touched, so real text like "L2 cache" or "L5 engineer" survives.
  */
-export function computeScore(
-  requirements: Pick<AnalysisRequirement, "importance" | "coverage">[]
-): number {
-  const max = requirements.reduce((sum, r) => sum + WEIGHT[r.importance], 0);
-  if (max === 0) return 0;
-  const earned = requirements.reduce(
-    (sum, r) => sum + WEIGHT[r.importance] * CREDIT[r.coverage],
-    0
+export function resolveLineRefs(text: string, lines: string[]): string {
+  const quote = (n: string) => {
+    const line = lines[Number(n) - 1];
+    if (!line) return null;
+    const words = line.split(/\s+/);
+    return `“${words.slice(0, 6).join(" ")}${words.length > 6 ? "…" : ""}”`;
+  };
+
+  return (
+    text
+      // "(L7)", "(e.g., L7, L12)", "(lines L3-L4)"
+      .replace(
+        /\s*\(((?:e\.g\.,?\s*|lines?\s*)?L\d{1,4}(?:\s*(?:,|and|-|–)\s*L\d{1,4})*)\)/gi,
+        (match, inner: string) => {
+          const quotes = [...inner.matchAll(/L(\d{1,4})/g)].map((m) => quote(m[1]));
+          if (quotes.some((q) => q === null)) return match;
+          return ` (${quotes.join(", ")})`;
+        }
+      )
+      // "bullet L9", "line L3"
+      .replace(/\b(bullets?|lines?)\s+L(\d{1,4})\b/gi, (match, word: string, n: string) => {
+        const q = quote(n);
+        return q ? `${word} ${q}` : match;
+      })
   );
-  return Math.round((earned / max) * 100);
 }
+
+export { computeScore } from "./scoring";
