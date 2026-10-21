@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { AI_MODEL, generateStructured, type StructuredResult } from "@/lib/ai/client";
+import {
+  AI_MODEL,
+  generateStructured,
+  thinkingEffortFromEnv,
+  type StructuredResult,
+} from "@/lib/ai/client";
 
 /**
  * Model for role insights. Separate setting because free-tier quotas are per
@@ -103,6 +108,8 @@ export async function generateInsights(input: {
     prompt: buildUserPrompt(input),
     schema: insightsSchema,
     model: INSIGHTS_MODEL,
+    // Unset = model default. GEMINI_INSIGHTS_THINKING=minimal|low|medium|high
+    thinking: thinkingEffortFromEnv("GEMINI_INSIGHTS_THINKING"),
   });
   return { ...result, data: clampInsights(result.data) };
 }

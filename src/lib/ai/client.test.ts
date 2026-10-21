@@ -18,7 +18,14 @@ vi.mock("@google/genai", () => {
 });
 
 const { ApiError } = await import("@google/genai");
-const { AiError, generateStructured, parseRetryDelayMs, toGeminiSchema } = await import("./client");
+const {
+  AiError,
+  generateStructured,
+  parseRetryDelayMs,
+  thinkingConfigFor,
+  thinkingEffortFromEnv,
+  toGeminiSchema,
+} = await import("./client");
 
 const schema = z.object({
   answer: z.string().max(10),
@@ -57,7 +64,7 @@ describe("generateStructured", () => {
     generateContent.mockResolvedValueOnce(ok({ answer: "yes", items: [1] }));
     await expect(call()).resolves.toMatchObject({
       data: { answer: "yes", items: [1] },
-      usage: { inputTokens: 10, outputTokens: 7 },
+      usage: { inputTokens: 10, outputTokens: 7, thoughtTokens: 2 },
     });
   });
 
@@ -149,5 +156,45 @@ describe("parseRetryDelayMs", () => {
     ["no hint here", undefined],
   ])("%s", (msg, expected) => {
     expect(parseRetryDelayMs(msg)).toBe(expected);
+  });
+});
+
+describe("thinking effort", () => {
+  it("uses a token budget on Gemini 2.5 and a level on newer models", () => {
+    expect(thinkingConfigFor("gemini-2.5-flash", "medium")).toEqual({ thinkingBudget: 8192 });
+    expect(thinkingConfigFor("gemini-2.5-flash", "high")).toEqual({ thinkingBudget: 24576 });
+    expect(thinkingConfigFor("gemini-3.5-flash-lite", "medium")).toEqual({
+      thinkingLevel: "MEDIUM",
+    });
+    expect(thinkingConfigFor("gemini-3.5-flash-lite", "high")).toEqual({ thinkingLevel: "HIGH" });
+  });
+
+  it("leaves the model default when unset", () => {
+    expect(thinkingConfigFor("gemini-2.5-flash", undefined)).toBeUndefined();
+  });
+
+  it("reads valid values from env and ignores anything else", () => {
+    vi.stubEnv("TEST_THINKING", " High ");
+    expect(thinkingEffortFromEnv("TEST_THINKING")).toBe("high");
+    vi.stubEnv("TEST_THINKING", "max");
+    expect(thinkingEffortFromEnv("TEST_THINKING")).toBeUndefined();
+    vi.unstubAllEnvs();
+  });
+
+  it("sends the thinking config to the API", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "test-key");
+    generateContent.mockReset();
+    generateContent.mockResolvedValueOnce(ok({ answer: "a", items: [] }));
+    await generateStructured({
+      system: "s",
+      prompt: "p",
+      schema,
+      model: "gemini-3.5-flash-lite",
+      thinking: "high",
+    });
+    expect(generateContent.mock.calls[0][0].config.thinkingConfig).toEqual({
+      thinkingLevel: "HIGH",
+    });
+    vi.unstubAllEnvs();
   });
 });

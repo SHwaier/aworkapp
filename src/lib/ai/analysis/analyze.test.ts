@@ -100,13 +100,14 @@ vi.mock("@/lib/ai/client", () => {
   return {
     AiError,
     AI_MODEL: "test-model",
+    thinkingEffortFromEnv: () => undefined,
     generateStructured: vi.fn(async ({ system }: { system: string }) => {
       const isInsights = system.includes("experienced hiring manager and resume coach");
       if (isInsights && insightsFail) throw new AiError("Role insights service down");
       return {
         data: isInsights ? fakeInsights : fakeOutput,
         model: "test-model",
-        usage: { inputTokens: 1, outputTokens: 2 },
+        usage: { inputTokens: 1, outputTokens: 2, thoughtTokens: 1 },
       };
     }),
   };
@@ -157,7 +158,7 @@ describe("analyzeResumeMatch (fake AI)", () => {
       pageCount: 1,
     });
     expect(insightsError).toBeNull();
-    expect(usage).toEqual({ inputTokens: 2, outputTokens: 4 });
+    expect(usage).toEqual({ inputTokens: 2, outputTokens: 4, thoughtTokens: 2 });
     expect(result.insights?.benchmarks[0].examples).toHaveLength(2);
     expect(result.insights?.actionPlan[0]).toMatchObject({ impact: "high", effort: "medium" });
     expect(result.requirements[0].category).toBe("skill");
