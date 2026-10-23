@@ -66,7 +66,7 @@ function ApplicationDetail({ applicationId }: { applicationId: string }) {
     n > 0 ? <span className="text-xs tabular-nums text-muted-foreground">{n}</span> : null;
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6">
+    <div className="mx-auto w-full max-w-6xl space-y-6 pb-12">
       <ApplicationHeader app={app} onUpdate={update} onDelete={() => setDeleteOpen(true)} />
 
       <Tabs value={tab} onValueChange={(v) => goTo(v as ApplicationTab)}>

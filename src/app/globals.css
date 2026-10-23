@@ -180,3 +180,17 @@
   --viz-axis: #383b42;
   --viz-track: #1e2229;
 }
+
+/* Word previews (docx-preview): the pages sit on the preview's own background,
+   scaled to fit by ResumePreview, instead of the library's gray padded frame */
+.docx-preview .docx-rendered-wrapper {
+  background: transparent;
+  padding: 0;
+}
+.docx-preview .docx-rendered-wrapper > section.docx-rendered {
+  margin-bottom: 16px;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
+}
+.docx-preview .docx-rendered-wrapper > section.docx-rendered:last-child {
+  margin-bottom: 0;
+}
