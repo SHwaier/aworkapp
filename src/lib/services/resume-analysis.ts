@@ -185,7 +185,14 @@ export async function startAnalysis(applicationId: string, userId: string): Prom
 
   const latest = await latestAnalysis(applicationId, userId);
   if (latest && (latest.status === "queued" || latest.status === "running")) {
-    return { analysis: latest, started: false, ctx };
+    // Still analyzing exactly this resume and job: nothing new to start
+    if (latest.inputHash === ctx.inputHash) return { analysis: latest, started: false, ctx };
+    // The resume or job changed mid-run. The old run keeps going (and keeps its
+    // charge) but steps aside so a run for the current inputs can start.
+    await ResumeAnalysis.updateOne(
+      { _id: latest._id, status: { $in: ["queued", "running"] } },
+      { $set: { superseded: true }, $unset: { active: 1 } }
+    );
   }
   // A result from the fallback model is reused only until the main model can redo it
   if (
@@ -378,7 +385,9 @@ export async function runAnalysis(
       completedAt: new Date(),
     });
     await analysis.save();
-    await updateSnapshotScore(ctx, result.score, result.keywords);
+    // A run that was superseded mid-way is kept in history but isn't the current score
+    const superseded = await ResumeAnalysis.exists({ _id: analysis._id, superseded: true });
+    if (!superseded) await updateSnapshotScore(ctx, result.score, result.keywords);
   } catch (err) {
     if (!(err instanceof AiError) || !err.retryable) {
       console.error("Resume analysis failed:", err);
@@ -413,6 +422,8 @@ export interface AnalysisOverview {
   reason: string | null;
   /** True when the latest complete analysis already reflects the current resume and job */
   upToDate: boolean;
+  /** A run is in progress, but for a resume or job that has since changed */
+  inProgressOutdated: boolean;
   quota: AiQuotaStatus;
 }
 
@@ -458,6 +469,12 @@ export async function getAnalysisOverview(
       latestComplete &&
       latestComplete.inputHash === context.ctx.inputHash &&
       !latestComplete.usedFallback
+    ),
+    inProgressOutdated: !!(
+      context.ready &&
+      analysis &&
+      (analysis.status === "queued" || analysis.status === "running") &&
+      analysis.inputHash !== context.ctx.inputHash
     ),
     quota,
   };

@@ -60,5 +60,7 @@ export interface Overview {
   ready: boolean;
   reason: string | null;
   upToDate: boolean;
+  /** A run is in progress for a resume or job that has since changed */
+  inProgressOutdated?: boolean;
   quota: { used: number; limit: number | null; resetsAt: string };
 }

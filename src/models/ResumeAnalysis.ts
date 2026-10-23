@@ -40,6 +40,12 @@ export interface IResumeAnalysis extends Document {
   usedFallback: boolean;
   /** Copied from this earlier analysis of the same resume text and job (no AI call) */
   reusedFromId: mongoose.Types.ObjectId | null;
+  /**
+   * The resume or job changed while this run was in progress and a newer run was
+   * started. It still finishes (and keeps its charge) but never becomes the
+   * application's current score.
+   */
+  superseded: boolean;
   status: AnalysisStatus;
   /** Set while queued/running; a partial unique index allows one active run per application */
   active?: boolean;
@@ -173,6 +179,7 @@ const ResumeAnalysisSchema = new Schema<IResumeAnalysis>(
     promptVersion: { type: String, required: true },
     usedFallback: { type: Boolean, default: false },
     reusedFromId: { type: Schema.Types.ObjectId, ref: "ResumeAnalysis", default: null },
+    superseded: { type: Boolean, default: false },
     status: { type: String, enum: ANALYSIS_STATUSES, default: "queued" },
     active: { type: Boolean },
     error: { type: String, default: null },

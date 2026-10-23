@@ -63,6 +63,10 @@ show must be a `[placeholder]`, and missing job keywords are bracketed in code a
   Not charged.
 - New runs execute in the background (`after()`); the client polls `GET`.
 - One active run per application (partial unique index). Runs stuck > 5 min are failed and refunded.
+- Changing the resume or job while a run is in progress doesn't block a new one: the overview
+  reports `inProgressOutdated`, and Analyze starts a run for the current inputs (charged). The
+  old run is marked `superseded`, keeps its charge, finishes in the background, and is kept in
+  history (its result can be reused later) but never sets the application's score.
 - **Fallback model**: when the main model is overloaded (5xx), times out, is out of quota, or
   returns bad output twice, the call goes straight to `GEMINI_FALLBACK_MODEL` (or the older
   `GEMINI_INSIGHTS_MODEL`). Such results are marked `usedFallback`, aren't copied to other
