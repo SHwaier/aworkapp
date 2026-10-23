@@ -13,7 +13,7 @@ import {
 import { successResponse, errorResponse, handleApiError } from "@/lib/api/response";
 import { createAuditLog } from "@/models/AuditLog";
 import { checkRateLimit, getClientIp, RATE_LIMITS, rateLimitHeaders } from "@/lib/rate-limit";
-import ResumeAnalysis from "@/models/ResumeAnalysis";
+import { deleteApplicationAnalyses } from "@/lib/services/resume-analysis";
 import { removeApplicationResume } from "@/lib/services/resume";
 
 interface RouteParams {
@@ -211,7 +211,7 @@ export async function DELETE(request: Request, { params }: RouteParams): Promise
     await Promise.all([
       TimelineEvent.deleteMany({ userId: session.id, applicationId: id }),
       Note.deleteMany({ userId: session.id, applicationId: id }),
-      ResumeAnalysis.deleteMany({ userId: session.id, applicationId: id }),
+      deleteApplicationAnalyses(id, session.id),
       removeApplicationResume(id, session.id),
     ]);
 

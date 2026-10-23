@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { sanitizeText, sanitizeUrl } from "@/lib/security/sanitize";
+import { sanitizeMultiline, sanitizeText, sanitizeUrl } from "@/lib/security/sanitize";
 
 /**
  * An update schema from a create schema's partial: keeps only the fields the request sent.
@@ -168,7 +168,7 @@ export const createCompanySchema = z.object({
     .max(5000)
     .optional()
     .default("")
-    .transform((val) => sanitizeText(val, 5000)),
+    .transform((val) => sanitizeMultiline(val, 5000)),
   rating: z.number().min(0).max(5).optional().default(0),
   tags: z.array(z.string().max(50)).max(20).optional().default([]),
   doNotApplyAgain: z.boolean().optional().default(false),
@@ -272,7 +272,7 @@ export const createApplicationSchema = z.object({
     .max(50000)
     .optional()
     .default("")
-    .transform((val) => sanitizeText(val, 50000)),
+    .transform((val) => sanitizeMultiline(val, 50000)),
   jobUrl: z.preprocess(
     (val) => val || undefined,
     z
@@ -362,7 +362,7 @@ export const createTimelineEventSchema = z.object({
     .max(5000)
     .optional()
     .default("")
-    .transform((val) => sanitizeText(val, 5000)),
+    .transform((val) => sanitizeMultiline(val, 5000)),
   statusAfterEvent: z.enum(APPLICATION_STATUSES).optional(),
   lifecycleStageAfterEvent: z.enum(LIFECYCLE_STAGES).optional(),
   eventDate: z.string().min(1, "Event date is required"),
@@ -408,7 +408,7 @@ export const createNoteSchema = z.object({
     .string()
     .min(1, "Note body is required")
     .max(10000)
-    .transform((val) => sanitizeText(val, 10000)),
+    .transform((val) => sanitizeMultiline(val, 10000)),
   pinned: z.boolean().optional().default(false),
 });
 
@@ -441,7 +441,10 @@ export const updateResumeSchema = z
     targetRole: resumeText(200),
     targetIndustry: resumeText(200),
     skillsEmphasized: z.array(z.string().max(100)).max(30),
-    notes: resumeText(5000),
+    notes: z
+      .string()
+      .max(5000)
+      .transform((val) => sanitizeMultiline(val, 5000)),
     isActive: z.boolean(),
   })
   .partial();

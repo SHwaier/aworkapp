@@ -6,6 +6,7 @@ import "@/models/Application";
 import "@/models/File";
 import "@/models/Resume";
 import "@/models/ResumeAnalysis";
+import "@/models/JobProfile";
 
 const MONGODB_URI = process.env.MONGODB_URI;
 

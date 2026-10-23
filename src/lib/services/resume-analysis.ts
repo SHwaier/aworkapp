@@ -8,9 +8,16 @@ import ResumeAnalysis, {
   type IResumeAnalysis,
   type SuggestionStatus,
 } from "@/models/ResumeAnalysis";
+import JobProfile from "@/models/JobProfile";
 import { AppError } from "@/lib/api/app-error";
 import { AI_MODEL, AiError } from "@/lib/ai/client";
-import { analyzeResumeMatch, PROMPT_VERSION } from "@/lib/ai/analysis";
+import {
+  analyzeResumeMatch,
+  jobFingerprintText,
+  PROMPT_VERSION,
+  type JobProfile as JobProfileData,
+} from "@/lib/ai/analysis";
+import { runFormatChecks } from "@/lib/ai/analysis/format-checks";
 import {
   consumeAiQuota,
   getAiQuota,
@@ -37,6 +44,9 @@ export interface AnalysisContext {
   resumeVersionName: string;
   fileId: mongoose.Types.ObjectId;
   textHash: string;
+  /** Fingerprint of the job (cleaned text, title, company) for this prompt version and model */
+  profileHash: string;
+  /** Fingerprint of resume text + job: equal = the same analysis */
   inputHash: string;
 }
 
@@ -94,6 +104,16 @@ export async function loadAnalysisContext(
 
   const jobTitle = app.jobTitle || "";
   const companyName = (app.companyId as unknown as { name?: string } | null)?.name || "the company";
+  const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
+  const profileHash = sha256(
+    [
+      sha256(jobFingerprintText(jobDescription)),
+      sha256(norm(jobTitle)),
+      sha256(norm(companyName)),
+      PROMPT_VERSION,
+      AI_MODEL,
+    ].join("|")
+  );
 
   return {
     ready: true,
@@ -107,16 +127,8 @@ export async function loadAnalysisContext(
       resumeVersionName: versionLabel(resume.name, file.versionNumber ?? null),
       fileId,
       textHash,
-      inputHash: sha256(
-        [
-          textHash,
-          sha256(jobTitle),
-          sha256(companyName),
-          sha256(jobDescription),
-          PROMPT_VERSION,
-          AI_MODEL,
-        ].join("|")
-      ),
+      profileHash,
+      inputHash: sha256([textHash, profileHash].join("|")),
     },
   };
 }
@@ -175,8 +187,26 @@ export async function startAnalysis(applicationId: string, userId: string): Prom
   if (latest && (latest.status === "queued" || latest.status === "running")) {
     return { analysis: latest, started: false, ctx };
   }
-  if (latest && latest.status === "complete" && latest.inputHash === ctx.inputHash) {
+  // A result from the fallback model is reused only until the main model can redo it
+  if (
+    latest &&
+    latest.status === "complete" &&
+    latest.inputHash === ctx.inputHash &&
+    !latest.usedFallback
+  ) {
     return { analysis: latest, started: false, ctx };
+  }
+
+  // The same resume text was analyzed against the same job before, in any of the
+  // user's applications: copy that result instead of calling the AI (free)
+  const earlier = await ResumeAnalysis.findOne({
+    userId,
+    inputHash: ctx.inputHash,
+    status: "complete",
+    usedFallback: { $ne: true },
+  }).sort({ createdAt: -1 });
+  if (earlier) {
+    return { analysis: await copyAnalysis(earlier, ctx), started: false, ctx };
   }
 
   const quotaDay = utcDay();
@@ -191,6 +221,7 @@ export async function startAnalysis(applicationId: string, userId: string): Prom
       fileId: ctx.fileId,
       resumeVersionName: ctx.resumeVersionName,
       inputHash: ctx.inputHash,
+      profileHash: ctx.profileHash,
       aiModel: AI_MODEL,
       promptVersion: PROMPT_VERSION,
       status: "queued",
@@ -210,6 +241,101 @@ export async function startAnalysis(applicationId: string, userId: string): Prom
   return { analysis, started: true, ctx };
 }
 
+/** Save an earlier result as this application's latest analysis, without an AI call. */
+async function copyAnalysis(
+  source: IResumeAnalysis,
+  ctx: AnalysisContext
+): Promise<IResumeAnalysis> {
+  const src = source.toObject();
+  // Same text, but page count comes from this file, so formatting checks are redone (no AI)
+  const { text, pageCount } = await ensureFileText(ctx.fileId, ctx.userId);
+  const now = new Date();
+  const copy = await ResumeAnalysis.create({
+    userId: ctx.userId,
+    applicationId: ctx.applicationId,
+    resumeId: ctx.resumeId,
+    fileId: ctx.fileId,
+    resumeVersionName: ctx.resumeVersionName,
+    inputHash: ctx.inputHash,
+    profileHash: ctx.profileHash,
+    aiModel: src.aiModel,
+    promptVersion: src.promptVersion,
+    usedFallback: false,
+    reusedFromId: src._id,
+    status: "complete",
+    quotaDay: null,
+    score: src.score,
+    summary: src.summary,
+    requirements: src.requirements,
+    keywords: src.keywords,
+    // Done/dismissed is tracked per application, so suggestions start open again
+    suggestions: src.suggestions.map((s: IResumeAnalysis["suggestions"][number]) => ({
+      type: s.type,
+      priority: s.priority,
+      title: s.title,
+      original: s.original,
+      suggestedText: s.suggestedText,
+      rationale: s.rationale,
+      requiresVerification: s.requiresVerification,
+      status: "open",
+    })),
+    formatChecks: runFormatChecks(text.split("\n").filter(Boolean), pageCount),
+    insights: src.insights,
+    insightsError: null,
+    usage: { inputTokens: 0, outputTokens: 0, thoughtTokens: 0 },
+    startedAt: now,
+    completedAt: now,
+  });
+  await updateSnapshotScore(ctx, copy.score ?? 0, copy.keywords);
+  return copy;
+}
+
+async function updateSnapshotScore(
+  ctx: AnalysisContext,
+  score: number,
+  keywords: { term: string; inResume: boolean }[]
+): Promise<void> {
+  await ResumeSnapshot.updateOne(
+    { applicationId: ctx.applicationId, userId: ctx.userId },
+    {
+      $set: {
+        matchScore: score,
+        keywordsMissing: keywords.filter((k) => !k.inResume).map((k) => k.term),
+      },
+    }
+  );
+}
+
+/** The saved profile for this job, if the main model produced one */
+async function findJobProfile(ctx: AnalysisContext): Promise<JobProfileData | null> {
+  const doc = await JobProfile.findOne({
+    userId: ctx.userId,
+    profileHash: ctx.profileHash,
+    usedFallback: false,
+  }).lean();
+  return (doc?.profile as JobProfileData | undefined) ?? null;
+}
+
+/** Save a new job profile. A fallback-made profile never replaces a main-model one. */
+async function saveJobProfile(
+  ctx: AnalysisContext,
+  profile: JobProfileData,
+  model: string,
+  usedFallback: boolean
+): Promise<void> {
+  const fields = { profile, aiModel: model, promptVersion: PROMPT_VERSION, usedFallback };
+  try {
+    await JobProfile.updateOne(
+      { userId: ctx.userId, profileHash: ctx.profileHash },
+      usedFallback ? { $setOnInsert: fields } : { $set: fields },
+      { upsert: true }
+    );
+  } catch (err) {
+    // Another run saved it at the same moment
+    if ((err as { code?: number }).code !== 11000) throw err;
+  }
+}
+
 /** Run a queued analysis to completion. Never throws; failures are recorded on the document. */
 export async function runAnalysis(
   analysisId: mongoose.Types.ObjectId,
@@ -224,18 +350,22 @@ export async function runAnalysis(
 
   try {
     const { text, pageCount } = await ensureFileText(ctx.fileId, ctx.userId);
-    const { result, model, usage, insightsError } = await analyzeResumeMatch({
+    const savedProfile = await findJobProfile(ctx);
+    const { result, model, usage, usedFallback, profile, profileIsNew } = await analyzeResumeMatch({
       jobTitle: ctx.jobTitle,
       companyName: ctx.companyName,
       jobDescription: ctx.jobDescription,
       resumeText: text,
       pageCount,
+      profile: savedProfile,
     });
+    if (profileIsNew) await saveJobProfile(ctx, profile, model, usedFallback);
 
     analysis.set({
       status: "complete",
       active: undefined,
       aiModel: model,
+      usedFallback,
       usage,
       score: result.score,
       summary: result.summary,
@@ -244,20 +374,11 @@ export async function runAnalysis(
       suggestions: result.suggestions.map((s) => ({ ...s, status: "open" })),
       formatChecks: result.formatChecks,
       insights: result.insights,
-      insightsError,
+      insightsError: null,
       completedAt: new Date(),
     });
     await analysis.save();
-
-    await ResumeSnapshot.updateOne(
-      { applicationId: ctx.applicationId, userId: ctx.userId },
-      {
-        $set: {
-          matchScore: result.score,
-          keywordsMissing: result.keywords.filter((k) => !k.inResume).map((k) => k.term),
-        },
-      }
-    );
+    await updateSnapshotScore(ctx, result.score, result.keywords);
   } catch (err) {
     if (!(err instanceof AiError) || !err.retryable) {
       console.error("Resume analysis failed:", err);
@@ -331,13 +452,36 @@ export async function getAnalysisOverview(
     })),
     ready: context.ready,
     reason: context.ready ? null : context.reason,
+    // A fallback-model result counts as stale so the user can redo it on the main model
     upToDate: !!(
       context.ready &&
       latestComplete &&
-      latestComplete.inputHash === context.ctx.inputHash
+      latestComplete.inputHash === context.ctx.inputHash &&
+      !latestComplete.usedFallback
     ),
     quota,
   };
+}
+
+/**
+ * Delete an application's analyses, and any saved job profile that no other
+ * analysis of the user still uses (it's derived from that job's description).
+ */
+export async function deleteApplicationAnalyses(
+  applicationId: string,
+  userId: string
+): Promise<void> {
+  const hashes: string[] = (
+    await ResumeAnalysis.distinct("profileHash", { applicationId, userId })
+  ).filter(Boolean);
+  await ResumeAnalysis.deleteMany({ applicationId, userId });
+  if (hashes.length === 0) return;
+  const stillUsed: string[] = await ResumeAnalysis.distinct("profileHash", {
+    userId,
+    profileHash: { $in: hashes },
+  });
+  const unused = hashes.filter((h) => !stillUsed.includes(h));
+  if (unused.length) await JobProfile.deleteMany({ userId, profileHash: { $in: unused } });
 }
 
 export async function updateSuggestionStatus(

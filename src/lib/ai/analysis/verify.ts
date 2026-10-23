@@ -1,4 +1,4 @@
-import type { AiAnalysisOutput } from "./schema";
+import type { RawAnalysis, RawRequirement, RawSuggestion } from "./schema";
 import type { AnalysisKeyword, AnalysisRequirement, AnalysisSuggestion, Coverage } from "./types";
 
 /** Lowercase and collapse whitespace/punctuation runs for tolerant quote matching. */
@@ -39,7 +39,10 @@ const DOWNGRADE: Record<Coverage, Coverage> = {
  * (or anywhere in the resume). Unsupported claims are downgraded one level.
  */
 export function verifyRequirements(
-  requirements: AiAnalysisOutput["requirements"],
+  requirements: Pick<
+    RawRequirement,
+    "text" | "category" | "importance" | "coverage" | "evidenceLines" | "evidenceQuote" | "note"
+  >[],
   lines: string[]
 ): AnalysisRequirement[] {
   const fullText = normalizeForMatch(lines.join("\n"));
@@ -102,7 +105,7 @@ const GENERIC_KEYWORDS = new Set([
 ]);
 
 export function verifyKeywords(
-  keywords: AiAnalysisOutput["keywords"],
+  keywords: RawAnalysis["keywords"],
   resumeText: string
 ): AnalysisKeyword[] {
   const seen = new Set<string>();
@@ -125,7 +128,7 @@ export function verifyKeywords(
  * and drop suggestions that point at lines that don't exist or change nothing.
  */
 export function verifySuggestions(
-  suggestions: AiAnalysisOutput["suggestions"],
+  suggestions: RawSuggestion[],
   lines: string[]
 ): AnalysisSuggestion[] {
   const out: AnalysisSuggestion[] = [];

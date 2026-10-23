@@ -145,11 +145,26 @@ export function ResumeAnalysisPanel({ applicationId }: { applicationId: string }
 
         {complete && band && (
           <>
-            {!overview.upToDate && overview.ready && !inProgress && (
+            {complete.usedFallback && !inProgress ? (
               <Notice icon={<RotateCcw className="h-4 w-4 text-amber-600" />}>
-                Your resume or the job description changed since this analysis. Re-analyze to update
-                it.
+                The main AI model was busy, so a backup model made this analysis. Re-analyze later
+                for the full-quality result.
               </Notice>
+            ) : (
+              !overview.upToDate &&
+              overview.ready &&
+              !inProgress && (
+                <Notice icon={<RotateCcw className="h-4 w-4 text-amber-600" />}>
+                  Your resume or the job description changed since this analysis. Re-analyze to
+                  update it.
+                </Notice>
+              )
+            )}
+            {complete.reused && (
+              <p className="text-xs text-muted-foreground">
+                This resume was already analyzed against this job, so the earlier result was reused.
+                It didn&apos;t use any of today&apos;s analyses.
+              </p>
             )}
 
             <div className="flex flex-col gap-5 sm:flex-row sm:items-start">

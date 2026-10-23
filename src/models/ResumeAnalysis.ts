@@ -27,10 +27,19 @@ export interface IResumeAnalysis extends Document {
   fileId: mongoose.Types.ObjectId;
   /** Label of the analyzed version at analysis time, e.g. "Backend Resume v2" */
   resumeVersionName: string;
-  /** Hash of everything that determines the result; equal hash = nothing changed */
+  /**
+   * Fingerprint of everything that determines the result (resume text + job profile
+   * fingerprint). Equal hash = same result, so it's reused instead of re-run.
+   */
   inputHash: string;
+  /** Fingerprint of the job profile used (see JobProfile) */
+  profileHash: string;
   aiModel: string;
   promptVersion: string;
+  /** The main model failed and the fallback produced this result */
+  usedFallback: boolean;
+  /** Copied from this earlier analysis of the same resume text and job (no AI call) */
+  reusedFromId: mongoose.Types.ObjectId | null;
   status: AnalysisStatus;
   /** Set while queued/running; a partial unique index allows one active run per application */
   active?: boolean;
@@ -45,6 +54,7 @@ export interface IResumeAnalysis extends Document {
   formatChecks: FormatCheck[];
   /** Role benchmarks and action plan; null for older analyses or if generation failed */
   insights: AnalysisInsights | null;
+  /** Only set on analyses from before insights and the match became one call */
   insightsError: string | null;
   usage: { inputTokens: number; outputTokens: number; thoughtTokens?: number };
   startedAt: Date | null;
@@ -158,8 +168,11 @@ const ResumeAnalysisSchema = new Schema<IResumeAnalysis>(
     fileId: { type: Schema.Types.ObjectId, ref: "File", required: true },
     resumeVersionName: { type: String, default: "" },
     inputHash: { type: String, required: true },
+    profileHash: { type: String, default: "" },
     aiModel: { type: String, required: true },
     promptVersion: { type: String, required: true },
+    usedFallback: { type: Boolean, default: false },
+    reusedFromId: { type: Schema.Types.ObjectId, ref: "ResumeAnalysis", default: null },
     status: { type: String, enum: ANALYSIS_STATUSES, default: "queued" },
     active: { type: Boolean },
     error: { type: String, default: null },
@@ -189,6 +202,9 @@ const ResumeAnalysisSchema = new Schema<IResumeAnalysis>(
         delete ret.__v;
         delete ret.quotaDay;
         delete ret.inputHash;
+        delete ret.profileHash;
+        ret.reused = !!ret.reusedFromId;
+        delete ret.reusedFromId;
         delete ret.active;
         if (Array.isArray(ret.suggestions)) {
           ret.suggestions = (ret.suggestions as Record<string, unknown>[]).map(
@@ -202,6 +218,8 @@ const ResumeAnalysisSchema = new Schema<IResumeAnalysis>(
 );
 
 ResumeAnalysisSchema.index({ userId: 1, applicationId: 1, createdAt: -1 });
+// Finds an earlier result for the same resume text and job, across all applications
+ResumeAnalysisSchema.index({ userId: 1, inputHash: 1, status: 1 });
 ResumeAnalysisSchema.index(
   { applicationId: 1 },
   {

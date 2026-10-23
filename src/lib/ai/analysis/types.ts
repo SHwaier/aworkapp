@@ -98,3 +98,25 @@ export interface AnalysisResult {
   /** null when the insights call failed; the core analysis is still valid */
   insights: AnalysisInsights | null;
 }
+
+// ─── Job profile: everything that depends only on the job, reused across resume versions ───
+
+export interface ProfileRequirement {
+  text: string;
+  category: RequirementCategory;
+  importance: Importance;
+}
+
+export interface ProfileBenchmark {
+  area: BenchmarkArea;
+  title: string;
+  typical: string;
+}
+
+export interface JobProfile {
+  seniority: AnalysisInsights["seniority"];
+  roleSummary: string;
+  requirements: ProfileRequirement[];
+  keywords: { term: string; importance: Importance }[];
+  benchmarks: ProfileBenchmark[];
+}
