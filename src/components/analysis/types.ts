@@ -37,6 +37,10 @@ export interface Analysis {
   formatChecks: FormatCheck[];
   insights?: AnalysisInsights | null;
   insightsError?: string | null;
+  /** Copied from an earlier analysis of the same resume text and job (no AI call) */
+  reused?: boolean;
+  /** Made by the backup model because the main one was busy or out of quota */
+  usedFallback?: boolean;
   completedAt: string | null;
   createdAt: string;
 }
@@ -56,5 +60,7 @@ export interface Overview {
   ready: boolean;
   reason: string | null;
   upToDate: boolean;
+  /** A run is in progress for a resume or job that has since changed */
+  inProgressOutdated?: boolean;
   quota: { used: number; limit: number | null; resetsAt: string };
 }

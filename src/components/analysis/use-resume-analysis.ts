@@ -97,9 +97,11 @@ export function useResumeAnalysis(applicationId: string) {
   const complete = latestComplete && latestComplete.score !== null ? latestComplete : null;
   const quota = overview?.quota ?? null;
   const remaining = !quota || quota.limit === null ? null : Math.max(0, quota.limit - quota.used);
+  // A run for an old resume version doesn't block analyzing the current one
+  const outdatedRun = inProgress && !!overview?.inProgressOutdated;
   const canRun =
     !!overview?.ready &&
-    !inProgress &&
+    (!inProgress || outdatedRun) &&
     (remaining === null || remaining > 0) &&
     !(overview.upToDate && complete);
 
@@ -108,6 +110,7 @@ export function useResumeAnalysis(applicationId: string) {
     analysis,
     complete,
     inProgress,
+    outdatedRun,
     remaining,
     canRun,
     loadError,

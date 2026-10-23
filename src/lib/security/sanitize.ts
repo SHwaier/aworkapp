@@ -65,16 +65,16 @@ function isPrivateHost(hostname: string): boolean {
 
   // Block private IP ranges
   const privateRanges = [
-    /^10\.\d+\.\d+\.\d+$/,           // 10.0.0.0/8
+    /^10\.\d+\.\d+\.\d+$/, // 10.0.0.0/8
     /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/, // 172.16.0.0/12
-    /^192\.168\.\d+\.\d+$/,          // 192.168.0.0/16
-    /^169\.254\.\d+\.\d+$/,          // Link-local
+    /^192\.168\.\d+\.\d+$/, // 192.168.0.0/16
+    /^169\.254\.\d+\.\d+$/, // Link-local
     /^100\.(6[4-9]|[7-9]\d|1[0-2]\d)\.\d+\.\d+$/, // CGNAT
   ];
 
   // Block cloud metadata endpoints
   const metadataHosts = [
-    "169.254.169.254",   // AWS/GCP metadata
+    "169.254.169.254", // AWS/GCP metadata
     "metadata.google.internal",
     "metadata.google.com",
   ];
@@ -94,11 +94,23 @@ export function normalizeWhitespace(input: string): string {
 }
 
 /**
+ * Sanitize multi-line text (job descriptions, notes): strip HTML and tidy spacing,
+ * but keep line breaks, which carry structure such as section headings and bullets.
+ */
+export function sanitizeMultiline(input: string, maxLength: number = 10000): string {
+  return stripHtml(input)
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((line) => line.replace(/[^\S\n]+/g, " ").trim())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+    .slice(0, maxLength);
+}
+
+/**
  * Sanitize a general text input — trim, normalize, and limit length.
  */
-export function sanitizeText(
-  input: string,
-  maxLength: number = 10000
-): string {
+export function sanitizeText(input: string, maxLength: number = 10000): string {
   return normalizeWhitespace(stripHtml(input)).slice(0, maxLength);
 }

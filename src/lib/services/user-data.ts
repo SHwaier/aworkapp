@@ -8,6 +8,7 @@ import TimelineEvent from "@/models/TimelineEvent";
 import Resume from "@/models/Resume";
 import ResumeSnapshot from "@/models/ResumeSnapshot";
 import ResumeAnalysis from "@/models/ResumeAnalysis";
+import JobProfile from "@/models/JobProfile";
 import AiUsage from "@/models/AiUsage";
 import AuditLog from "@/models/AuditLog";
 import RefreshToken from "@/models/RefreshToken";
@@ -47,6 +48,7 @@ export async function deleteUserAndData(user: {
     Resume.deleteMany({ userId: user._id }),
     ResumeSnapshot.deleteMany({ userId: user._id }),
     ResumeAnalysis.deleteMany({ userId: user._id }),
+    JobProfile.deleteMany({ userId: user._id }),
     AiUsage.deleteMany({ userId: user._id }),
     AuditLog.deleteMany({ userId: user._id }),
     RefreshToken.deleteMany({ userId: user._id }),

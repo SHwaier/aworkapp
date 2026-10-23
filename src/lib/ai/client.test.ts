@@ -93,6 +93,22 @@ describe("generateStructured", () => {
     expect(generateContent).toHaveBeenCalledTimes(1);
   });
 
+  it("waits out a per-minute quota instead of treating it as the daily one", async () => {
+    generateContent
+      .mockRejectedValueOnce(
+        new ApiError({
+          status: 429,
+          message:
+            "You exceeded your current quota... GenerateContentInputTokensPerModelPerMinute-FreeTier. Please retry in 5s.",
+        })
+      )
+      .mockResolvedValueOnce(ok({ answer: "ok", items: [] }));
+    const promise = call();
+    await vi.runAllTimersAsync();
+    await expect(promise).resolves.toMatchObject({ data: { answer: "ok" } });
+    expect(generateContent).toHaveBeenCalledTimes(2);
+  });
+
   it("waits the delay the API asks for on a short rate limit, then retries", async () => {
     generateContent
       .mockRejectedValueOnce(
@@ -145,6 +161,69 @@ describe("generateStructured", () => {
     generateContent.mockResolvedValueOnce(ok({ answer: "a", items: [] }));
     await call();
     expect(JSON.stringify(generateContent.mock.calls[0])).not.toContain("test-key");
+  });
+});
+
+describe("fallback model", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.stubEnv("GEMINI_API_KEY", "test-key");
+    generateContent.mockReset();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
+  });
+
+  const call = () =>
+    generateStructured({
+      system: "s",
+      prompt: "p",
+      schema,
+      model: "main",
+      fallbackModel: "backup",
+    });
+  const modelsCalled = () => generateContent.mock.calls.map((c) => c[0].model);
+
+  it("hands an overloaded main model straight to the fallback", async () => {
+    generateContent
+      .mockRejectedValueOnce(new ApiError({ status: 503, message: "high demand" }))
+      .mockResolvedValueOnce(ok({ answer: "ok", items: [] }));
+    const promise = call();
+    await vi.runAllTimersAsync();
+    await expect(promise).resolves.toMatchObject({ model: "backup", usedFallback: true });
+    expect(modelsCalled()).toEqual(["main", "backup"]);
+  });
+
+  it("uses the fallback when the main model's daily quota is gone", async () => {
+    generateContent
+      .mockRejectedValueOnce(
+        new ApiError({ status: 429, message: "exceeded your current quota ...PerDay..." })
+      )
+      .mockResolvedValueOnce(ok({ answer: "ok", items: [] }));
+    await expect(call()).resolves.toMatchObject({ usedFallback: true });
+  });
+
+  it("retries bad output once on the main model before switching", async () => {
+    generateContent
+      .mockResolvedValueOnce({ text: "not json" })
+      .mockResolvedValueOnce({ text: "still not json" })
+      .mockResolvedValueOnce(ok({ answer: "ok", items: [] }));
+    const promise = call();
+    await vi.runAllTimersAsync();
+    await expect(promise).resolves.toMatchObject({ usedFallback: true });
+    expect(modelsCalled()).toEqual(["main", "main", "backup"]);
+  });
+
+  it("doesn't switch for a rejected request", async () => {
+    generateContent.mockRejectedValue(new ApiError({ status: 400, message: "bad schema" }));
+    await expect(call()).rejects.toMatchObject({ kind: "rejected" });
+    expect(modelsCalled()).toEqual(["main"]);
+  });
+
+  it("reports the result as from the main model when it succeeds", async () => {
+    generateContent.mockResolvedValueOnce(ok({ answer: "ok", items: [] }));
+    await expect(call()).resolves.toMatchObject({ model: "main", usedFallback: false });
   });
 });
 

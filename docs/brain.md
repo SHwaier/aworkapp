@@ -185,6 +185,16 @@ AWorkApp is a modern, premium SaaS platform built on **Next.js** (using App Rout
 - **Fix: phone layout**: `<main>` in the app shell needed `min-w-0`, and page containers with `mx-auto` need `w-full`; otherwise wide content stretched pages past the screen.
 - **Fix: toasts**: Toasts moved to the bottom right, and the old CSS rule that hid bottom toasters (for the removed editor) was deleted.
 
+### U. AI Efficiency (one call, saved job profiles, reuse, fallback)
+
+- **One call per analysis** instead of two. The first analysis of a job also returns its **job profile** (requirements, keywords, role benchmarks), saved in `JobProfile`; later analyses of other resume versions send that saved list instead of the job description, so all versions are scored against the same requirements.
+- **Condensed rulebook** (`rulebook.ts`, ~900 tokens) replaces the 9,000-token verbatim reference in prompts. **Boilerplate stripping** (`job-text.ts`) removes company blurbs, benefits, EEO and application text before sending and fingerprinting.
+- **Fingerprint reuse**: an analysis is keyed by the resume's text hash plus the job fingerprint (cleaned job text, title, company, prompt version, main model). A fingerprint you've analyzed before, in any application, is copied (`reusedFromId`) instead of re-run and isn't charged. Per user only.
+- **Fallback model** (`GEMINI_FALLBACK_MODEL`, or the older `GEMINI_INSIGHTS_MODEL`): overloaded, timed-out, out-of-quota, or bad-output calls hand over at once instead of retrying for minutes. Fallback results are marked `usedFallback`, not copied elsewhere, and can be redone.
+- **Fix: per-minute limits** were treated as the daily quota (same "exceeded your current quota" text) and failed the analysis; they're now waited out.
+- **Fix: line breaks**: `sanitizeText` collapsed all whitespace, so job descriptions and notes were stored as one line. Multi-line fields now use `sanitizeMultiline`. Older saved text stays flattened.
+- Evaluation (`npm run eval:ai`, `docs/experiments/ai-efficiency.md`): 87% fewer input tokens, half the calls, same ground-truth accuracy, stable requirement lists across versions. `PROMPT_VERSION` is `resume-match.v6`, so older results show as out of date once.
+
 ---
 
 ## 3. Database Schema Overview
@@ -225,6 +235,10 @@ AWorkApp is a modern, premium SaaS platform built on **Next.js** (using App Rout
 - Resume versions also have `resumeId`, `versionNumber`, `versionNote`, and `restoredFromVersion`. Files without a `resumeId` are the "Other files" in Documents.
 - `storageKey` (hidden by default) can be shared by restored copies.
 
+### JobProfile Model (`src/models/JobProfile.ts`)
+
+- `userId`, `profileHash` (unique together), `aiModel`, `promptVersion`, `usedFallback`, and `profile` (requirements, keywords, benchmarks, seniority, role summary). Deleted with the last analysis that uses it.
+
 ### ResumeSnapshot Model (`src/models/ResumeSnapshot.ts`)
 
 - One per application: `applicationId`, `resumeId`, `fileId` (the pinned version), `isLocked`, plus `matchScore` and `keywordsMissing`.
@@ -242,6 +256,6 @@ AWorkApp is a modern, premium SaaS platform built on **Next.js** (using App Rout
 ### Suggested Next Steps
 
 1. **Production migrations**: Run `migrate:ai-redesign`, then `migrate:resume-versioning` (dry run, then `-- --apply`) on the production database.
-2. **Thinking comparison**: Finish the main-analysis measurement in `docs/experiments/gemini-thinking-effort.md` once Gemini quota allows.
+2. **Thinking comparison**: Re-measure thinking settings on the one-call pipeline with `GEMINI_THINKING=<level> npm run eval:ai`.
 3. **Analytics Customization**: Build detailed analytics graphs and report summaries in `src/app/(dashboard)/analytics/page.tsx`, including which resume versions lead to interviews.
 4. **Other files on applications**: Let an application record which cover letter or other files were sent with it.

@@ -4,11 +4,31 @@ import { z } from "zod";
 /** Model used for all AI features; override with GEMINI_MODEL. */
 export const AI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
+/**
+ * Model to switch to when the main one is overloaded, out of quota, or returns
+ * bad output. GEMINI_FALLBACK_MODEL, or the older GEMINI_INSIGHTS_MODEL setting.
+ * Free-tier quotas are per model, so the fallback has its own headroom.
+ */
+export const FALLBACK_MODEL: string | null = (() => {
+  const m = (process.env.GEMINI_FALLBACK_MODEL || process.env.GEMINI_INSIGHTS_MODEL || "").trim();
+  return m && m !== AI_MODEL ? m : null;
+})();
+
 const REQUEST_TIMEOUT_MS = 90_000;
 const MAX_ATTEMPTS = 3;
 /** Wait out a rate limit only if the API asks for at most this long */
 const MAX_RATE_LIMIT_WAIT_MS = 20_000;
 const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
+
+export type AiErrorKind =
+  | "unavailable" // overloaded or server error
+  | "timeout"
+  | "rate_limit" // per-minute limits
+  | "quota" // daily or plan quota
+  | "bad_output" // empty, malformed, or wrongly shaped response
+  | "rejected" // the request itself is invalid
+  | "config"
+  | "unknown";
 
 /** An AI call failed. `message` is safe to show to users. */
 export class AiError extends Error {
@@ -17,10 +37,16 @@ export class AiError extends Error {
     public readonly retryable: boolean,
     public readonly cause?: unknown,
     /** How long the API asked us to wait before retrying, if it said */
-    public readonly retryAfterMs?: number
+    public readonly retryAfterMs?: number,
+    public readonly kind: AiErrorKind = "unknown"
   ) {
     super(message);
     this.name = "AiError";
+  }
+
+  /** Whether another model might succeed where this one failed */
+  get canFallback(): boolean {
+    return this.kind !== "rejected" && this.kind !== "config";
   }
 }
 
@@ -64,7 +90,10 @@ export function thinkingEffortFromEnv(name: string): ThinkingEffort | undefined 
 
 export interface StructuredResult<T> {
   data: T;
+  /** The model that produced the result */
   model: string;
+  /** True when the main model failed and the fallback answered */
+  usedFallback: boolean;
   usage: AiUsageStats;
 }
 
@@ -72,7 +101,13 @@ let client: GoogleGenAI | null = null;
 
 function getClient(): GoogleGenAI {
   if (!process.env.GEMINI_API_KEY) {
-    throw new AiError("AI analysis isn't configured on this server.", false);
+    throw new AiError(
+      "AI analysis isn't configured on this server.",
+      false,
+      undefined,
+      undefined,
+      "config"
+    );
   }
   // The SDK sends the key in a header, never in the URL
   client ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -114,8 +149,10 @@ export function toGeminiSchema(schema: z.ZodType): Record<string, unknown> {
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Generate JSON that matches `schema`. Retries transient failures with
- * exponential backoff and validates the response before returning it.
+ * Generate JSON that matches `schema`. Retries transient failures and validates
+ * the response. With a fallback model configured, an overloaded or exhausted main
+ * model hands over right away instead of being retried, so users aren't left
+ * waiting through long retries.
  */
 export async function generateStructured<T>({
   system,
@@ -124,6 +161,10 @@ export async function generateStructured<T>({
   temperature = 0,
   model = AI_MODEL,
   thinking,
+  fallbackModel = FALLBACK_MODEL,
+  fallbackThinking = thinkingEffortFromEnv("GEMINI_FALLBACK_THINKING") ??
+    thinkingEffortFromEnv("GEMINI_INSIGHTS_THINKING") ??
+    thinking,
 }: {
   system: string;
   prompt: string;
@@ -133,12 +174,48 @@ export async function generateStructured<T>({
   model?: string;
   /** How much the model thinks before answering; undefined = model default */
   thinking?: ThinkingEffort;
+  /** null disables the fallback */
+  fallbackModel?: string | null;
+  fallbackThinking?: ThinkingEffort;
 }): Promise<StructuredResult<T>> {
+  const call = { system, prompt, schema, temperature };
+  try {
+    const result = await callModel(call, model, thinking, fallbackModel ? 2 : MAX_ATTEMPTS, {
+      handOff: !!fallbackModel,
+    });
+    return { ...result, usedFallback: false };
+  } catch (err) {
+    const aiError = toAiError(err);
+    if (!fallbackModel || !aiError.canFallback) throw aiError;
+    console.warn(`AI model ${model} failed (${aiError.kind}); using ${fallbackModel}`);
+    const result = await callModel(call, fallbackModel, fallbackThinking, 2, { handOff: false });
+    return { ...result, usedFallback: true };
+  }
+}
+
+async function callModel<T>(
+  {
+    system,
+    prompt,
+    schema,
+    temperature,
+  }: {
+    system: string;
+    prompt: string;
+    schema: z.ZodType<T>;
+    temperature: number;
+  },
+  model: string,
+  thinking: ThinkingEffort | undefined,
+  maxAttempts: number,
+  /** handOff: give up on outages and timeouts at once, so the fallback can take over */
+  { handOff }: { handOff: boolean }
+): Promise<Omit<StructuredResult<T>, "usedFallback">> {
   const thinkingConfig = thinkingConfigFor(model, thinking);
   const ai = getClient();
   let lastError: unknown;
 
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const response = await ai.models.generateContent({
         model,
@@ -157,19 +234,31 @@ export async function generateStructured<T>({
 
       const raw = response.text;
       if (!raw) {
-        throw new AiError("The AI returned an empty response.", true);
+        throw new AiError(
+          "The AI returned an empty response.",
+          true,
+          undefined,
+          undefined,
+          "bad_output"
+        );
       }
 
       let parsed: unknown;
       try {
         parsed = JSON.parse(raw);
       } catch (err) {
-        throw new AiError("The AI returned malformed output.", true, err);
+        throw new AiError("The AI returned malformed output.", true, err, undefined, "bad_output");
       }
 
       const result = schema.safeParse(parsed);
       if (!result.success) {
-        throw new AiError("The AI returned output in an unexpected shape.", true, result.error);
+        throw new AiError(
+          "The AI returned output in an unexpected shape.",
+          true,
+          result.error,
+          undefined,
+          "bad_output"
+        );
       }
 
       return {
@@ -186,7 +275,8 @@ export async function generateStructured<T>({
     } catch (err) {
       lastError = err;
       const aiError = toAiError(err);
-      if (!aiError.retryable || attempt === MAX_ATTEMPTS) {
+      const outage = aiError.kind === "unavailable" || aiError.kind === "timeout";
+      if (!aiError.retryable || attempt === maxAttempts || (handOff && outage)) {
         throw aiError;
       }
       // Honor the API's requested delay; otherwise 1s, 2s (+ jitter)
@@ -202,12 +292,16 @@ function toAiError(err: unknown): AiError {
   if (err instanceof ApiError) {
     if (err.status === 429) {
       const message = String(err.message);
-      // Daily/plan quota (e.g. free tier): retrying won't help until it resets
-      if (/PerDay|per day|exceeded your current quota/i.test(message)) {
+      // Daily quota (e.g. free tier): retrying won't help until it resets.
+      // Per-minute limits use the same "exceeded your current quota" wording but
+      // come with a short "retry in Ns" hint, so they're waited out below.
+      if (/PerDay|per day/i.test(message)) {
         return new AiError(
-          "The AI service has reached its usage quota for now. Please try again later, or ask an admin to check the Gemini plan.",
+          "The AI service has reached its daily usage quota. Please try again tomorrow, or ask an admin to check the Gemini plan.",
           false,
-          err
+          err,
+          undefined,
+          "quota"
         );
       }
       const retryAfterMs = parseRetryDelayMs(message);
@@ -215,23 +309,38 @@ function toAiError(err: unknown): AiError {
         return new AiError(
           "The AI service is busy right now. Please try again in a few minutes.",
           false,
-          err
+          err,
+          retryAfterMs,
+          "rate_limit"
         );
       }
       return new AiError(
         "The AI service is busy right now. Please try again shortly.",
         true,
         err,
-        retryAfterMs
+        retryAfterMs,
+        "rate_limit"
       );
     }
     if (RETRYABLE_STATUSES.has(err.status)) {
-      return new AiError("The AI service is temporarily unavailable. Please try again.", true, err);
+      return new AiError(
+        "The AI service is temporarily unavailable. Please try again.",
+        true,
+        err,
+        undefined,
+        "unavailable"
+      );
     }
-    return new AiError("The AI service rejected the request.", false, err);
+    return new AiError("The AI service rejected the request.", false, err, undefined, "rejected");
   }
   if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) {
-    return new AiError("The AI took too long to respond. Please try again.", true, err);
+    return new AiError(
+      "The AI took too long to respond. Please try again.",
+      true,
+      err,
+      undefined,
+      "timeout"
+    );
   }
   return new AiError("Something went wrong while contacting the AI service.", true, err);
 }

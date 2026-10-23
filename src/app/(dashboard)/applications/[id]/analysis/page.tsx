@@ -41,6 +41,7 @@ export default function AnalysisReportPage({ params }: RouteParams) {
     analysis,
     complete,
     inProgress,
+    outdatedRun,
     remaining,
     canRun,
     loadError,
@@ -96,12 +97,18 @@ export default function AnalysisReportPage({ params }: RouteParams) {
               disabled={!canRun || isStarting}
               className="w-full gap-1.5 sm:w-auto"
             >
-              {isStarting || inProgress ? (
+              {isStarting || (inProgress && !outdatedRun) ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Sparkles className="h-4 w-4" />
               )}
-              {inProgress ? "Analyzing" : complete ? "Re-analyze" : "Analyze match"}
+              {outdatedRun
+                ? "Analyze current version"
+                : inProgress
+                  ? "Analyzing"
+                  : complete
+                    ? "Re-analyze"
+                    : "Analyze match"}
             </Button>
           </div>
           {overview && (
@@ -131,7 +138,14 @@ export default function AnalysisReportPage({ params }: RouteParams) {
             </Link>
           </Notice>
         )}
-        {inProgress && (
+        {outdatedRun && (
+          <Notice icon={<AlertTriangle className="h-4 w-4 text-amber-500" />}>
+            {
+              "Your resume or the job changed while this analysis was running. It will still finish and counts toward today's limit, but it reflects the earlier version. Analyze again to check the current one."
+            }
+          </Notice>
+        )}
+        {inProgress && !outdatedRun && (
           <Notice icon={<Loader2 className="h-4 w-4 animate-spin text-primary" />}>
             {
               "Analyzing your resume against this job. This usually takes 20 to 40 seconds and the report updates on its own."

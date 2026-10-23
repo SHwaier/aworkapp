@@ -9,7 +9,7 @@ import {
   verifyRequirements,
   verifySuggestions,
 } from "./verify";
-import { clampOutput, type AiAnalysisOutput } from "./schema";
+import { clampOutput, type RawRequirement, type RawSuggestion } from "./schema";
 import { potentialScore, scoreOpportunities } from "./scoring";
 
 const LINES = [
@@ -19,7 +19,7 @@ const LINES = [
   "Skills: C++, C#, .NET, CI/CD, Kubernetes-adjacent tooling",
 ];
 
-type Req = AiAnalysisOutput["requirements"][number];
+type Req = RawRequirement;
 const req = (overrides: Partial<Req>): Req => ({
   text: "Requirement",
   category: "skill",
@@ -128,7 +128,7 @@ describe("verifyKeywords", () => {
 });
 
 describe("verifySuggestions", () => {
-  type Sug = AiAnalysisOutput["suggestions"][number];
+  type Sug = RawSuggestion;
   const sug = (o: Partial<Sug>): Sug => ({
     type: "rewrite_bullet",
     priority: "high",
@@ -182,13 +182,17 @@ describe("computeScore", () => {
 describe("clampOutput", () => {
   it("trims oversized model output instead of rejecting it", () => {
     const out = clampOutput({
+      seniority: "mid",
+      roleSummary: "",
       summary: "x".repeat(2000),
       requirements: Array.from({ length: 40 }, () => req({ evidenceLines: [1, 2, 3, 4, 5, 6, 7] })),
       keywords: [],
+      benchmarks: [],
       suggestions: [],
+      actionPlan: [],
     });
     expect(out.summary.length).toBe(600);
-    expect(out.requirements).toHaveLength(25);
+    expect(out.requirements).toHaveLength(20);
     expect(out.requirements[0].evidenceLines).toHaveLength(5);
   });
 });

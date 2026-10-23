@@ -6,7 +6,7 @@ Date: 2026-10-21. Setting added in `src/lib/ai/client.ts` (`GEMINI_THINKING`, `G
 
 - Same fictional resume and job for every run (`src/lib/ai/analysis/__fixtures__/sample.ts`), each setting run twice to check repeatability.
 - Measured: time, tokens (thinking tokens separately), and how many of the AI's claims our code checks had to correct: requirements downgraded for missing evidence, suggestions dropped, AI buzzwords, and job keywords the resume lacks that appear in templates without `[brackets]`.
-- Re-run any time with `THINKING_SETTINGS=default,medium,high npm run test:thinking` (uses real quota: 2 calls per setting per model).
+- Measured on the earlier two-call pipeline (`resume-match.v5`). The `test:thinking` script was replaced by `npm run eval:ai` (see `ai-efficiency.md`); to compare thinking settings now, run it once per setting, e.g. `GEMINI_THINKING=medium npm run eval:ai`.
 
 ## How the setting maps to each model
 

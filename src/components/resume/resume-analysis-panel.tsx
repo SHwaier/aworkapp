@@ -26,6 +26,7 @@ export function ResumeAnalysisPanel({ applicationId }: { applicationId: string }
     analysis,
     complete,
     inProgress,
+    outdatedRun,
     remaining,
     canRun,
     loadError,
@@ -102,12 +103,18 @@ export function ResumeAnalysisPanel({ applicationId }: { applicationId: string }
             className="gap-1.5"
             id="analyze-resume"
           >
-            {isStarting || inProgress ? (
+            {isStarting || (inProgress && !outdatedRun) ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Sparkles className="h-4 w-4" />
             )}
-            {inProgress ? "Analyzing…" : complete ? "Re-analyze" : "Analyze match"}
+            {outdatedRun
+              ? "Analyze current version"
+              : inProgress
+                ? "Analyzing…"
+                : complete
+                  ? "Re-analyze"
+                  : "Analyze match"}
           </Button>
         </div>
       </CardHeader>
@@ -125,9 +132,16 @@ export function ResumeAnalysisPanel({ applicationId }: { applicationId: string }
               : `You've used all of today's analyses. More are available ${formatDistanceToNow(new Date(quota.resetsAt), { addSuffix: true })}.`}
           </Notice>
         )}
-        {inProgress && (
+        {inProgress && !outdatedRun && (
           <Notice icon={<Loader2 className="h-4 w-4 animate-spin text-primary" />}>
             Analyzing your resume against this job… this usually takes 20–40 seconds.
+          </Notice>
+        )}
+        {outdatedRun && (
+          <Notice icon={<RotateCcw className="h-4 w-4 text-amber-600" />}>
+            Your resume or the job changed while this analysis was running. It will still finish and
+            counts toward today&apos;s limit, but it reflects the earlier version. Analyze again to
+            check the current one.
           </Notice>
         )}
         {analysis?.status === "failed" && (
@@ -145,11 +159,26 @@ export function ResumeAnalysisPanel({ applicationId }: { applicationId: string }
 
         {complete && band && (
           <>
-            {!overview.upToDate && overview.ready && !inProgress && (
+            {complete.usedFallback && !inProgress ? (
               <Notice icon={<RotateCcw className="h-4 w-4 text-amber-600" />}>
-                Your resume or the job description changed since this analysis. Re-analyze to update
-                it.
+                The main AI model was busy, so a backup model made this analysis. Re-analyze later
+                for the full-quality result.
               </Notice>
+            ) : (
+              !overview.upToDate &&
+              overview.ready &&
+              !inProgress && (
+                <Notice icon={<RotateCcw className="h-4 w-4 text-amber-600" />}>
+                  Your resume or the job description changed since this analysis. Re-analyze to
+                  update it.
+                </Notice>
+              )
+            )}
+            {complete.reused && (
+              <p className="text-xs text-muted-foreground">
+                This resume was already analyzed against this job, so the earlier result was reused.
+                It didn&apos;t use any of today&apos;s analyses.
+              </p>
             )}
 
             <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
