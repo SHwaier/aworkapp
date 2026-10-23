@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, Gauge } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -59,7 +59,7 @@ export function AiLimitsCard({
     <Card className="border-border/60">
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-muted-foreground" />
+          <Gauge className="h-5 w-5 text-muted-foreground" />
           AI limits
         </CardTitle>
         <CardDescription>

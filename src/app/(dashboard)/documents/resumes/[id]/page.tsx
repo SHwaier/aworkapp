@@ -368,11 +368,7 @@ function VersionRow({
         >
           <span className="flex items-center gap-2">
             <span className="font-semibold tabular-nums">v{v.versionNumber}</span>
-            {v.isCurrent && (
-              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                Current
-              </span>
-            )}
+            {v.isCurrent && <span className="text-sm font-medium text-primary">Current</span>}
             <span className="text-sm text-muted-foreground">{formatDay(v.uploadedAt)}</span>
           </span>
           {v.note && <span className="mt-1 block text-sm">{v.note}</span>}

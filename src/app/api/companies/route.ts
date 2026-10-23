@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db/mongoose";
+import mongoose from "mongoose";
 import Company from "@/models/Company";
+import Application from "@/models/Application";
 import { requireAuth } from "@/lib/auth/guard";
 import { createCompanySchema, paginationSchema } from "@/lib/validators/schemas";
 import { successResponse, handleApiError } from "@/lib/api/response";
@@ -57,8 +59,23 @@ export async function GET(request: Request): Promise<NextResponse> {
       Company.countDocuments(query),
     ]);
 
+    // How many applications each listed company has, for the list view
+    const counts = await Application.aggregate<{ _id: mongoose.Types.ObjectId; n: number }>([
+      {
+        $match: {
+          userId: new mongoose.Types.ObjectId(session.id),
+          companyId: { $in: companies.map((c) => c._id) },
+        },
+      },
+      { $group: { _id: "$companyId", n: { $sum: 1 } } },
+    ]);
+    const countById = new Map(counts.map((c) => [c._id.toString(), c.n]));
+
     return successResponse({
-      companies,
+      companies: companies.map((c) => ({
+        ...c,
+        applicationCount: countById.get(c._id.toString()) ?? 0,
+      })),
       pagination: {
         page: params.page,
         limit: params.limit,

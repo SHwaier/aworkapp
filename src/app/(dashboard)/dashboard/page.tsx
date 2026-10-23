@@ -3,7 +3,6 @@
 import { useAuth } from "@/components/providers/auth-provider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import {
   Briefcase,
@@ -14,13 +13,12 @@ import {
   Clock,
   AlertCircle,
   ArrowRight,
-  Sparkles,
   Layers,
   CheckCircle2,
   ChevronRight,
 } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
-import { getStatusVariant } from "@/lib/utils/status";
+import { StatusLabel } from "@/components/application/status-label";
 
 interface DashboardStats {
   totalApplications: number;
@@ -148,38 +146,26 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8 px-1">
-      {/* Sleek Gradient Greeting Banner */}
-      <div className="relative overflow-hidden rounded-2xl border border-primary/10 bg-linear-to-r from-primary/5 via-transparent to-primary/5 p-6 sm:p-8">
-        <div className="absolute right-0 top-0 h-40 w-40 bg-primary/5 blur-3xl rounded-full" />
-        <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold mb-2">
-              <Sparkles className="h-3 w-3 animate-pulse" />
-              Active Dashboard
-            </div>
-            <h1 className="text-3xl font-extrabold tracking-tight bg-linear-to-r from-foreground to-foreground/80 bg-clip-text">
-              {greeting()}, {user?.name?.split(" ")[0]}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Your application command center. You have{" "}
-              <span className="font-semibold text-foreground">
-                {stats?.activeApplications} active processes
-              </span>{" "}
-              out of {stats?.totalApplications} total roles.
-            </p>
-          </div>
-          <Link
-            href="/applications/new"
-            className={buttonVariants({
-              variant: "default",
-              className: "shadow-md shadow-primary/10 hover:shadow-lg transition-all",
-            })}
-            id="new-application-button"
-          >
-            <Plus className="mr-1.5 h-4 w-4" />
-            New Application
-          </Link>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {greeting()}, {user?.name?.split(" ")[0]}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {`${stats?.activeApplications ?? 0} active of ${stats?.totalApplications ?? 0} applications`}
+          </p>
         </div>
+        <Link
+          href="/applications/new"
+          className={buttonVariants({
+            variant: "default",
+            className: "self-start sm:self-auto",
+          })}
+          id="new-application-button"
+        >
+          <Plus className="mr-1.5 h-4 w-4" />
+          New Application
+        </Link>
       </div>
 
       {/* Grid of Aesthetics Stats Cards */}
@@ -336,12 +322,10 @@ export default function DashboardPage() {
                         {app.companyId?.name || "Unassigned Company"}
                       </p>
                     </div>
-                    <Badge
-                      variant={getStatusVariant(app.currentStatus)}
-                      className="text-[10px] px-2 py-0.5 font-bold shrink-0"
-                    >
-                      {app.currentStatus}
-                    </Badge>
+                    <StatusLabel
+                      status={app.currentStatus}
+                      className="shrink-0 text-xs text-muted-foreground"
+                    />
                   </Link>
                 ))}
               </div>

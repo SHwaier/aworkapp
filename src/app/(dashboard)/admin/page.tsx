@@ -6,7 +6,6 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -361,7 +360,9 @@ export default function AdminPage() {
           <CardTitle className="text-base flex items-center gap-2">
             <Users className="h-5 w-5 text-muted-foreground" />
             Members
-            {!isLoading && <Badge variant="secondary">{members.length}</Badge>}
+            {!isLoading && (
+              <span className="font-normal text-muted-foreground">{`(${members.length})`}</span>
+            )}
           </CardTitle>
           <CardDescription>Everyone with access to AWorkApp.</CardDescription>
         </CardHeader>
@@ -401,18 +402,22 @@ export default function AdminPage() {
                         </TableCell>
                         <TableCell className="text-muted-foreground">{member.email}</TableCell>
                         <TableCell>
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <Badge variant={member.role === "admin" ? "default" : "outline"}>
+                          <div className="flex flex-col text-sm">
+                            <span className={member.role === "admin" ? "font-medium" : undefined}>
                               {member.role === "admin" ? "Admin" : "Member"}
-                            </Badge>
-                            {member.disabled && <Badge variant="destructive">Disabled</Badge>}
+                            </span>
+                            {member.disabled && (
+                              <span className="text-xs text-destructive">Disabled</span>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
-                          <div className="flex flex-wrap items-center gap-1.5">
+                          <div className="flex flex-col">
                             {member.hasGoogle ? "Password + Google" : "Password"}
                             {member.mustChangePassword && (
-                              <Badge variant="secondary">Temporary password</Badge>
+                              <span className="text-amber-700 dark:text-amber-400">
+                                Temporary password
+                              </span>
                             )}
                           </div>
                         </TableCell>
@@ -430,9 +435,7 @@ export default function AdminPage() {
                                   {member.aiUsedToday} / {limit === null ? "∞" : limit}
                                 </span>
                                 {member.aiDailyLimit !== null && (
-                                  <Badge variant="outline" className="text-[10px]">
-                                    custom
-                                  </Badge>
+                                  <span className="text-muted-foreground">(custom)</span>
                                 )}
                               </span>
                             );

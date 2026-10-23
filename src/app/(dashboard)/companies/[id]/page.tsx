@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { StatusLabel } from "@/components/application/status-label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,6 +36,7 @@ import {
   Undo2,
   AlertCircle,
   Briefcase,
+  Ban,
 } from "lucide-react";
 
 interface CompanyDetails {
@@ -101,6 +102,7 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
   }, [companyId, router]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial load
     fetchDetails();
   }, [fetchDetails]);
 
@@ -169,7 +171,10 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
       <div className="flex items-center justify-between">
         <Link
           href="/companies"
-          className={buttonVariants({ variant: "ghost", className: "pl-0 text-muted-foreground hover:text-foreground" })}
+          className={buttonVariants({
+            variant: "ghost",
+            className: "pl-0 text-muted-foreground hover:text-foreground",
+          })}
         >
           <Undo2 className="mr-2 h-4 w-4" />
           Back to companies
@@ -198,7 +203,10 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-2xl font-bold tracking-tight">{company.name}</h1>
                 {company.doNotApplyAgain && (
-                  <Badge variant="destructive">Do Not Apply Again</Badge>
+                  <span className="inline-flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+                    <Ban className="h-4 w-4" />
+                    Do not apply
+                  </span>
                 )}
               </div>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
@@ -315,7 +323,9 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-muted-foreground block">Private Notes</label>
+                <label className="text-xs font-semibold text-muted-foreground block">
+                  Private Notes
+                </label>
                 <Textarea
                   value={editNotes}
                   onChange={(e) => setEditNotes(e.target.value)}
@@ -362,16 +372,24 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
           ) : (
             <div className="space-y-2">
               {applications.map((app) => (
-                <Link key={app._id || app.id} href={`/applications/${app._id || app.id}`} className="block">
+                <Link
+                  key={app._id || app.id}
+                  href={`/applications/${app._id || app.id}`}
+                  className="block"
+                >
                   <Card className="hover:border-primary/30 transition-all">
                     <CardContent className="flex items-center justify-between p-4">
                       <div>
                         <h4 className="font-medium text-sm">{app.jobTitle}</h4>
                         <span className="text-xs text-muted-foreground block mt-1">
-                          Applied: {app.appliedAt ? new Date(app.appliedAt).toLocaleDateString() : "Saved"}
+                          Applied:{" "}
+                          {app.appliedAt ? new Date(app.appliedAt).toLocaleDateString() : "Saved"}
                         </span>
                       </div>
-                      <Badge variant="outline">{app.currentStatus}</Badge>
+                      <StatusLabel
+                        status={app.currentStatus}
+                        className="shrink-0 text-muted-foreground"
+                      />
                     </CardContent>
                   </Card>
                 </Link>
@@ -382,10 +400,7 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
       </div>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={deleteConfirm}
-        onOpenChange={setDeleteConfirm}
-      >
+      <Dialog open={deleteConfirm} onOpenChange={setDeleteConfirm}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
@@ -397,16 +412,10 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-4 flex items-center justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setDeleteConfirm(false)}
-            >
+            <Button variant="outline" onClick={() => setDeleteConfirm(false)}>
               Cancel
             </Button>
-            <Button
-              variant="destructive"
-              onClick={executeDeleteCompany}
-            >
+            <Button variant="destructive" onClick={executeDeleteCompany}>
               Delete
             </Button>
           </DialogFooter>

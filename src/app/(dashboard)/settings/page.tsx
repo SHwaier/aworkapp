@@ -16,7 +16,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Loader2, Shield, User, Sun, Moon, Monitor, KeyRound } from "lucide-react";
 
@@ -194,10 +193,8 @@ export default function SettingsPage() {
                       <TableBody>
                         {logs.map((log) => (
                           <TableRow key={log.id}>
-                            <TableCell className="font-semibold text-xs">
-                              <Badge variant="outline" className="text-[10px] lowercase">
-                                {log.action}
-                              </Badge>
+                            <TableCell className="text-sm first-letter:uppercase">
+                              {log.action.replace(/[._]/g, " ")}
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground font-mono">
                               {log.ipAddress || "Unknown IP"}
