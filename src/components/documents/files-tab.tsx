@@ -126,46 +126,40 @@ export function FilesTab() {
       ) : (
         <>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="relative w-full sm:max-w-xs">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search files"
-                className="pl-9"
-                aria-label="Search files"
-              />
+            <div className="flex w-full gap-2 sm:max-w-md">
+              <div className="relative min-w-0 flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search files"
+                  className="pl-9"
+                  aria-label="Search files"
+                />
+              </div>
+              {usedCategories.length > 1 && (
+                <Select value={category} onValueChange={(v) => v && setCategory(v)}>
+                  <SelectTrigger className="w-36 shrink-0" aria-label="Filter by type">
+                    <SelectValue>
+                      {category === "all" ? "All types" : categoryLabel(category)}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All types</SelectItem>
+                    {usedCategories.map((c) => (
+                      <SelectItem key={c.value} value={c.value}>
+                        {c.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <Button onClick={() => setUploadOpen(true)} className="gap-1.5">
               <Plus className="h-4 w-4" />
               Upload file
             </Button>
           </div>
-
-          {usedCategories.length > 1 && (
-            <div
-              className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0"
-              role="group"
-              aria-label="Filter by type"
-            >
-              {[{ value: "all", label: "All" }, ...usedCategories].map((c) => (
-                <button
-                  key={c.value}
-                  type="button"
-                  onClick={() => setCategory(c.value)}
-                  aria-pressed={category === c.value}
-                  className={cn(
-                    "shrink-0 rounded-full border px-3 py-1 text-sm transition-colors",
-                    category === c.value
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-border text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {c.label}
-                </button>
-              ))}
-            </div>
-          )}
 
           {filtered.length === 0 ? (
             <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">

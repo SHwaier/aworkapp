@@ -4,7 +4,7 @@ import { Copy, Info } from "lucide-react";
 import type { Benchmark, BenchmarkStatus } from "@/lib/ai/analysis/types";
 import { copyText } from "../utils";
 import { Disclosure } from "./disclosure";
-import { BENCHMARK_STATUS, StatusPill, Template } from "./status";
+import { BENCHMARK_STATUS, StatusLabel, Template } from "./status";
 
 const AREA_LABEL: Record<string, string> = {
   summary: "Summary",
@@ -95,7 +95,7 @@ export function CompareTab({
                 summary={
                   <div className="space-y-1.5">
                     <div className="flex flex-wrap items-center gap-2">
-                      <StatusPill status={b.yourStatus} />
+                      <StatusLabel status={b.yourStatus} />
                       <span className="font-medium">{title}</span>
                     </div>
                     <p className="line-clamp-2 text-sm text-muted-foreground group-open:hidden">

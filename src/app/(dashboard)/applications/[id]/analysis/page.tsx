@@ -2,7 +2,7 @@
 
 import { use, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, CircleX, Loader2, RotateCcw, Sparkles } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CircleX, Loader2, RotateCcw, FileSearch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -100,7 +100,7 @@ export default function AnalysisReportPage({ params }: RouteParams) {
               {isStarting || (inProgress && !outdatedRun) ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <Sparkles className="h-4 w-4" />
+                <FileSearch className="h-4 w-4" />
               )}
               {outdatedRun
                 ? "Analyze current version"
@@ -179,7 +179,7 @@ export default function AnalysisReportPage({ params }: RouteParams) {
 
       {overview && !complete && !inProgress && overview.ready && analysis?.status !== "failed" && (
         <div className="mt-6 rounded-2xl border border-dashed border-border p-10 text-center">
-          <Sparkles className="mx-auto mb-3 h-7 w-7 text-primary" />
+          <FileSearch className="mx-auto mb-3 h-7 w-7 text-muted-foreground" />
           <p className="font-medium">No analysis yet</p>
           <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
             Analyze your resume to see how well it matches this job and what to change first.
@@ -275,7 +275,7 @@ function Report({
             <TabsTrigger value="fix" className="flex-none px-3">
               Fix
               {openEdits.length > 0 && (
-                <span className="rounded-full bg-muted px-1.5 text-xs tabular-nums text-muted-foreground">
+                <span className="text-xs tabular-nums text-muted-foreground">
                   {openEdits.length}
                 </span>
               )}

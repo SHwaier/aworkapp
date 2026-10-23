@@ -122,44 +122,38 @@ export function DetailsTab({ analysis: a }: { analysis: Analysis }) {
               <p className="text-xs text-muted-foreground">
                 Add one only if it&apos;s true, ideally inside a bullet that shows how you used it.
               </p>
-              <div className="flex flex-wrap gap-1.5">
+              <ul className="grid grid-cols-1 gap-x-4 gap-y-1.5 text-sm min-[420px]:grid-cols-2">
                 {missing.map((k) => (
-                  <span
-                    key={k.term}
-                    className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-sm"
-                  >
+                  <li key={k.term} className="flex items-center gap-1.5">
                     <CircleX
-                      className="h-3.5 w-3.5"
+                      className="h-3.5 w-3.5 shrink-0"
                       style={{ color: TONE_VAR.critical }}
                       aria-hidden
                     />
-                    {k.term}
+                    <span className="truncate">{k.term}</span>
                     {k.importance === "required" && (
                       <span className="text-xs text-muted-foreground">required</span>
                     )}
-                  </span>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
           )}
           {present.length > 0 && (
             <div className="space-y-2">
               <p className="text-sm font-medium">Already in your resume</p>
-              <div className="flex flex-wrap gap-1.5">
+              <ul className="grid grid-cols-1 gap-x-4 gap-y-1.5 text-sm min-[420px]:grid-cols-2">
                 {present.map((k) => (
-                  <span
-                    key={k.term}
-                    className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-sm"
-                  >
+                  <li key={k.term} className="flex items-center gap-1.5">
                     <CircleCheck
-                      className="h-3.5 w-3.5"
+                      className="h-3.5 w-3.5 shrink-0"
                       style={{ color: TONE_VAR.good }}
                       aria-hidden
                     />
-                    {k.term}
-                  </span>
+                    <span className="truncate">{k.term}</span>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
           )}
         </div>

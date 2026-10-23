@@ -46,15 +46,16 @@ export const BENCHMARK_STATUS: Record<
 };
 
 /** Status with icon + label, never color alone. */
-export function StatusPill({ status, className }: { status: BenchmarkStatus; className?: string }) {
+export function StatusLabel({
+  status,
+  className,
+}: {
+  status: BenchmarkStatus;
+  className?: string;
+}) {
   const s = BENCHMARK_STATUS[status];
   return (
-    <span
-      className={cn(
-        "inline-flex shrink-0 items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs font-medium",
-        className
-      )}
-    >
+    <span className={cn("inline-flex shrink-0 items-center gap-1 text-sm font-medium", className)}>
       <s.Icon className="h-3.5 w-3.5" style={{ color: s.color }} aria-hidden />
       {s.label}
     </span>

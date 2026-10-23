@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { StatusLabel } from "@/components/application/status-label";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
@@ -35,7 +35,7 @@ import {
   Link2,
   Loader2,
   MapPin,
-  Sparkles,
+  CircleCheck,
   SkipForward,
   Pencil,
 } from "lucide-react";
@@ -64,6 +64,9 @@ interface ParsedData {
   workMode: string;
   employmentType: string;
   source: string;
+  salaryMin?: number | null;
+  salaryMax?: number | null;
+  currency?: string;
 }
 
 const STEPS = [
@@ -85,7 +88,11 @@ export default function NewApplicationPage() {
   const [parseProgress, setParseProgress] = useState(0);
   const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
-  const [duplicateInfo, setDuplicateInfo] = useState<{ id: string; jobTitle: string; companyName: string } | null>(null);
+  const [duplicateInfo, setDuplicateInfo] = useState<{
+    id: string;
+    jobTitle: string;
+    companyName: string;
+  } | null>(null);
 
   // Form state
   const [jobUrl, setJobUrl] = useState("");
@@ -125,10 +132,15 @@ export default function NewApplicationPage() {
       const res = await fetch("/api/companies?limit=100");
       const data = await res.json();
       if (data.success) setCompanies(data.data.companies);
-    } catch { /* silent */ }
+    } catch {
+      /* silent */
+    }
   }, []);
 
-  useEffect(() => { fetchCompanies(); }, [fetchCompanies]);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial load
+    fetchCompanies();
+  }, [fetchCompanies]);
 
   // Close suggestions on outside click
   useEffect(() => {
@@ -142,9 +154,7 @@ export default function NewApplicationPage() {
   }, []);
 
   const filteredSuggestions = companySearchText.trim()
-    ? companies.filter((c) =>
-        c.name.toLowerCase().includes(companySearchText.toLowerCase())
-      )
+    ? companies.filter((c) => c.name.toLowerCase().includes(companySearchText.toLowerCase()))
     : companies;
 
   // ─── URL parsing ───
@@ -191,15 +201,13 @@ export default function NewApplicationPage() {
           workMode: p.workMode || prev.workMode,
           employmentType: p.employmentType || prev.employmentType,
           source: p.source || prev.source,
-          salaryMin: (p as any).salaryMin !== null && (p as any).salaryMin !== undefined ? (p as any).salaryMin : prev.salaryMin,
-          salaryMax: (p as any).salaryMax !== null && (p as any).salaryMax !== undefined ? (p as any).salaryMax : prev.salaryMax,
-          currency: (p as any).currency || prev.currency,
+          salaryMin: p.salaryMin ?? prev.salaryMin,
+          salaryMax: p.salaryMax ?? prev.salaryMax,
+          currency: p.currency || prev.currency,
         }));
         if (p.companyName) {
           setCompanySearchText(p.companyName);
-          const match = companies.find(
-            (c) => c.name.toLowerCase() === p.companyName.toLowerCase()
-          );
+          const match = companies.find((c) => c.name.toLowerCase() === p.companyName.toLowerCase());
           if (match) setCompanyId(match.id || match._id || "");
         }
         if (hasData) {
@@ -208,8 +216,8 @@ export default function NewApplicationPage() {
         }
         if (data.warning) setParseWarning(data.warning);
       }
-    } catch (err: any) {
-      if (err.name !== "AbortError") {
+    } catch (err) {
+      if ((err as Error).name !== "AbortError") {
         toast.error("Failed to parse URL");
       }
     } finally {
@@ -349,7 +357,6 @@ export default function NewApplicationPage() {
           Back to Applications
         </button>
         <div className="flex items-center gap-2 mb-1">
-          <Sparkles className="h-5 w-5 text-primary" />
           <h1 className="text-2xl font-extrabold tracking-tight">New Application</h1>
         </div>
         <p className="text-sm text-muted-foreground">
@@ -375,8 +382,8 @@ export default function NewApplicationPage() {
                   isActive
                     ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
                     : isCompleted
-                    ? "bg-primary/10 text-primary cursor-pointer hover:bg-primary/15"
-                    : "bg-muted/40 text-muted-foreground/50"
+                      ? "bg-primary/10 text-primary cursor-pointer hover:bg-primary/15"
+                      : "bg-muted/40 text-muted-foreground/50"
                 }`}
               >
                 <Icon className="h-3.5 w-3.5" />
@@ -406,7 +413,8 @@ export default function NewApplicationPage() {
               <div>
                 <h2 className="text-xl font-bold tracking-tight">Paste the Job Link</h2>
                 <p className="text-sm text-muted-foreground mt-1.5 max-w-md mx-auto">
-                  Drop a link from LinkedIn, Indeed, or any job board to automatically extract role and company details.
+                  Drop a link from LinkedIn, Indeed, or any job board to automatically extract role
+                  and company details.
                 </p>
               </div>
 
@@ -438,10 +446,7 @@ export default function NewApplicationPage() {
                         Extracting details...
                       </>
                     ) : (
-                      <>
-                        <Sparkles className="mr-2 h-4 w-4" />
-                        {jobUrl.trim() ? "Extract & Continue" : "Continue"}
-                      </>
+                      <>{jobUrl.trim() ? "Extract & Continue" : "Continue"}</>
                     )}
                   </Button>
                   <Button
@@ -488,7 +493,7 @@ export default function NewApplicationPage() {
           <CardContent className="p-6 sm:p-8 space-y-6">
             {wasAutofilled && (
               <div className="flex items-center gap-2 text-xs text-primary bg-primary/5 border border-primary/10 px-3 py-2 rounded-lg font-medium">
-                <Sparkles className="h-3.5 w-3.5" />
+                <CircleCheck className="h-3.5 w-3.5" />
                 Fields auto-filled from URL — edit as needed
               </div>
             )}
@@ -524,7 +529,10 @@ export default function NewApplicationPage() {
                         prev > 0 ? prev - 1 : filteredSuggestions.length - 1
                       );
                     } else if (e.key === "Enter") {
-                      if (focusedCompanyIndex >= 0 && focusedCompanyIndex < filteredSuggestions.length) {
+                      if (
+                        focusedCompanyIndex >= 0 &&
+                        focusedCompanyIndex < filteredSuggestions.length
+                      ) {
                         e.preventDefault();
                         const selected = filteredSuggestions[focusedCompanyIndex];
                         setCompanySearchText(selected.name);
@@ -539,7 +547,9 @@ export default function NewApplicationPage() {
                   }}
                   className={cn(
                     "pl-9 h-11 bg-card/50 focus-visible:bg-background transition-colors",
-                    showValidationErrors && !companySearchText.trim() && "border-destructive ring-destructive/20 focus-visible:ring-destructive/30"
+                    showValidationErrors &&
+                      !companySearchText.trim() &&
+                      "border-destructive ring-destructive/20 focus-visible:ring-destructive/30"
                   )}
                 />
               </div>
@@ -569,13 +579,14 @@ export default function NewApplicationPage() {
                   ))}
                 </div>
               )}
-              {companySearchText.trim() &&
-                !companyId &&
-                filteredSuggestions.length === 0 && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    <span className="text-primary font-medium">&quot;{companySearchText.trim()}&quot;</span> will be created as a new company.
-                  </p>
-                )}
+              {companySearchText.trim() && !companyId && filteredSuggestions.length === 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  <span className="text-primary font-medium">
+                    &quot;{companySearchText.trim()}&quot;
+                  </span>{" "}
+                  will be created as a new company.
+                </p>
+              )}
             </div>
 
             {/* Job Title */}
@@ -590,7 +601,9 @@ export default function NewApplicationPage() {
                 onChange={(e) => setForm((p) => ({ ...p, jobTitle: e.target.value }))}
                 className={cn(
                   "h-11 bg-card/50 focus-visible:bg-background transition-colors",
-                  showValidationErrors && !form.jobTitle.trim() && "border-destructive ring-destructive/20 focus-visible:ring-destructive/30"
+                  showValidationErrors &&
+                    !form.jobTitle.trim() &&
+                    "border-destructive ring-destructive/20 focus-visible:ring-destructive/30"
                 )}
               />
             </div>
@@ -614,8 +627,9 @@ export default function NewApplicationPage() {
               {/* Location */}
               <div className="space-y-2">
                 <div className="flex justify-between items-baseline">
-                  <Label htmlFor="wizard-location" className="text-sm font-semibold">Location</Label>
-                  
+                  <Label htmlFor="wizard-location" className="text-sm font-semibold">
+                    Location
+                  </Label>
                 </div>
                 <LocationAutocomplete
                   id="wizard-location"
@@ -629,8 +643,9 @@ export default function NewApplicationPage() {
               {/* Job URL */}
               <div className="space-y-2">
                 <div className="flex justify-between items-baseline">
-                  <Label htmlFor="wizard-joburl" className="text-sm font-semibold">Job URL</Label>
-                  
+                  <Label htmlFor="wizard-joburl" className="text-sm font-semibold">
+                    Job URL
+                  </Label>
                 </div>
                 <Input
                   id="wizard-joburl"
@@ -647,14 +662,18 @@ export default function NewApplicationPage() {
               {/* Work Mode */}
               <div className="space-y-2">
                 <div className="flex justify-between items-baseline">
-                  <Label htmlFor="wizard-workmode" className="text-sm font-semibold">Work Mode</Label>
-                  
+                  <Label htmlFor="wizard-workmode" className="text-sm font-semibold">
+                    Work Mode
+                  </Label>
                 </div>
                 <Select
                   value={form.workMode}
                   onValueChange={(v) => setForm((p) => ({ ...p, workMode: v || "" }))}
                 >
-                  <SelectTrigger id="wizard-workmode" className="h-11 bg-card/50 focus-visible:bg-background transition-colors">
+                  <SelectTrigger
+                    id="wizard-workmode"
+                    className="h-11 bg-card/50 focus-visible:bg-background transition-colors"
+                  >
                     <SelectValue>
                       {form.workMode
                         ? form.workMode.charAt(0).toUpperCase() + form.workMode.slice(1)
@@ -674,14 +693,18 @@ export default function NewApplicationPage() {
               {/* Employment Type */}
               <div className="space-y-2">
                 <div className="flex justify-between items-baseline">
-                  <Label htmlFor="wizard-emptype" className="text-sm font-semibold">Employment Type</Label>
-                  
+                  <Label htmlFor="wizard-emptype" className="text-sm font-semibold">
+                    Employment Type
+                  </Label>
                 </div>
                 <Select
                   value={form.employmentType}
                   onValueChange={(v) => setForm((p) => ({ ...p, employmentType: v || "" }))}
                 >
-                  <SelectTrigger id="wizard-emptype" className="h-11 bg-card/50 focus-visible:bg-background transition-colors">
+                  <SelectTrigger
+                    id="wizard-emptype"
+                    className="h-11 bg-card/50 focus-visible:bg-background transition-colors"
+                  >
                     <SelectValue>
                       {form.employmentType
                         ? form.employmentType.charAt(0).toUpperCase() + form.employmentType.slice(1)
@@ -701,19 +724,25 @@ export default function NewApplicationPage() {
               {/* Source */}
               <div className="space-y-2">
                 <div className="flex justify-between items-baseline">
-                  <Label htmlFor="wizard-source" className="text-sm font-semibold">Source</Label>
-                  
+                  <Label htmlFor="wizard-source" className="text-sm font-semibold">
+                    Source
+                  </Label>
                 </div>
                 <Select
                   value={form.source}
                   onValueChange={(v) => setForm((p) => ({ ...p, source: v || "" }))}
                 >
-                  <SelectTrigger id="wizard-source" className="h-11 bg-card/50 focus-visible:bg-background transition-colors">
+                  <SelectTrigger
+                    id="wizard-source"
+                    className="h-11 bg-card/50 focus-visible:bg-background transition-colors"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {JOB_SOURCES.map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -724,8 +753,9 @@ export default function NewApplicationPage() {
               {/* Seniority */}
               <div className="space-y-2">
                 <div className="flex justify-between items-baseline">
-                  <Label htmlFor="wizard-seniority" className="text-sm font-semibold">Seniority Level</Label>
-                  
+                  <Label htmlFor="wizard-seniority" className="text-sm font-semibold">
+                    Seniority Level
+                  </Label>
                 </div>
                 <Input
                   id="wizard-seniority"
@@ -740,7 +770,6 @@ export default function NewApplicationPage() {
               <div className="space-y-2">
                 <div className="flex justify-between items-baseline">
                   <Label className="text-sm font-semibold">Salary Range</Label>
-                  
                 </div>
                 <div className="flex items-center gap-2">
                   <Input
@@ -788,19 +817,25 @@ export default function NewApplicationPage() {
               {/* Initial Status */}
               <div className="space-y-2">
                 <div className="flex justify-between items-baseline">
-                  <Label htmlFor="wizard-status" className="text-sm font-semibold">Initial Status</Label>
-                  
+                  <Label htmlFor="wizard-status" className="text-sm font-semibold">
+                    Initial Status
+                  </Label>
                 </div>
                 <Select
                   value={form.currentStatus}
                   onValueChange={(v) => setForm((p) => ({ ...p, currentStatus: v || "" }))}
                 >
-                  <SelectTrigger id="wizard-status" className="h-11 bg-card/50 focus-visible:bg-background transition-colors">
+                  <SelectTrigger
+                    id="wizard-status"
+                    className="h-11 bg-card/50 focus-visible:bg-background transition-colors"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {APPLICATION_STATUSES.map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -809,8 +844,9 @@ export default function NewApplicationPage() {
 
             <div className="space-y-2">
               <div className="flex justify-between items-baseline">
-                <Label htmlFor="wizard-desc" className="text-sm font-semibold">Job Description</Label>
-                
+                <Label htmlFor="wizard-desc" className="text-sm font-semibold">
+                  Job Description
+                </Label>
               </div>
               <Textarea
                 id="wizard-desc"
@@ -830,15 +866,20 @@ export default function NewApplicationPage() {
           <CardContent className="p-6 sm:p-8 space-y-5">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold tracking-tight">Review Application</h2>
-              <Badge variant="secondary" className="text-xs">{form.currentStatus}</Badge>
+              <StatusLabel status={form.currentStatus} className="text-muted-foreground" />
             </div>
 
             <div className="divide-y divide-border/40">
               {/* Company & Role */}
               <div className="pb-4 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Company & Role</span>
-                  <button onClick={() => goToStep(2)} className="text-xs text-primary hover:underline flex items-center gap-1">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Company & Role
+                  </span>
+                  <button
+                    onClick={() => goToStep(2)}
+                    className="text-xs text-primary hover:underline flex items-center gap-1"
+                  >
                     <Pencil className="h-3 w-3" /> Edit
                   </button>
                 </div>
@@ -859,19 +900,39 @@ export default function NewApplicationPage() {
               {/* Details */}
               <div className="py-4 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Details</span>
-                  <button onClick={() => goToStep(3)} className="text-xs text-primary hover:underline flex items-center gap-1">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Details
+                  </span>
+                  <button
+                    onClick={() => goToStep(3)}
+                    className="text-xs text-primary hover:underline flex items-center gap-1"
+                  >
                     <Pencil className="h-3 w-3" /> Edit
                   </button>
                 </div>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   {[
                     ["Location", form.location],
-                    ["Work Mode", form.workMode ? form.workMode.charAt(0).toUpperCase() + form.workMode.slice(1) : ""],
-                    ["Employment", form.employmentType ? form.employmentType.charAt(0).toUpperCase() + form.employmentType.slice(1) : ""],
+                    [
+                      "Work Mode",
+                      form.workMode
+                        ? form.workMode.charAt(0).toUpperCase() + form.workMode.slice(1)
+                        : "",
+                    ],
+                    [
+                      "Employment",
+                      form.employmentType
+                        ? form.employmentType.charAt(0).toUpperCase() + form.employmentType.slice(1)
+                        : "",
+                    ],
                     ["Source", form.source],
                     ["Seniority", form.seniorityLevel],
-                    ["Salary Range", (form.salaryMin || form.salaryMax) ? `${form.salaryMin ? `${form.currency} ${Number(form.salaryMin).toLocaleString()}` : "—"} to ${form.salaryMax ? `${form.currency} ${Number(form.salaryMax).toLocaleString()}` : "—"}` : ""],
+                    [
+                      "Salary Range",
+                      form.salaryMin || form.salaryMax
+                        ? `${form.salaryMin ? `${form.currency} ${Number(form.salaryMin).toLocaleString()}` : "—"} to ${form.salaryMax ? `${form.currency} ${Number(form.salaryMax).toLocaleString()}` : "—"}`
+                        : "",
+                    ],
                   ].map(([label, value]) => (
                     <div key={label}>
                       <p className="text-xs text-muted-foreground">{label}</p>
@@ -981,8 +1042,9 @@ export default function NewApplicationPage() {
           <DialogHeader>
             <DialogTitle>Duplicate Application</DialogTitle>
             <DialogDescription>
-              We detected an existing application for <strong>{duplicateInfo?.jobTitle}</strong> at <strong>{duplicateInfo?.companyName}</strong>. 
-              Applying twice to the same job might cause confusion.
+              We detected an existing application for <strong>{duplicateInfo?.jobTitle}</strong> at{" "}
+              <strong>{duplicateInfo?.companyName}</strong>. Applying twice to the same job might
+              cause confusion.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="sm:justify-between flex-row-reverse sm:flex-row gap-2">

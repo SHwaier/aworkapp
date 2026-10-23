@@ -8,7 +8,7 @@ import {
   CircleX,
   Loader2,
   RotateCcw,
-  Sparkles,
+  FileSearch,
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
@@ -76,10 +76,7 @@ export function ResumeAnalysisPanel({ applicationId }: { applicationId: string }
     <Card className="viz-root border-border/60">
       <CardHeader className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-0.5">
-          <CardTitle className="flex items-center gap-2 text-sm font-bold">
-            <Sparkles className="h-4 w-4 text-primary" />
-            Resume match
-          </CardTitle>
+          <CardTitle className="flex items-center gap-2 text-sm font-bold">Resume match</CardTitle>
           <p className="text-xs text-muted-foreground">
             {quota.limit === null
               ? "Unlimited analyses"
@@ -106,7 +103,7 @@ export function ResumeAnalysisPanel({ applicationId }: { applicationId: string }
             {isStarting || (inProgress && !outdatedRun) ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Sparkles className="h-4 w-4" />
+              <FileSearch className="h-4 w-4" />
             )}
             {outdatedRun
               ? "Analyze current version"

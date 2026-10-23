@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
@@ -27,9 +26,8 @@ import {
   List,
   Calendar,
   ChevronRight,
-  Sparkles,
 } from "lucide-react";
-import { getStatusVariant } from "@/lib/utils/status";
+import { StatusLabel } from "@/components/application/status-label";
 import { useDebounce } from "@/lib/utils/use-debounce";
 
 import { APPLICATION_STATUSES } from "@/lib/validators/schemas";
@@ -150,6 +148,7 @@ export default function ApplicationsPage() {
   }, [page, debouncedSearch, statusFilter, viewType]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- load on filter change
     fetchApplications();
   }, [fetchApplications]);
 
@@ -212,63 +211,58 @@ export default function ApplicationsPage() {
 
   return (
     <div className="space-y-6 px-1">
-      {/* Dynamic Dashboard/Aesthetics Header */}
-      <div className="relative overflow-hidden rounded-2xl border border-primary/10 bg-linear-to-r from-primary/5 via-transparent to-primary/5 p-6 sm:p-8">
-        <div className="absolute right-0 top-0 h-40 w-40 bg-primary/5 blur-3xl rounded-full" />
-        <div className="relative z-10 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold mb-2">
-              <Sparkles className="h-3 w-3" />
-              Job Search Control Center
-            </div>
-            <h1 className="text-3xl font-extrabold tracking-tight bg-linear-to-r from-foreground to-foreground/80 bg-clip-text">
-              Applications
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1 max-w-md">
-              Organize, track, and move your applications in real-time. Drag and drop cards to change their active stage.
-            </p>
-          </div>
-          
-          <div className="flex flex-wrap items-center gap-3">
-            {/* View Toggle */}
-            <div className="inline-flex items-center rounded-lg border border-border p-1 bg-muted/20">
-              <button
-                onClick={() => {
-                  setViewType("board");
-                  fetchApplications();
-                }}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                  viewType === "board"
-                    ? "bg-card text-foreground shadow-xs border border-border"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-                title="Board View"
-              >
-                <Kanban className="h-3.5 w-3.5" />
-                Board
-              </button>
-              <button
-                onClick={() => {
-                  setViewType("list");
-                  fetchApplications();
-                }}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                  viewType === "list"
-                    ? "bg-card text-foreground shadow-xs border border-border"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-                title="List View"
-              >
-                <List className="h-3.5 w-3.5" />
-                List
-              </button>
-            </div>
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Applications</h1>
+          <p className="text-sm text-muted-foreground mt-1 max-w-md">
+            Organize, track, and move your applications in real-time. Drag and drop cards to change
+            their active stage.
+          </p>
+        </div>
 
-            <Button onClick={() => router.push("/applications/new")} className="shadow-md shadow-primary/10 hover:shadow-lg transition-all" id="create-application-btn">
-              <Plus className="mr-1.5 h-4 w-4" />
-              New Application
-            </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* View Toggle */}
+          <div className="inline-flex items-center rounded-lg border border-border p-1 bg-muted/20">
+            <button
+              onClick={() => {
+                setViewType("board");
+                fetchApplications();
+              }}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                viewType === "board"
+                  ? "bg-card text-foreground shadow-xs border border-border"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              title="Board View"
+            >
+              <Kanban className="h-3.5 w-3.5" />
+              Board
+            </button>
+            <button
+              onClick={() => {
+                setViewType("list");
+                fetchApplications();
+              }}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                viewType === "list"
+                  ? "bg-card text-foreground shadow-xs border border-border"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              title="List View"
+            >
+              <List className="h-3.5 w-3.5" />
+              List
+            </button>
           </div>
+
+          <Button
+            onClick={() => router.push("/applications/new")}
+            className="shadow-md shadow-primary/10 hover:shadow-lg transition-all"
+            id="create-application-btn"
+          >
+            <Plus className="mr-1.5 h-4 w-4" />
+            New Application
+          </Button>
         </div>
       </div>
 
@@ -287,7 +281,7 @@ export default function ApplicationsPage() {
             id="search-applications"
           />
         </div>
-        
+
         {/* Only show status filter in list view */}
         {viewType === "list" && (
           <Select
@@ -297,7 +291,10 @@ export default function ApplicationsPage() {
               setPage(1);
             }}
           >
-            <SelectTrigger className="w-full sm:w-[220px] h-10 bg-card border-border/80" id="status-filter">
+            <SelectTrigger
+              className="w-full sm:w-[220px] h-10 bg-card border-border/80"
+              id="status-filter"
+            >
               <div className="flex items-center gap-2">
                 <Filter className="h-3.5 w-3.5 text-muted-foreground" />
                 <SelectValue placeholder="All statuses" />
@@ -306,7 +303,9 @@ export default function ApplicationsPage() {
             <SelectContent>
               <SelectItem value="all">All statuses</SelectItem>
               {APPLICATION_STATUSES.map((s) => (
-                <SelectItem key={s} value={s}>{s}</SelectItem>
+                <SelectItem key={s} value={s}>
+                  {s}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -317,7 +316,9 @@ export default function ApplicationsPage() {
       {isLoading ? (
         <div className="flex flex-col items-center justify-center py-24 gap-3">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          <span className="text-sm text-muted-foreground font-medium">Gathering applications...</span>
+          <span className="text-sm text-muted-foreground font-medium">
+            Gathering applications...
+          </span>
         </div>
       ) : applications.length === 0 ? (
         <Card className="border border-dashed border-border/80 bg-card/50">
@@ -332,10 +333,7 @@ export default function ApplicationsPage() {
                 : "Your application stream is empty! Log your active opportunities and track progress."}
             </p>
             {!search && statusFilter === "all" && (
-              <Button
-                className="mt-6"
-                onClick={() => router.push("/applications/new")}
-              >
+              <Button className="mt-6" onClick={() => router.push("/applications/new")}>
                 <Plus className="mr-2 h-4 w-4" />
                 Log Your First Application
               </Button>
@@ -375,29 +373,28 @@ export default function ApplicationsPage() {
                               {app.location}
                             </span>
                           )}
-                          {app.workMode && (
-                            <Badge variant="secondary" className="capitalize text-[11px] px-2 py-0 h-5">
-                              {app.workMode}
-                            </Badge>
-                          )}
+                          {app.workMode && <span className="capitalize">{app.workMode}</span>}
                         </div>
                         {app.nextAction && (
-                          <div className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md bg-warning/5 border border-warning/10 text-warning font-medium max-w-full">
-                            <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse shrink-0" />
-                            <span className="truncate">Next action: {app.nextAction}</span>
-                          </div>
+                          <p className="truncate text-xs text-muted-foreground">
+                            Next: {app.nextAction}
+                          </p>
                         )}
                       </div>
                     </div>
                     <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 border-t sm:border-0 border-border/40 pt-3 sm:pt-0 shrink-0 w-full sm:w-auto">
-                      <Badge variant={getStatusVariant(app.currentStatus)} className="text-xs px-2.5 py-0.5 shadow-2xs font-semibold">
-                        {app.currentStatus}
-                      </Badge>
+                      <StatusLabel status={app.currentStatus} />
                       <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
                         {app.appliedAt
-                          ? new Date(app.appliedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })
-                          : new Date(app.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                          ? new Date(app.appliedAt).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                            })
+                          : new Date(app.createdAt).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                            })}
                       </span>
                     </div>
                   </CardContent>
@@ -449,7 +446,9 @@ export default function ApplicationsPage() {
                 onDragOver={(e) => handleDragOver(e, column.id)}
                 onDrop={(e) => handleDrop(e, column.id)}
                 className={`flex flex-col rounded-xl border p-3 min-h-[500px] transition-all duration-200 ${column.bgClass} ${
-                  isOver ? "border-dashed ring-2 ring-primary/20 scale-[1.01] bg-primary/[0.02]" : "border-border/60"
+                  isOver
+                    ? "border-dashed ring-2 ring-primary/20 scale-[1.01] bg-primary/[0.02]"
+                    : "border-border/60"
                 }`}
               >
                 {/* Column Header */}
@@ -460,23 +459,27 @@ export default function ApplicationsPage() {
                       {column.title}
                     </h3>
                   </div>
-                  <Badge variant="secondary" className="px-2 py-0 h-5 font-bold rounded-md bg-muted/60 text-foreground/80">
+                  <span className="text-xs tabular-nums text-muted-foreground">
                     {columnApps.length}
-                  </Badge>
+                  </span>
                 </div>
 
                 {/* Cards List */}
                 <div className="flex-1 flex flex-col gap-2.5 overflow-y-auto">
                   {columnApps.length === 0 ? (
                     <div className="flex-1 flex items-center justify-center py-10 border border-dashed border-border/20 rounded-lg text-center">
-                      <span className="text-xs text-muted-foreground/60 font-medium">Drop here to update</span>
+                      <span className="text-xs text-muted-foreground/60 font-medium">
+                        Drop here to update
+                      </span>
                     </div>
                   ) : (
                     columnApps.map((app) => (
                       <div
                         key={app.id || app._id}
                         className={`group relative border border-border/80 bg-card text-card-foreground rounded-lg flex flex-col overflow-hidden transition-all hover:border-primary/20 hover:shadow-xs hover:-translate-y-[1px] ${
-                          draggedId === (app.id || app._id) ? "opacity-30 border-dashed" : "opacity-100"
+                          draggedId === (app.id || app._id)
+                            ? "opacity-30 border-dashed"
+                            : "opacity-100"
                         }`}
                       >
                         {/* Dedicated Drag Handle */}
@@ -485,7 +488,11 @@ export default function ApplicationsPage() {
                           onDragStart={(e) => {
                             const cardElement = e.currentTarget.parentElement;
                             if (cardElement) {
-                              e.dataTransfer.setDragImage(cardElement, e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+                              e.dataTransfer.setDragImage(
+                                cardElement,
+                                e.nativeEvent.offsetX,
+                                e.nativeEvent.offsetY
+                              );
                             }
                             handleDragStart(e, app.id || app._id || "");
                           }}
@@ -515,15 +522,10 @@ export default function ApplicationsPage() {
 
                           {/* Badges/Details Grid */}
                           <div className="mt-3 flex flex-wrap gap-1 items-center">
-                            {app.location && (
-                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-border/40 text-muted-foreground max-w-[120px] truncate">
-                                {app.location}
-                              </Badge>
-                            )}
-                            {app.workMode && (
-                              <Badge variant="secondary" className="capitalize text-[10px] px-1.5 py-0 h-4 bg-muted/65 text-foreground/70">
-                                {app.workMode}
-                              </Badge>
+                            {(app.location || app.workMode) && (
+                              <span className="truncate text-[11px] capitalize text-muted-foreground">
+                                {[app.location, app.workMode].filter(Boolean).join(", ")}
+                              </span>
                             )}
                           </div>
 
