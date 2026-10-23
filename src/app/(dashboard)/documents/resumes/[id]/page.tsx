@@ -138,7 +138,7 @@ export default function ResumeDetailPage({ params }: { params: Promise<{ id: str
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl">
+    <div className="mx-auto w-full max-w-6xl pb-12">
       <Link
         href="/documents"
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"

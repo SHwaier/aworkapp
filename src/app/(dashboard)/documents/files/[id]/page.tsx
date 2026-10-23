@@ -57,7 +57,7 @@ export default function FilePreviewPage({ params }: { params: Promise<{ id: stri
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl">
+    <div className="mx-auto w-full max-w-5xl pb-12">
       <Link
         href={back}
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
